@@ -29,7 +29,7 @@ def generate_sidebar(sheet_names):
     sidebar = dbc.Collapse(
         html.Div(
             [
-                html.H2("<3||^^", className="display-3", style={"textAlign": "center"}),
+                html.H2("DASH", className="display-3", style={"textAlign": "center"}),
                 html.Hr(),
                 dbc.Nav(
                     children=nav_links,
