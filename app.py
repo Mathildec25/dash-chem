@@ -79,3 +79,5 @@ app.layout = dbc.Container([
 # --- LANCEMENT DU SERVEUR LOCAL ---
 if __name__ == '__main__':
     app.run(debug=True)
+
+### Changements à apporter pour le déploiement :
