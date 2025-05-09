@@ -2,12 +2,13 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 from dash import page_registry
 
+# Define and return the sidebar layout
 def generate_sidebar(sheet_names):
     nav_links = [
         html.Div(
             id="dropdown-container",
             children=[
-                dcc.Dropdown(
+                dcc.Dropdown(       # To select the sheet to display
                     id="sheet-dropdown",
                     options=[{"label": name, "value": name} for name in sheet_names],
                     placeholder="Select a sheet",
@@ -17,7 +18,7 @@ def generate_sidebar(sheet_names):
         )
     ]
 
-    for page in page_registry.values():
+    for page in page_registry.values():     # Add all files in the pages folder as links in the sidebar
         nav_links.append(
             dbc.NavLink(
                 [html.Div(page["name"], className="ms-2")],
@@ -26,7 +27,7 @@ def generate_sidebar(sheet_names):
             )
         )
 
-    sidebar = dbc.Collapse(
+    sidebar = dbc.Collapse(     # Sidebar content in collapse to be able to hide it
         html.Div(
             [
                 html.H2("<3||^^", className="display-3", style={"textAlign": "center"}),
@@ -40,7 +41,7 @@ def generate_sidebar(sheet_names):
             ],
             style={
                 "padding": "1rem",
-                "background-color": "#f3fcff",
+                "background-color": "#ebbfbb",
                 "height": "300vh"
             }
         ),
