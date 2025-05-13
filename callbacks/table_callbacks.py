@@ -1,5 +1,6 @@
 from dash import callback, Input, Output, State, MATCH, ALL, dash_table, html, no_update
 from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
+from components.Figures import load_filtered_df_graph
 import pandas as pd
 
 ### CALLBACKS TO GENERATE THE TABLE PARTS###
@@ -36,7 +37,6 @@ def load_table_for_sheet(sheet):
         tooltip_delay=0,
         tooltip_duration=None,
         editable=True,
-        row_deletable=True,
         style_header={
             'backgroundColor': 'white', 'textAlign': 'left', 'fontSize': '14px',
             'fontWeight': 'bold', 'border': '1px solid black'
@@ -123,7 +123,8 @@ def fill_dropdowns(sheet):
     if not sheet:
         return [], [], [], [], [], [], [], [], 
 
-    df = load_filtered_df(sheet)
+    df = load_filtered_df_graph(sheet)
+
     options = get_column_dropdown_options(df)
     return  options, options, options, options, options, options, options, options
 

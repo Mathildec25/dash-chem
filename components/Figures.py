@@ -15,17 +15,60 @@ import plotly.colors as pc
 # Load the selected sheet with formatting
 def load_filtered_df_graph(sheet):
     df = pd.read_excel("results.xlsx", sheet_name=sheet)
-    if all(col in df.columns for col in ['Conversion', 'Yield', 'Selectivity']):
-        df = df[~((df['Conversion'] == 'nd') & (df['Yield'] == 'nd') & (df['Selectivity'] == 'nd'))]
-        #df = df[~((df['Yield'] == 'nd') & (df['Selectivity'] == 'nd'))]
-    return df
+    dff = df.copy()
+    if 'Date' in dff.columns:
+        dff['Date'] = pd.to_datetime(dff['Date'], dayfirst=True).dt.strftime('%d/%m/%Y')
+    dff = dff.replace('nd', np.nan)
+    dff = dff.replace('rt', 25)
+    dff = dff.replace(r'^\s*<1\s*$', 1, regex=True)
+    dff = dff.replace(r'^\s*>99\s*$', 1, regex=True)
+    for col in dff.columns:
+        dff[col] = pd.to_numeric(dff[col], errors='ignore')
+
+        # Step 1: Define columns
+    react_cols = ['React 1', 'React 2', 'React 3', 'React 4']
+    eq_cols = ['C react 1 (M)', 'eq react 2', 'eq react 3', 'eq react 4']
+
+    # Step 2: ID columns = all except the above
+    id_vars_common = dff.columns.difference(react_cols + eq_cols).tolist()
+
+    # Step 3: Melt both
+    df_react = dff.melt(id_vars=id_vars_common, value_vars=react_cols,
+                        var_name='react_type', value_name='Reactant')
+    df_eq = dff.melt(id_vars=id_vars_common, value_vars=eq_cols,
+                    var_name='eq_type', value_name='C/eq')
+
+    # Step 4: Extract indices
+    df_react['index'] = df_react['react_type'].str.extract(r'(\d+)')
+    df_eq['index'] = df_eq['eq_type'].str.extract(r'(\d+)')
+
+    # Step 5: Merge on all metadata + index
+    df_merged = pd.merge(df_react, df_eq, on=id_vars_common + ['index'])
+
+    # Step 6: Reorder columns to match original DataFrame
+    # Remove old react/eq cols from the original
+    base_cols = [col for col in dff.columns if col not in react_cols + eq_cols]
+
+    # Find the position of 'React 1' and 'C react 1 (M)' in the original dataframe
+    react1_pos = dff.columns.get_loc('React 1')
+    eq1_pos = dff.columns.get_loc('C react 1 (M)')
+
+    # Insert the new columns at the right positions
+    # Note: adjust position for second insert since list length increases
+    base_cols.insert(react1_pos, 'Reactant')
+    base_cols.insert(eq1_pos + 1 if eq1_pos < react1_pos else eq1_pos, 'C/eq')
+
+    # Reorder final df
+    df_merged = df_merged[base_cols]
+
+    return df_merged
+
 
 # Create a scatter graph
 def graph_scatter(sheet, x_axis, y_axis, colors):
     data = load_filtered_df_graph(sheet)
-    df = data.copy()
-    df[colors] = pd.to_numeric(df[colors], errors='coerce')
-    fig= px.scatter(df, x=x_axis, y=y_axis , color=colors, hover_name="Exp code", color_continuous_scale="bluered") 
+    data = data.dropna(subset=[colors])
+    fig= px.scatter(data, x=x_axis, y=y_axis , color=colors, hover_name="Exp code", color_continuous_scale="bluered") 
     return fig
 
 # Create a boxplot

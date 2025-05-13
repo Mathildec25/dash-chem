@@ -30,7 +30,7 @@ def generate_sidebar(sheet_names):
     sidebar = dbc.Collapse(     # Sidebar content in collapse to be able to hide it
         html.Div(
             [
-                html.H2("<3||^^", className="display-3", style={"textAlign": "center"}),
+                html.H2("MET", className="display-2", style={"textAlign": "center"}),
                 html.Hr(),
                 dbc.Nav(
                     children=nav_links,
