@@ -32,31 +32,19 @@ register_app_callbacks(app)
 
 
 # Define the layout of the app
-app.layout = dbc.Container([
-    dcc.Store(id="selected-sheet-store", storage_type='session'),     # Store the selected sheet name in session storage to share it with other python files/pages
-    dcc.Location(id="url"),                                           # Used to keep track of the current URL
-    dbc.Row(id="main-row", children=[
-        dbc.Col(                                                       
-            id="sidebar-col",
-            children=[sidebar],
-            width='auto', 
-        ),
-        dbc.Col(
-            children=[
-                html.Div([
-                    dbc.Button("☰", id="toggle-btn", n_clicks=0, className="mb-2")
-                ], style={"marginTop": "6px", "marginBottom": "0px"}),
-                dash.page_container         # This is where the content of the selected page will be displayed
-            ],
-            width=True 
-        )
-    ], style={
-        "display": "flex",
-        "flex-wrap": "nowrap",
-        "height": "100vh",
-        "margin-right": "12rem" 
-    })
-], fluid=True) 
+# Nouveau layout compatible hover CSS
+app.layout = html.Div([
+    dcc.Store(id="selected-sheet-store", storage_type='session'),
+    dcc.Location(id="url"),
+
+    # La sidebar à gauche
+    sidebar,
+
+    # Le contenu principal de la page, qui se décale grâce au CSS
+    html.Div(id="main-content", className="main-content", children=[
+        dash.page_container
+    ])
+])
 
 # Launch the app
 if __name__ == '__main__':

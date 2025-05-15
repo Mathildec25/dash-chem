@@ -7,12 +7,23 @@
   background-color: #ebbfbb;
   padding-top: 1rem;
   transition: width 0.3s ease;
-  overflow-x: hidden;
+  overflow-x: ;
   z-index: 1000;
 }
 
 .sidebar:hover {
   width: 220px; /* dépliée au hover */
+}
+/* === Contenu principal de la page === */
+.main-content {
+  margin-left: 60px; /* aligné avec sidebar réduite */
+  padding: 1rem;
+  transition: margin-left 0.3s ease;
+}
+
+/* === Quand la sidebar est déployée, décaler le contenu === */
+.sidebar:hover ~ .main-content {
+  margin-left: 220px;
 }
 
 .sidebar .sidebar-logo {
