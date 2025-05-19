@@ -13,6 +13,7 @@ from callbacks import table_callbacks, graph_callbacks
 # Initialisation of the Dash app 
 app = dash.Dash(
     __name__,
+    external_stylesheets=[dbc.icons.BOOTSTRAP],
     use_pages=True,                     # Specific architecture for multi-page apps (each file in pages is a page on the app)            
     suppress_callback_exceptions=True   # Allows to imbricate callbacks (Output of one callback in the Input of another)
 )
@@ -44,7 +45,7 @@ app.layout = dbc.Container([
         dbc.Col(
             children=[
                 html.Div([
-                    dbc.Button("☰", id="toggle-btn", n_clicks=0, className="mb-2")
+                    dbc.Button(className = "bi bi-list", id="toggle-btn", n_clicks=0)
                 ], style={"marginTop": "6px", "marginBottom": "0px"}),
                 dash.page_container         # This is where the content of the selected page will be displayed
             ],
@@ -60,5 +61,5 @@ app.layout = dbc.Container([
 
 # Launch the app
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8080, debug=True)
-  # Allow to update the app without restarting it (debug mode)
+    app.run(host="0.0.0.0", port=8080, debug=True) # Allow to update the app without restarting it (debug mode)
+  
