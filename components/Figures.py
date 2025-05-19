@@ -21,11 +21,11 @@ def load_filtered_df_graph(sheet):
     dff = dff.replace('nd', np.nan)
     dff = dff.replace('rt', 25)
     dff = dff.replace(r'^\s*<1\s*$', 1, regex=True)
-    dff = dff.replace(r'^\s*>99\s*$', 1, regex=True)
+    dff = dff.replace(r'^\s*>99\s*$', 99, regex=True)
     for col in dff.columns:
         dff[col] = pd.to_numeric(dff[col], errors='ignore')
 
-        # Step 1: Define columns
+    
     react_cols = ['React 1', 'React 2', 'React 3', 'React 4']
     eq_cols = ['C react 1 (M)', 'eq react 2', 'eq react 3', 'eq react 4']
 
