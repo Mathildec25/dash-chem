@@ -1,0 +1,64 @@
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 60px; /* barre fine par défaut */
+  height: 100vh;
+  background-color: #ebbfbb;
+  padding-top: 1rem;
+  transition: width 0.3s ease;
+  overflow-x: ;
+  z-index: 1000;
+}
+
+.sidebar:hover {
+  width: 220px; /* dépliée au hover */
+}
+/* === Contenu principal de la page === */
+.main-content {
+  margin-left: 60px; /* aligné avec sidebar réduite */
+  padding: 1rem;
+  transition: margin-left 0.3s ease;
+}
+
+/* === Quand la sidebar est déployée, décaler le contenu === */
+.sidebar:hover ~ .main-content {
+  margin-left: 220px;
+}
+
+.sidebar .sidebar-logo {
+  text-align: center;
+  font-size: 1.5rem;
+  color: black;
+  margin-bottom: 1rem;
+}
+
+.sidebar-nav .nav-link {
+  color: black;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 1rem;
+  display: flex;
+  align-items: center;
+  border: none !important;
+}
+
+.sidebar-nav .nav-link:hover {
+  background-color: #d9a9a9;
+  color: white;
+}
+
+.sidebar .nav-link .link-text {
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar:hover .nav-link .link-text {
+  opacity: 1;
+}
+
+.bi {
+  font-size: 1.2rem;
+}
