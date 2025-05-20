@@ -4,8 +4,8 @@
   left: 0;
   width: 50px; /* barre fine par défaut */
   height: 100vh;
-  background-color: rgb(255, 148, 148);
-  padding-top: 0.5rem;
+  background-color: #f96052;
+  padding-top: 0.5rem;  
   transition: width 0.3s ease;
   z-index: 1000;
   overflow: hidden;
@@ -17,7 +17,7 @@
 
 .sidebar .sidebar-logo {
  text-align: center;
-  color: black;
+  color: white;
   height: 40px;
   margin-bottom: 2rem;
 }
@@ -42,8 +42,45 @@
   display: block;
 }
 
+/* Default collapsed state */
+#dropdown-container {
+  width: 50px;
+  transition: width 0.3s ease;
+  margin-bottom: 8px;
+}
+
+/* On sidebar hover, expand dropdown container */
+.sidebar:hover #dropdown-container {
+  width: 250px;  /* Match your expanded sidebar width */
+}
+
+/* Scope to #dropdown-container */
+#dropdown-container .Select-placeholder {      
+  color: #FFFFFF;
+}
+
+#dropdown-container .Select input {
+  color: white;
+}
+
+#dropdown-container .VirtualizedSelectOption {
+  background-color: #ff9e3d;
+  color: white;
+}
+
+#dropdown-container .VirtualizedSelectFocusedOption {
+  background-color: #fa840d;
+  font-size: 21px;
+  color: white;
+}
+
+#dropdown-container .Select-value-label {
+  color: white !important;
+}
+
+
 .sidebar-nav .nav-link {
-  color: black;
+  color: white;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -54,8 +91,8 @@
 }
 
 .sidebar-nav .nav-link:hover {
-  background-color: #e96666;
-  color: white;
+  background-color: #ff9e3d;
+  color: black;
 }
 
 .sidebar .nav-link .link-text {
@@ -70,24 +107,12 @@
 
 /* Style the active page in the sidebar */
 .sidebar-nav .nav-link.active {
-  background-color: #e96666; 
-  color: white;           
+  background-color: #ff9e3d; 
+  color: black;           
   width: 50px; 
   transition: width 0.3s ease;         
 }
 
 .sidebar:hover .nav-link.active {
   width: 250px;
-}
-
-/* Default collapsed state */
-#dropdown-container {
-  width: 50px;
-  transition: width 0.3s ease;
-  margin-bottom: 8px;
-}
-
-/* On sidebar hover, expand dropdown container */
-.sidebar:hover #dropdown-container {
-  width: 250px;  /* Match your expanded sidebar width */
 }

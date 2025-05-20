@@ -8,7 +8,7 @@ import pandas as pd
 # Local imports (modules)
 from callbacks.app_callbacks import register_app_callbacks    
 from components.sidebar import generate_sidebar 
-from callbacks import table_callbacks, graph_callbacks
+from callbacks import table_callbacks, visu_callbacks
 
 # Initialisation of the Dash app 
 app = dash.Dash(
@@ -43,7 +43,7 @@ app.layout = html.Div([
         className="main-content",
         children=[dash.page_container],  # Will render content of the current page
         style={
-            "margin-left": "85px",
+            "margin-left": "68px",
         }
     )
 ])

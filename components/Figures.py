@@ -18,12 +18,19 @@ def load_filtered_df_graph(sheet):
     dff = df.copy()
     if 'Date' in dff.columns:
         dff['Date'] = pd.to_datetime(dff['Date'], dayfirst=True).dt.strftime('%d/%m/%Y')
-    dff = dff.replace('nd', np.nan)
-    dff = dff.replace('rt', 25)
-    dff = dff.replace(r'^\s*<1\s*$', 1, regex=True)
-    dff = dff.replace(r'^\s*>99\s*$', 99, regex=True)
-    for col in dff.columns:
-        dff[col] = pd.to_numeric(dff[col], errors='ignore')
+    # Combine all replace calls into one
+    with pd.option_context('future.no_silent_downcasting', True):  ### Don't trigger error of changing element type while replacing
+        dff = dff.replace({
+            'nd': np.nan,
+            'rt': 25,
+            r'^\s*<1\s*$': 1,
+            r'^\s*>99\s*$': 99
+        }, regex=True)
+    for col in dff.columns:     # try for col where is needed else do nothing (to don't raise error with ignore argument of pd.to_numeric)
+        try:
+            dff[col] = pd.to_numeric(dff[col])
+        except (ValueError, TypeError):
+            pass 
 
     
     react_cols = ['React 1', 'React 2', 'React 3', 'React 4']

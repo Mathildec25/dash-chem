@@ -1,5 +1,6 @@
 from dash import callback, Input, Output, State, no_update
-from components.Figures import graph_scatter, graph_box, graph_pie, graph_histo, graph_2Dhisto, graph_contour
+from components.Figures import load_filtered_df_graph, graph_scatter, graph_box, graph_pie, graph_histo, graph_2Dhisto, graph_contour
+from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
 
 ###CALLBACKS TO GENERATE GRAPHS ### (visualization part)
 
@@ -72,6 +73,27 @@ def update_2Dhisto_graph(n_clicks, column_1, column_2, sheet):
     if n_clicks > 0 and sheet:
         return graph_2Dhisto(sheet, column_1, column_2)
     return no_update
+
+# Return options for all dropdowns in the visualization part of the dashboard
+@callback(
+    [Output("DD-x-axis-scatter", "options"),
+     Output("DD-y-axis-scatter", "options"),
+     Output("DD-colors-scatter", "options"),
+     Output("DD-x-axis-box", "options"),
+     Output("DD-y-axis-box", "options"),
+     Output("DD-col-histo", "options"),
+     Output("DD-col1-2Dhisto", "options"),
+     Output("DD-col2-2Dhisto", "options"),],
+    Input("selected-sheet-store", "data")
+)
+def fill_dropdowns(sheet):
+    if not sheet:
+        return [], [], [], [], [], [], [], [], 
+
+    df = load_filtered_df_graph(sheet)
+
+    options = get_column_dropdown_options(df)
+    return  options, options, options, options, options, options, options, options
 
 # # Return the contour graph
 # @callback(

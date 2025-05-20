@@ -19,6 +19,8 @@ def generate_sidebar(sheet_names):
                     id="sheet-dropdown",
                     options=[{"label": name, "value": name} for name in sheet_names],
                     placeholder="Select a sheet",
+                    clearable = False,
+                    style={"background-color": "#ff9e3d"}
                 ),
             ]
         )

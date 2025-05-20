@@ -1,6 +1,5 @@
 from dash import callback, Input, Output, State, MATCH, ALL, dash_table, html, no_update
 from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
-from components.Figures import load_filtered_df_graph
 import pandas as pd
 
 ### CALLBACKS TO GENERATE THE TABLE PARTS###
@@ -106,27 +105,6 @@ def save_changes(n_clicks, all_tables_data, all_tables_columns, sheet):
             df.to_excel(writer, sheet_name=sheet, index=False)
         return "Changes saved ✅"
     return "Save Changes"
-
-# Return options for all dropdowns in the visualization part of the dashboard
-@callback(
-    [Output("DD-x-axis-scatter", "options"),
-     Output("DD-y-axis-scatter", "options"),
-     Output("DD-colors-scatter", "options"),
-     Output("DD-x-axis-box", "options"),
-     Output("DD-y-axis-box", "options"),
-     Output("DD-col-histo", "options"),
-     Output("DD-col1-2Dhisto", "options"),
-     Output("DD-col2-2Dhisto", "options"),],
-    Input("selected-sheet-store", "data")
-)
-def fill_dropdowns(sheet):
-    if not sheet:
-        return [], [], [], [], [], [], [], [], 
-
-    df = load_filtered_df_graph(sheet)
-
-    options = get_column_dropdown_options(df)
-    return  options, options, options, options, options, options, options, options
 
 
 # @callback(
