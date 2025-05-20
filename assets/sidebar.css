@@ -2,35 +2,44 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 60px; /* barre fine par défaut */
+  width: 50px; /* barre fine par défaut */
   height: 100vh;
-  background-color: #ebbfbb;
-  padding-top: 1rem;
+  background-color: rgb(255, 148, 148);
+  padding-top: 0.5rem;
   transition: width 0.3s ease;
-  overflow-x: ;
   z-index: 1000;
+  overflow: hidden;
 }
 
 .sidebar:hover {
-  width: 220px; /* dépliée au hover */
-}
-/* === Contenu principal de la page === */
-.main-content {
-  margin-left: 60px; /* aligné avec sidebar réduite */
-  padding: 1rem;
-  transition: margin-left 0.3s ease;
-}
-
-/* === Quand la sidebar est déployée, décaler le contenu === */
-.sidebar:hover ~ .main-content {
-  margin-left: 220px;
+  width: 250px; /* dépliée au hover */
 }
 
 .sidebar .sidebar-logo {
-  text-align: center;
-  font-size: 1.5rem;
+ text-align: center;
   color: black;
-  margin-bottom: 1rem;
+  height: 40px;
+  margin-bottom: 2rem;
+}
+
+/* Show icon by default, hide text */
+.icon-logo {
+  display: inline-block;
+}
+
+.text-logo {
+  display: none;
+  font-size: 3rem;
+  white-space: nowrap;
+}
+
+/* On sidebar hover, hide icon and show text */
+.sidebar:hover .icon-logo {
+  display: none;
+}
+
+.sidebar:hover .text-logo {
+  display: block;
 }
 
 .sidebar-nav .nav-link {
@@ -38,19 +47,19 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-left: 1rem;
+  padding-left: 0.9rem;
   display: flex;
   align-items: center;
   border: none !important;
 }
 
 .sidebar-nav .nav-link:hover {
-  background-color: #d9a9a9;
+  background-color: #e96666;
   color: white;
 }
 
 .sidebar .nav-link .link-text {
-  margin-left: 8px;
+  margin-left: 7px;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -59,6 +68,26 @@
   opacity: 1;
 }
 
-.bi {
-  font-size: 1.2rem;
+/* Style the active page in the sidebar */
+.sidebar-nav .nav-link.active {
+  background-color: #e96666; 
+  color: white;           
+  width: 50px; 
+  transition: width 0.3s ease;         
+}
+
+.sidebar:hover .nav-link.active {
+  width: 250px;
+}
+
+/* Default collapsed state */
+#dropdown-container {
+  width: 50px;
+  transition: width 0.3s ease;
+  margin-bottom: 8px;
+}
+
+/* On sidebar hover, expand dropdown container */
+.sidebar:hover #dropdown-container {
+  width: 250px;  /* Match your expanded sidebar width */
 }
