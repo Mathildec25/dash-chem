@@ -1,37 +1,82 @@
-from dash import callback, Input, Output, State, no_update
+from dash import callback, Input, Output, State, no_update, ctx
+import plotly.express as px
 from components.Figures import load_filtered_df_graph, graph_scatter, graph_box, graph_pie, graph_histo, graph_2Dhisto, graph_contour
 from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
 
 ###CALLBACKS TO GENERATE GRAPHS ### (visualization part)
 
-# Return the scatter graph
+from dash import callback, Output, Input, State, ctx
+import plotly.express as px
+import dash.exceptions as exceptions
+
 @callback(
     Output("Scatter_graph", "figure"),
+    Input("url", "pathname"),
     Input("generate-graph-button-scatter", "n_clicks"),
     State("DD-x-axis-scatter", "value"),
     State("DD-y-axis-scatter", "value"),
     State("DD-colors-scatter", "value"),
     State("selected-sheet-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
-def update_scatter_graph(n_clicks, x_axis, y_axis, colors, sheet):
-    if n_clicks > 0 and sheet:
-        return graph_scatter(sheet, x_axis, y_axis, colors)
-    return no_update
+def handle_graph_update(pathname, n_clicks, x_axis, y_axis, colors, sheet):
+    triggered_id = ctx.triggered_id
 
-# Return the boxplot graph
+    if not sheet:
+        return px.scatter(title="No sheet selected")
+
+    if triggered_id == "url":
+        if pathname != "/visu":
+            raise exceptions.PreventUpdate
+
+        df = load_filtered_df_graph(sheet)
+        if all(col in df.columns for col in ["Solvent", "T (°C)", "Conversion"]):
+            return graph_scatter(df, "Solvent", "T (°C)", "Conversion")
+        else:
+            return px.scatter(title="Required columns not found")
+
+    elif triggered_id == "generate-graph-button-scatter":
+        if n_clicks and x_axis and y_axis and colors:
+            df = load_filtered_df_graph(sheet)
+            return graph_scatter(df, x_axis, y_axis, colors)
+        else:
+            return px.scatter(title="Incomplete axis selection")
+
+    raise exceptions.PreventUpdate
+
 @callback(
     Output("Box_graph", "figure"),
+    Input("url", "pathname"),
     Input("generate-graph-button-box", "n_clicks"),
     State("DD-x-axis-box", "value"),
     State("DD-y-axis-box", "value"),
     State("selected-sheet-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
-def update_box_graph(n_clicks, x_axis, y_axis, sheet):
-    if n_clicks > 0 and sheet:
-        return graph_box(sheet, x_axis, y_axis)
-    return no_update
+def handle_box_graph(pathname, n_clicks, x_axis, y_axis, sheet):
+    triggered_id = ctx.triggered_id
+
+    if not sheet:
+        return px.scatter(title="No sheet selected")
+
+    if triggered_id == "url":
+        if pathname != "/visu":
+            raise exceptions.PreventUpdate
+
+        df = load_filtered_df_graph(sheet)
+        if all(col in df.columns for col in ["Solvent", "Conversion"]):
+            return graph_box(df, "Solvent", "Conversion")
+        else:
+            return px.scatter(title="Required columns not found")
+
+    elif triggered_id == "generate-graph-button-box":
+        if n_clicks and x_axis and y_axis:
+            df = load_filtered_df_graph(sheet)
+            return graph_box(df, x_axis, y_axis)
+        else:
+            return px.scatter(title="Incomplete axis selection")
+
+    raise exceptions.PreventUpdate
 
 # # Return the pie chart graph
 # @callback(
@@ -47,32 +92,73 @@ def update_box_graph(n_clicks, x_axis, y_axis, sheet):
 #         return graph_pie(sheet, values, names)
 #     return no_update
 
-# Return the 1D histogram graph
 @callback(
     Output("Histo_graph", "figure"),
+    Input("url", "pathname"),
     Input("generate-graph-button-histo", "n_clicks"),
     State("DD-col-histo", "value"),
     State("selected-sheet-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
-def update_histo_graph(n_clicks, column, sheet):
-    if n_clicks > 0 and sheet:
-        return graph_histo(sheet, column)
-    return no_update
+def handle_histo_graph(pathname, n_clicks, x_axis, sheet):
+    triggered_id = ctx.triggered_id
 
-# Return the 2D histogram graph
+    if not sheet:
+        return px.scatter(title="No sheet selected")
+
+    if triggered_id == "url":
+        if pathname != "/visu":
+            raise exceptions.PreventUpdate
+
+        df = load_filtered_df_graph(sheet)
+        if all(col in df.columns for col in ["Solvent"]):
+            return graph_histo(df, "Solvent")
+        else:
+            return px.scatter(title="Required columns not found")
+
+    elif triggered_id == "generate-graph-button-box":
+        if n_clicks and x_axis:
+            df = load_filtered_df_graph(sheet)
+            return graph_histo(df, x_axis)
+        else:
+            return px.scatter(title="Incomplete axis selection")
+
+    raise exceptions.PreventUpdate
+
 @callback(
     Output("2DHisto_graph", "figure"),
+    Input("url", "pathname"),
     Input("generate-graph-button-2Dhisto", "n_clicks"),
     State("DD-col1-2Dhisto", "value"),
     State("DD-col2-2Dhisto", "value"),
     State("selected-sheet-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
-def update_2Dhisto_graph(n_clicks, column_1, column_2, sheet):
-    if n_clicks > 0 and sheet:
-        return graph_2Dhisto(sheet, column_1, column_2)
-    return no_update
+def handle_2Dhisto_graph(pathname, n_clicks, column_1, column_2, sheet):
+    triggered_id = ctx.triggered_id
+
+    if not sheet:
+        return px.scatter(title="No sheet selected")
+
+    if triggered_id == "url":
+        if pathname != "/visu":
+            raise exceptions.PreventUpdate
+
+        df = load_filtered_df_graph(sheet)
+        if all(col in df.columns for col in ["Solvent", "Conversion"]):
+            return graph_2Dhisto(df, "Solvent", "Conversion")
+        else:
+            return px.scatter(title="Required columns not found")
+
+    elif triggered_id == "generate-graph-button-box":
+        if n_clicks and column_1 and column_2:
+            df = load_filtered_df_graph(sheet)
+            return graph_2Dhisto(df, column_1, column_2)
+        else:
+            return px.scatter(title="Incomplete axis selection")
+
+    raise exceptions.PreventUpdate
+
 
 # Return options for all dropdowns in the visualization part of the dashboard
 @callback(

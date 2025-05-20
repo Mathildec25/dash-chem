@@ -15,7 +15,7 @@ app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.icons.BOOTSTRAP],
     use_pages=True,                     # Specific architecture for multi-page apps (each file in pages is a page on the app)            
-    suppress_callback_exceptions=True   # Allows to imbricate callbacks (Output of one callback in the Input of another)
+    suppress_callback_exceptions=True,   # Allows to imbricate callbacks (Output of one callback in the Input of another)
 )
 
 # ??? (Create the server???)
@@ -36,7 +36,7 @@ register_app_callbacks(app)
 
 app.layout = html.Div([
     dcc.Store(id="selected-sheet-store", storage_type='session'),
-    dcc.Location(id="url"),
+    dcc.Location(id="url", refresh=False),
     sidebar,  # Fixed + hover-based sidebar
     html.Div(
         id="main-content",

@@ -6,7 +6,7 @@ def create_visu_layout():
     return dbc.Container([
                 dbc.Row([
                             dbc.Col([
-                                html.Hr(),
+                                dcc.Location(id="url"),
                                 html.H2("Visualization part", className="display-4", style={"textAlign": "center", "marginTop": "35px", "marginBottom": "35px"}),
                             ], width=12),
                         ]),

@@ -72,16 +72,14 @@ def load_filtered_df_graph(sheet):
 
 
 # Create a scatter graph
-def graph_scatter(sheet, x_axis, y_axis, colors):
-    data = load_filtered_df_graph(sheet)
-    data = data.dropna(subset=[colors])
-    fig= px.scatter(data, x=x_axis, y=y_axis , color=colors, hover_name="Exp code", color_continuous_scale="bluered") 
+def graph_scatter(df, x_axis, y_axis, colors):
+    df = df.dropna(subset=[colors])
+    fig = px.scatter(df, x=x_axis, y=y_axis, color=colors, hover_name="Exp code", color_continuous_scale="bluered")
     return fig
 
 # Create a boxplot
-def graph_box(sheet, x_axis, y_axis):
-    data = load_filtered_df_graph(sheet)
-    fig = px.box(data, x=x_axis, y=y_axis)
+def graph_box(df, x_axis, y_axis):
+    fig = px.box(df, x=x_axis, y=y_axis)
     return fig
 
 # Create a pie chart
@@ -91,18 +89,16 @@ def graph_pie(sheet, values, names):
     return fig
 
 # Create a histogram
-def graph_histo(sheet, column):
-    data = load_filtered_df_graph(sheet)
-    data["Sub system"] = data["System"]
-    data["System"] = "flow"
-    data.loc[data["Sub system"].str.contains("batch", case=False, na=False), "System"] = "batch"
-    fig = px.histogram(data, x=column)
+def graph_histo(df, column):
+    df["Sub system"] = df["System"]
+    df["System"] = "flow"
+    df.loc[df["Sub system"].str.contains("batch", case=False, na=False), "System"] = "batch"
+    fig = px.histogram(df, x=column)
     return fig
 
 # Create a 2D histogram
-def graph_2Dhisto(sheet, column_1, column_2):
-    data = load_filtered_df_graph(sheet)
-    fig = px.density_heatmap(data, x=column_1, y=column_2)
+def graph_2Dhisto(df, column_1, column_2):
+    fig = px.density_heatmap(df, x=column_1, y=column_2)
     return fig
 
 # Create a contour plot
