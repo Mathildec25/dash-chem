@@ -8,7 +8,7 @@ import pandas as pd
 # Local imports (modules)
 from callbacks.app_callbacks import register_app_callbacks    
 from components.sidebar import generate_sidebar 
-from callbacks import table_callbacks, visu_callbacks
+from callbacks import table_callbacks, visu_callbacks, carac_callbacks
 
 # Initialisation of the Dash app 
 app = dash.Dash(
@@ -22,8 +22,8 @@ app = dash.Dash(
 server = app.server
 
 # Gather excel file name and sheet names
-excel_file = "results.xlsx"
-sheets_names = pd.ExcelFile(excel_file).sheet_names  # Sheets names
+excel_files = ["results.xlsx","Test-1.xlsx","Test-2.xlsx"]  
+sheets_names = pd.ExcelFile(excel_files[0]).sheet_names  # Sheets names
 
 # Create sidebar from function in sidebar.py
 sidebar = generate_sidebar(sheets_names)

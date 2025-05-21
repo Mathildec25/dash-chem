@@ -1,3 +1,7 @@
+.Select-menu-outer {
+  display: block !important;
+}
+
 .sidebar {
   position: fixed;
   top: 0;
@@ -25,6 +29,7 @@
 /* Show icon by default, hide text */
 .icon-logo {
   display: inline-block;
+  width: 3rem;
 }
 
 .text-logo {
@@ -54,11 +59,12 @@
   width: 250px;  /* Match your expanded sidebar width */
 }
 
-/* Scope to #dropdown-container */
+/* Color of the text in the dropdown */
 #dropdown-container .Select-placeholder {      
   color: #FFFFFF;
 }
 
+/* Color of the text in the dropdown */
 #dropdown-container .Select input {
   color: white;
 }
@@ -116,3 +122,4 @@
 .sidebar:hover .nav-link.active {
   width: 250px;
 }
+

@@ -87,6 +87,7 @@ def update_columns(selected_columns, selected_sheet):
 def add_row(n_clicks, rows, columns):
     if n_clicks > 0:
         rows.append({c['id']: '' for c in columns})
+        rows.insert(0, rows.pop(len(rows)-1))       # To add the new row on the top of the table
     return rows
 
 # Save changes to the Excel file when the button is clicked (BE CAREFUL !!!)

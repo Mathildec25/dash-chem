@@ -101,6 +101,15 @@ def graph_2Dhisto(df, column_1, column_2):
     fig = px.density_heatmap(df, x=column_1, y=column_2)
     return fig
 
+def graph_histo_col(df): 
+    uniques_count = df.nunique()  # Get number of unique values per column
+    fig = px.bar(
+        x=uniques_count.index,
+        y=uniques_count.values,
+        labels={'x': 'Columns', 'y': 'Number of Unique Values'},
+    )
+    return fig
+
 # Create a contour plot
 def graph_contour(sheet, col_filtre, val_filtre, y_axis, x_axis, z_axis):
     dff = load_filtered_df_graph(sheet)

@@ -42,7 +42,7 @@ def generate_sidebar(sheet_names):
     sidebar = html.Div([
         html.Div(
             [
-            html.I(className="bi bi-menu-button icon-logo", style={"font-size": "2rem"}),
+            html.Img(src="/assets/Logo.svg", className="icon-logo"),
             html.Span("MET", className="text-logo")
             ], 
         className="sidebar-logo"

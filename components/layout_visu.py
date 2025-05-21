@@ -80,4 +80,10 @@ def create_visu_layout():
                                 dcc.Graph(id="2DHisto_graph")
                             ], width=7),
                         ]),
+                        # Histo uniques values for all col
+                        dbc.Row([
+                            dbc.Col([   
+                                dcc.Graph(id="Bar_graph")
+                            ], width=12),
+                        ]),
 ])

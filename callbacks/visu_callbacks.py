@@ -1,6 +1,6 @@
 from dash import callback, Input, Output, State, no_update, ctx
 import plotly.express as px
-from components.Figures import load_filtered_df_graph, graph_scatter, graph_box, graph_pie, graph_histo, graph_2Dhisto, graph_contour
+from components.Figures import load_filtered_df_graph, graph_scatter, graph_box, graph_pie, graph_histo, graph_2Dhisto, graph_histo_col, graph_contour
 from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
 
 ###CALLBACKS TO GENERATE GRAPHS ### (visualization part)
@@ -19,7 +19,7 @@ import dash.exceptions as exceptions
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
 )
-def handle_graph_update(pathname, n_clicks, x_axis, y_axis, colors, sheet):
+def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, sheet):
     triggered_id = ctx.triggered_id
 
     if not sheet:
@@ -158,6 +158,23 @@ def handle_2Dhisto_graph(pathname, n_clicks, column_1, column_2, sheet):
             return px.scatter(title="Incomplete axis selection")
 
     raise exceptions.PreventUpdate
+
+@callback(
+    Output("Bar_graph", "figure"),
+    Input("url", "pathname"),
+    State("selected-sheet-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_bar_graph(pathname, sheet):
+    if not sheet:
+        return px.scatter(title="No sheet selected")
+
+    if pathname != "/visu":
+        raise exceptions.PreventUpdate
+
+    df = load_filtered_df_graph(sheet)
+    return graph_histo_col(df)
+
 
 
 # Return options for all dropdowns in the visualization part of the dashboard
