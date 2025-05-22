@@ -16,11 +16,12 @@ import dash.exceptions as exceptions
     State("DD-x-axis-scatter", "value"),
     State("DD-y-axis-scatter", "value"),
     State("DD-colors-scatter", "value"),
+    State("DD-size-scatter", "value"),
     State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
 )
-def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, excel, sheet):
+def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, size, excel, sheet):
     triggered_id = ctx.triggered_id
 
     if not sheet:
@@ -31,15 +32,15 @@ def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, excel, she
             raise exceptions.PreventUpdate
 
         df = load_filtered_df_graph(excel, sheet)
-        if all(col in df.columns for col in ["Solvent", "T (°C)", "Conversion"]):
-            return graph_scatter(df, "Solvent", "T (°C)", "Conversion")
+        if all(col in df.columns for col in ["Solvent", "T (°C)", "Time (min)", "Conversion"]):
+            return graph_scatter(df, "Solvent", "T (°C)", "Conversion", "Time (min)")
         else:
             return px.scatter(title="Required columns not found")
 
     elif triggered_id == "generate-graph-button-scatter":
         if n_clicks and x_axis and y_axis and colors:
             df = load_filtered_df_graph(excel, sheet)
-            return graph_scatter(df, x_axis, y_axis, colors)
+            return graph_scatter(df, x_axis, y_axis, colors, size)
         else:
             return px.scatter(title="Incomplete axis selection")
 
@@ -187,6 +188,7 @@ def handle_bar_graph(pathname, excel, sheet):
     [Output("DD-x-axis-scatter", "options"),
      Output("DD-y-axis-scatter", "options"),
      Output("DD-colors-scatter", "options"),
+     Output("DD-size-scatter","options"),
      Output("DD-x-axis-box", "options"),
      Output("DD-y-axis-box", "options"),
      Output("DD-col-histo", "options"),
@@ -197,12 +199,12 @@ def handle_bar_graph(pathname, excel, sheet):
 )
 def fill_dropdowns(sheet, excel):
     if not sheet:
-        return [], [], [], [], [], [], [], [], 
+        return [], [], [], [], [], [], [], [], []
 
     df = load_filtered_df_graph(excel, sheet)
 
     options = get_column_dropdown_options(df)
-    return  options, options, options, options, options, options, options, options
+    return  options, options, options, options, options, options, options, options, options
 
 # # Return the contour graph
 # @callback(

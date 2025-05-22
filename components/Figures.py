@@ -106,14 +106,123 @@ def load_filtered_df_graph(excel, sheet):
 
 
 # Create a scatter graph
-def graph_scatter(df, x_axis, y_axis, colors):
-    df = df.dropna(subset=[colors])
-    fig = px.scatter(df, x=x_axis, y=y_axis, color=colors, hover_name="Exp code", color_continuous_scale="bluered")
+def graph_scatter(df, x_axis, y_axis, colors, size_param):
+    # Drop rows with NaN values in the essential columns
+    df = df.dropna(subset=[colors, size_param])
+    
+    # Check if size_param is categorical or numerical
+    is_categorical = df[size_param].dtype == 'object' or df[size_param].dtype.name == 'category'
+    
+    if is_categorical:
+        # For categorical variables, create a numerical mapping
+        unique_categories = df[size_param].unique()
+        # Create size mapping: assign different sizes to categories
+        size_mapping = {cat: (i + 1) * 12 for i, cat in enumerate(unique_categories)}
+        df_plot = df.copy()
+        df_plot['size_numeric'] = df_plot[size_param].map(size_mapping)
+        
+        # Create the scatter plot
+        fig = px.scatter(
+            df_plot, 
+            x=x_axis, 
+            y=y_axis, 
+            color=colors, 
+            size='size_numeric',
+            hover_name="Exp code", 
+            hover_data={size_param: True, 'size_numeric': False},  # Show original category in hover
+            color_continuous_scale="bluered",
+            size_max=35
+        )
+        
+        # Add custom legend for categorical sizes
+        fig.add_annotation(
+            x=0.01, y=0.99,
+            xref="paper", yref="paper",
+            text=f"<b>{size_param} </b><br>" + 
+                 "<br>".join([f"● {cat}" for cat in unique_categories]),
+            showarrow=False,
+            align="left",
+            font=dict(size=10),
+            bgcolor="rgba(255,255,255,0.8)",
+            bordercolor="gray",
+            borderwidth=1
+        )
+    else:
+        # For numerical variables, use original approach
+        fig = px.scatter(
+            df, 
+            x=x_axis, 
+            y=y_axis, 
+            color=colors, 
+            size=size_param,
+            hover_name="Exp code", 
+            color_continuous_scale="bluered",
+            size_max=35
+        )
+    
+    # Generate dynamic title
+    title = f"Scatter plot of {y_axis} Vs {x_axis} With Color = {colors} and Size = {size_param}"
+    
+    # Update layout with title and larger axis labels
+    fig.update_layout(
+        title={
+            'text': title,
+            'x': 0.5,  # Center the title
+            'xanchor': 'center',
+            'font': {'size': 28}
+        },
+        xaxis={
+            'title': {
+                'text': x_axis,
+                'font': {'size': 20}
+            }
+        },
+        yaxis={
+            'title': {
+                'text': y_axis,
+                'font': {'size': 20}
+            }
+        }
+    )
+    
+    # Update traces to increase base point size, remove borders, and add opacity
+    fig.update_traces(
+        marker=dict(
+            sizemin=5,  # Minimum size for the smallest points
+            opacity=0.6,  # Set transparency
+            line=dict(width=0)  # Remove borders
+        )
+    )
+    
     return fig
 
 # Create a boxplot
 def graph_box(df, x_axis, y_axis):
     fig = px.box(df, x=x_axis, y=y_axis)
+    # Generate dynamic title
+    title = f"Boxplot of {y_axis} Vs {x_axis}"
+    
+    # Update layout with title and larger axis labels
+    fig.update_layout(
+        title={
+            'text': title,
+            'x': 0.5,  # Center the title
+            'xanchor': 'center',
+            'font': {'size': 28}
+        },
+        xaxis={
+            'title': {
+                'text': x_axis,
+                'font': {'size': 20}
+            }
+        },
+        yaxis={
+            'title': {
+                'text': y_axis,
+                'font': {'size': 20}
+            }
+        }
+    )
     return fig
 
 # Create a pie chart
@@ -128,11 +237,53 @@ def graph_histo(df, column):
     # df["System"] = "flow"
     # df.loc[df["Sub system"].str.contains("batch", case=False, na=False), "System"] = "batch"
     fig = px.histogram(df, x=column)
+    # Generate dynamic title
+    title = f"Histogramm of {column}"
+    
+    # Update layout with title and larger axis labels
+    fig.update_layout(
+        title={
+            'text': title,
+            'x': 0.5,  # Center the title
+            'xanchor': 'center',
+            'font': {'size': 28}
+        },
+        xaxis={
+            'title': {
+                'text': column,
+                'font': {'size': 20}
+            }
+        },
+    )
     return fig
 
 # Create a 2D histogram
 def graph_2Dhisto(df, column_1, column_2):
     fig = px.density_heatmap(df, x=column_1, y=column_2)
+    # Generate dynamic title
+    title = f"2D Histogramm of {column_1} Vs {column_2}"
+    
+    # Update layout with title and larger axis labels
+    fig.update_layout(
+        title={
+            'text': title,
+            'x': 0.5,  # Center the title
+            'xanchor': 'center',
+            'font': {'size': 28}
+        },
+        xaxis={
+            'title': {
+                'text': column_1,
+                'font': {'size': 20}
+            }
+        },
+        yaxis={
+            'title': {
+                'text': column_2,
+                'font': {'size': 20}
+            }
+        }
+    )
     return fig
 
 def graph_histo_col(df): 
@@ -141,6 +292,29 @@ def graph_histo_col(df):
         x=uniques_count.index,
         y=uniques_count.values,
         labels={'x': 'Columns', 'y': 'Number of Unique Values'},
+    )
+    title = f"Histogramm of all the columns"
+    
+    # Update layout with title and larger axis labels
+    fig.update_layout(
+        title={
+            'text': title,
+            'x': 0.5,  # Center the title
+            'xanchor': 'center',
+            'font': {'size': 28}
+        },
+        xaxis={
+            'title': {
+                'text': "All columns",
+                'font': {'size': 20}
+            }
+        },
+        yaxis={
+            'title': {
+                'text': "Number of uniques values",
+                'font': {'size': 20}
+            }
+        }
     )
     return fig
 
