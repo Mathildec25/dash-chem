@@ -2,51 +2,45 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 from dash import page_registry
 
-# Define and return the sidebar layout
-def generate_sidebar(sheet_names):
-    nav_links = [
-        html.Div(
-            id="dropdown-container",
-            children=[
-                dcc.Dropdown(       # To select the sheet to display
-                    id="sheet-dropdown",
-                    options=[{"label": name, "value": name} for name in sheet_names],
-                    placeholder="Select a sheet",
-                    style={"margin-top": "5px"}
-                ),
-            ]
-        )
-    ]
+icon_map = {
+    "Home": "bi-house-door",
+    "Dashboard": "bi-table",
+    "Visualization": "bi-graph-up",
+    "Caracterization": "bi-gear",
+    "Bayesian-Optimization": "bi-calculator",
+}
 
-    for page in page_registry.values():     # Add all files in the pages folder as links in the sidebar
+def generate_sidebar():
+    nav_links = []
+    for page in page_registry.values():
+        icon_class = icon_map.get(page["name"], "bi-circle") 
         nav_links.append(
             dbc.NavLink(
-                [html.Div(page["name"], className="ms-2")],
+                [
+                    html.I(className=f"bi {icon_class} me-2", style={"font-size": "1.2rem"}),  # Icône Bootstrap
+                    html.Span(page["name"], className="link-text")  # texte masqué si besoin
+                ],
                 href=page["path"],
                 active="exact"
             )
         )
 
-    sidebar = dbc.Collapse(     # Sidebar content in collapse to be able to hide it
+    sidebar = html.Div([
         html.Div(
             [
-                html.H2("MET", className="display-2", style={"textAlign": "center"}),
-                html.Hr(),
-                dbc.Nav(
-                    children=nav_links,
-                    vertical=True,
-                    pills=True,
-                    className="bg-light"
-                )
-            ],
-            style={
-                "padding": "1rem",
-                "background-color": "#ebbfbb",
-                "height": "300vh"
-            }
+            html.Img(src="/assets/Logo.svg", className="icon-logo"),
+            html.Span("MET", className="text-logo")
+            ], 
+        className="sidebar-logo"
         ),
-        id="collapse-sidebar",
-        is_open=True
+        dbc.Nav(
+            children=nav_links,
+            vertical=True,
+            pills=True,
+            className="sidebar-nav"
+        )
+    ],
+    className="sidebar"
     )
 
     return sidebar

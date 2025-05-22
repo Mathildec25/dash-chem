@@ -1,0 +1,125 @@
+.Select-menu-outer {
+  display: block !important;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 50px; /* barre fine par défaut */
+  height: 100vh;
+  background-color: #f96052;
+  padding-top: 0.5rem;  
+  transition: width 0.3s ease;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.sidebar:hover {
+  width: 250px; /* dépliée au hover */
+}
+
+.sidebar .sidebar-logo {
+ text-align: center;
+  color: white;
+  height: 40px;
+  margin-bottom: 2rem;
+}
+
+/* Show icon by default, hide text */
+.icon-logo {
+  display: inline-block;
+  width: 3rem;
+}
+
+.text-logo {
+  display: none;
+  font-size: 3rem;
+  white-space: nowrap;
+}
+
+/* On sidebar hover, hide icon and show text */
+.sidebar:hover .icon-logo {
+  display: none;
+}
+
+.sidebar:hover .text-logo {
+  display: block;
+}
+
+/* Default collapsed state */
+#dropdown-container {
+  width: 50px;
+  transition: width 0.3s ease;
+  margin-bottom: 8px;
+}
+
+/* On sidebar hover, expand dropdown container */
+.sidebar:hover #dropdown-container {
+  width: 250px;  /* Match your expanded sidebar width */
+}
+
+/* Color of the text in the dropdown */
+#dropdown-container .Select-placeholder {      
+  color: #FFFFFF;
+}
+
+/* Color of the text in the dropdown */
+#dropdown-container .Select input {
+  color: white;
+}
+
+#dropdown-container .VirtualizedSelectOption {
+  background-color: #ff9e3d;
+  color: white;
+}
+
+#dropdown-container .VirtualizedSelectFocusedOption {
+  background-color: #fa840d;
+  font-size: 21px;
+  color: white;
+}
+
+#dropdown-container .Select-value-label {
+  color: white !important;
+}
+
+
+.sidebar-nav .nav-link {
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 0.9rem;
+  display: flex;
+  align-items: center;
+  border: none !important;
+}
+
+.sidebar-nav .nav-link:hover {
+  background-color: #ff9e3d;
+  color: black;
+}
+
+.sidebar .nav-link .link-text {
+  margin-left: 7px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar:hover .nav-link .link-text {
+  opacity: 1;
+}
+
+/* Style the active page in the sidebar */
+.sidebar-nav .nav-link.active {
+  background-color: #ff9e3d; 
+  color: black;           
+  width: 50px; 
+  transition: width 0.3s ease;         
+}
+
+.sidebar:hover .nav-link.active {
+  width: 250px;
+}
+
