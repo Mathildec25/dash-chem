@@ -13,7 +13,7 @@ def create_carac_layout():
     return dbc.Container([
         dbc.Row([
             dbc.Col([
-                html.H2("Caracterization Table", className="display-4", style={"textAlign": "center", "marginBottom": "35px", "marginTop": "8px"}),
+                html.H2("Caracterization Table", className="display-4", style={"textAlign": "center", "marginBottom": "20px", "marginTop": "8px"}),
             ], width=12),
         ]),
         dbc.Row([

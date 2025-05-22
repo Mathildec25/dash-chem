@@ -2,8 +2,8 @@ import pandas as pd
 from dash.dash_table.Format import Format
 
 # Return the selected sheet after formatting the date column
-def load_filtered_df(sheet):
-    df = pd.read_excel("results.xlsx", sheet_name=sheet)
+def load_filtered_df(excel, sheet):
+    df = pd.read_excel(excel, sheet_name=sheet)
     if 'Date' in df.columns:    
         df['Date'] = pd.to_datetime(df['Date'])     # Transform to datetime
         df.sort_values(by=['Date'], inplace=True, ascending=False)      # Sort by date and descending

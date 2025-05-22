@@ -10,22 +10,8 @@ icon_map = {
     "Bayesian-Optimization": "bi-calculator",
 }
 
-def generate_sidebar(sheet_names):
-    nav_links = [
-        html.Div(
-            id="dropdown-container",
-            children=[
-                dcc.Dropdown(
-                    id="sheet-dropdown",
-                    options=[{"label": name, "value": name} for name in sheet_names],
-                    placeholder="Select a sheet",
-                    clearable = False,
-                    style={"background-color": "#ff9e3d"}
-                ),
-            ]
-        )
-    ]
-
+def generate_sidebar():
+    nav_links = []
     for page in page_registry.values():
         icon_class = icon_map.get(page["name"], "bi-circle") 
         nav_links.append(

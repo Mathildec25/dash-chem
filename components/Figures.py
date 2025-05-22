@@ -13,8 +13,8 @@ import plotly.colors as pc
 ### FUNCTIONS TO CREATE GRAPHS ###
 
 # Load the selected sheet with formatting
-def load_filtered_df_graph(sheet):
-    df = pd.read_excel("results.xlsx", sheet_name=sheet)
+def load_filtered_df_graph(excel, sheet):
+    df = pd.read_excel(excel, sheet_name=sheet)
     dff = df.copy()
     if 'Date' in dff.columns:
         dff['Date'] = pd.to_datetime(dff['Date'], dayfirst=True).dt.strftime('%d/%m/%Y')

@@ -16,10 +16,11 @@ import dash.exceptions as exceptions
     State("DD-x-axis-scatter", "value"),
     State("DD-y-axis-scatter", "value"),
     State("DD-colors-scatter", "value"),
+    State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
 )
-def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, sheet):
+def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, excel, sheet):
     triggered_id = ctx.triggered_id
 
     if not sheet:
@@ -29,7 +30,7 @@ def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, sheet):
         if pathname != "/visu":
             raise exceptions.PreventUpdate
 
-        df = load_filtered_df_graph(sheet)
+        df = load_filtered_df_graph(excel, sheet)
         if all(col in df.columns for col in ["Solvent", "T (°C)", "Conversion"]):
             return graph_scatter(df, "Solvent", "T (°C)", "Conversion")
         else:
@@ -37,7 +38,7 @@ def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, sheet):
 
     elif triggered_id == "generate-graph-button-scatter":
         if n_clicks and x_axis and y_axis and colors:
-            df = load_filtered_df_graph(sheet)
+            df = load_filtered_df_graph(excel, sheet)
             return graph_scatter(df, x_axis, y_axis, colors)
         else:
             return px.scatter(title="Incomplete axis selection")
@@ -50,10 +51,11 @@ def handle_scatter_update(pathname, n_clicks, x_axis, y_axis, colors, sheet):
     Input("generate-graph-button-box", "n_clicks"),
     State("DD-x-axis-box", "value"),
     State("DD-y-axis-box", "value"),
+    State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
 )
-def handle_box_graph(pathname, n_clicks, x_axis, y_axis, sheet):
+def handle_box_graph(pathname, n_clicks, x_axis, y_axis, excel, sheet):
     triggered_id = ctx.triggered_id
 
     if not sheet:
@@ -63,7 +65,7 @@ def handle_box_graph(pathname, n_clicks, x_axis, y_axis, sheet):
         if pathname != "/visu":
             raise exceptions.PreventUpdate
 
-        df = load_filtered_df_graph(sheet)
+        df = load_filtered_df_graph(excel, sheet)
         if all(col in df.columns for col in ["Solvent", "Conversion"]):
             return graph_box(df, "Solvent", "Conversion")
         else:
@@ -71,7 +73,7 @@ def handle_box_graph(pathname, n_clicks, x_axis, y_axis, sheet):
 
     elif triggered_id == "generate-graph-button-box":
         if n_clicks and x_axis and y_axis:
-            df = load_filtered_df_graph(sheet)
+            df = load_filtered_df_graph(excel, sheet)
             return graph_box(df, x_axis, y_axis)
         else:
             return px.scatter(title="Incomplete axis selection")
@@ -97,10 +99,11 @@ def handle_box_graph(pathname, n_clicks, x_axis, y_axis, sheet):
     Input("url", "pathname"),
     Input("generate-graph-button-histo", "n_clicks"),
     State("DD-col-histo", "value"),
+    State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
 )
-def handle_histo_graph(pathname, n_clicks, x_axis, sheet):
+def handle_histo_graph(pathname, n_clicks, x_axis, excel, sheet):
     triggered_id = ctx.triggered_id
 
     if not sheet:
@@ -110,15 +113,15 @@ def handle_histo_graph(pathname, n_clicks, x_axis, sheet):
         if pathname != "/visu":
             raise exceptions.PreventUpdate
 
-        df = load_filtered_df_graph(sheet)
+        df = load_filtered_df_graph(excel, sheet)
         if all(col in df.columns for col in ["Solvent"]):
             return graph_histo(df, "Solvent")
         else:
             return px.scatter(title="Required columns not found")
 
-    elif triggered_id == "generate-graph-button-box":
+    elif triggered_id == "generate-graph-button-histo":
         if n_clicks and x_axis:
-            df = load_filtered_df_graph(sheet)
+            df = load_filtered_df_graph(excel, sheet)
             return graph_histo(df, x_axis)
         else:
             return px.scatter(title="Incomplete axis selection")
@@ -131,10 +134,11 @@ def handle_histo_graph(pathname, n_clicks, x_axis, sheet):
     Input("generate-graph-button-2Dhisto", "n_clicks"),
     State("DD-col1-2Dhisto", "value"),
     State("DD-col2-2Dhisto", "value"),
+    State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
 )
-def handle_2Dhisto_graph(pathname, n_clicks, column_1, column_2, sheet):
+def handle_2Dhisto_graph(pathname, n_clicks, column_1, column_2, excel, sheet):
     triggered_id = ctx.triggered_id
 
     if not sheet:
@@ -144,15 +148,15 @@ def handle_2Dhisto_graph(pathname, n_clicks, column_1, column_2, sheet):
         if pathname != "/visu":
             raise exceptions.PreventUpdate
 
-        df = load_filtered_df_graph(sheet)
+        df = load_filtered_df_graph(excel, sheet)
         if all(col in df.columns for col in ["Solvent", "Conversion"]):
             return graph_2Dhisto(df, "Solvent", "Conversion")
         else:
             return px.scatter(title="Required columns not found")
 
-    elif triggered_id == "generate-graph-button-box":
+    elif triggered_id == "generate-graph-button-2Dhisto":
         if n_clicks and column_1 and column_2:
-            df = load_filtered_df_graph(sheet)
+            df = load_filtered_df_graph(excel, sheet)
             return graph_2Dhisto(df, column_1, column_2)
         else:
             return px.scatter(title="Incomplete axis selection")
@@ -162,17 +166,18 @@ def handle_2Dhisto_graph(pathname, n_clicks, column_1, column_2, sheet):
 @callback(
     Output("Bar_graph", "figure"),
     Input("url", "pathname"),
+    State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
 )
-def handle_bar_graph(pathname, sheet):
+def handle_bar_graph(pathname, excel, sheet):
     if not sheet:
         return px.scatter(title="No sheet selected")
 
     if pathname != "/visu":
         raise exceptions.PreventUpdate
 
-    df = load_filtered_df_graph(sheet)
+    df = load_filtered_df_graph(excel, sheet)
     return graph_histo_col(df)
 
 
@@ -187,13 +192,14 @@ def handle_bar_graph(pathname, sheet):
      Output("DD-col-histo", "options"),
      Output("DD-col1-2Dhisto", "options"),
      Output("DD-col2-2Dhisto", "options"),],
-    Input("selected-sheet-store", "data")
+    Input("selected-sheet-store", "data"),
+    State("selected-excel-store", "data"),
 )
-def fill_dropdowns(sheet):
+def fill_dropdowns(sheet, excel):
     if not sheet:
         return [], [], [], [], [], [], [], [], 
 
-    df = load_filtered_df_graph(sheet)
+    df = load_filtered_df_graph(excel, sheet)
 
     options = get_column_dropdown_options(df)
     return  options, options, options, options, options, options, options, options
