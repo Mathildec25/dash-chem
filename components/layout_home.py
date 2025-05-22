@@ -10,46 +10,53 @@ for i in range(len(excel_files)):
 
 def create_home_layout():
     return dbc.Container([
-        dbc.Row([
-            dbc.Col([
-                html.H2("Welcome to MET", className="display-2", style={"textAlign": "center", "marginTop":"5px", "color": "#f96052"}),
-            ], width=12),
-        ]),
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    html.I(className="bi bi-arrow-down", 
-                        style={"fontSize": "3rem", "marginRight": "8px", "marginTop":"5px", "color": "#f96052"}),
-                    html.H4("Please select a sheet to work on", 
-                        className="display-5", 
-                        style={"marginTop": "5px", "color": "#ff9e3d", "display": "inline-block"}),
-                    html.I(className="bi bi-arrow-down", 
-                        style={"fontSize": "3rem", "marginLeft": "8px", "marginTop":"5px", "color": "#f96052"})  
-                ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"})
-            ])
-        ]),
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    dcc.Dropdown(
-                        id = "excels-DD",
-                        options=[{"label": f"{name}"[:-5],"value": name} for name in excel_files],
-                        placeholder="Select an excel file...",
-                    ),
-                    html.Div(id='sheets-DD'),
+        dbc.Card([
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            html.H5(
+                                id="text-DD-1",
+                                children=[
+                                    "Select the excel file here"
+                                ], 
+                                style={"fontSize":"20px", "textAlign":"left"}
+                            ),
+                            dcc.Dropdown(
+                                id="excels-DD",
+                                options=[{"label": f"{name}"[:-5],"value": name} for name in excel_files],
+                                placeholder="Select an excel file...",
+                            ),
+                            html.H5(
+                                id="text-DD-2",
+                                children=[
+                                    "Select the sheet here"
+                                ], 
+                                style={"display":"none"}
+                            ),
+                            html.Div(id='sheets-DD'),
+                        ]),
+                    ], width=12),
                 ]),
-            ], width=12),
-        ]),
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    dcc.Link(dbc.Button(className="bi-table", style={"fontSize": "85px"}), href="/table"),
-                    dcc.Link(dbc.Button(className="bi-graph-up", style={"fontSize": "85px", "marginLeft": "50px"}), href="/visu"),
-                    dcc.Link(dbc.Button(className="bi-gear", style={"fontSize": "85px", "marginLeft": "50px"}), href="/carac"),
-                    dcc.Link(dbc.Button(className="bi-calculator", style={"fontSize": "85px", "marginLeft": "50px"}), href="/Bay-Opt"),
-                ], style={"display": "flex", "alignItems": "center", "justifyContent": "center", "padding": "80px"}),
-            ], width=12),
-        ]),
+                dbc.Row([
+                    dbc.Col([
+                        html.Div(
+                            id="redirec-button",
+                            children=[
+                                dcc.Link(dbc.Button(children=["Dashboard"], className="bi-table", style={"fontSize": "28px"}), href="/table"),
+                                dcc.Link(dbc.Button(children=["Visualization"],className="bi-graph-up", style={"fontSize": "28px", "marginLeft": "25px"}), href="/visu"),
+                                dcc.Link(dbc.Button(children=["Caracterization"],className="bi-gear", style={"fontSize": "28px", "marginLeft": "25px"}), href="/carac"),
+                                dcc.Link(dbc.Button(children=["Optimization"],className="bi-calculator", style={"fontSize": "28px", "marginLeft": "25px"}), href="/Bay-Opt"),
+                            ],
+                            style={"display": "none", "alignItems": "center", "justifyContent": "center", "padding": "80px"}
+                        ),
+                    ], width=12),
+                ]),
+            ])
+        ], 
+        color="#ff9e3d",
+        outline=False,
+        style={"margin": "20px", "minHeight": "200px", "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)", "borderRadius": "10px" }, className="h-auto")
         ## If video is needed
         # dbc.Row([
         #     dbc.Col([
