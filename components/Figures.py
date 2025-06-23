@@ -161,7 +161,7 @@ def graph_scatter(df, x_axis, y_axis, colors, size_param):
         )
     
     # Generate dynamic title
-    title = f"Scatter plot of {y_axis} Vs {x_axis} With Color = {colors} and Size = {size_param}"
+    title = f"Scatter plot of {y_axis} Vs {x_axis} with Color = {colors} and Size = {size_param}"
     
     # Update layout with title and larger axis labels
     fig.update_layout(
@@ -225,11 +225,11 @@ def graph_box(df, x_axis, y_axis):
     )
     return fig
 
-# Create a pie chart
-def graph_pie(sheet, values, names):
-    data = load_filtered_df_graph(sheet)
-    fig = px.pie(data, values=values, names=names)
-    return fig
+# # Create a pie chart
+# def graph_pie(sheet, values, names):
+#     data = load_filtered_df_graph(sheet)
+#     fig = px.pie(data, values=values, names=names)
+#     return fig
 
 # Create a histogram
 def graph_histo(df, column):
@@ -318,49 +318,38 @@ def graph_histo_col(df):
     )
     return fig
 
-# Create a contour plot
-def graph_contour(sheet, col_filtre, val_filtre, y_axis, x_axis, z_axis):
-    dff = load_filtered_df_graph(sheet)
-    df = dff.copy()
-    if col_filtre == "System":
-        if val_filtre == "batch":
-            filtered_df = df[df[col_filtre].str.contains("batch")]
-        else:
-            filtered_df = df[df[col_filtre] == val_filtre]
-    else :
-        filtered_df = df[df[col_filtre] == val_filtre]
+# # Create a contour plot
+# def graph_contour(sheet, col_filtre, val_filtre, y_axis, x_axis, z_axis):
+#     dff = load_filtered_df_graph(sheet)
+#     df = dff.copy()
+#     if col_filtre == "System":
+#         if val_filtre == "batch":
+#             filtered_df = df[df[col_filtre].str.contains("batch")]
+#         else:
+#             filtered_df = df[df[col_filtre] == val_filtre]
+#     else :
+#         filtered_df = df[df[col_filtre] == val_filtre]
 
-    filtered_df[z_axis] = pd.to_numeric(filtered_df[z_axis], errors='coerce')
-    filtered_df = filtered_df.dropna(subset=[z_axis])
+#     filtered_df[z_axis] = pd.to_numeric(filtered_df[z_axis], errors='coerce')
+#     filtered_df = filtered_df.dropna(subset=[z_axis])
 
-    # Pivot the table to get a 2D array of z values
-    pivot = filtered_df.pivot_table(index=y_axis, columns=x_axis, values=z_axis, aggfunc='mean')
+#     # Pivot the table to get a 2D array of z values
+#     pivot = filtered_df.pivot_table(index=y_axis, columns=x_axis, values=z_axis, aggfunc='mean')
 
-    # Extract x, y, and z
-    x = pivot.columns.values       # x-axis values
-    y = pivot.index.values         # y-axis values
-    z = pivot.values               # 2D array for contour
+#     # Extract x, y, and z
+#     x = pivot.columns.values       # x-axis values
+#     y = pivot.index.values         # y-axis values
+#     z = pivot.values               # 2D array for contour
 
-    # Plot with Plotly
-    fig = go.Figure(data=
-        go.Contour(
-            x=x,
-            y=y,
-            z=z
-        )
-    )
-    return fig
-
-
-
-
-
-
-
-
-
-
-
+#     # Plot with Plotly
+#     fig = go.Figure(data=
+#         go.Contour(
+#             x=x,
+#             y=y,
+#             z=z
+#         )
+#     )
+#     return fig
 
 ### LAYOUT ###
 

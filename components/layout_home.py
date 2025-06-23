@@ -1,15 +1,70 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 import pandas as pd
+import os
 
-excel_files = ["results.xlsx","Test-1.xlsx","Test-2.xlsx"]
-all_names=[]
-for i in range(len(excel_files)):
-    names = pd.ExcelFile(excel_files[i]).sheet_names
-    all_names.append(names)
+SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem" # Path to the folder where files will be saved
+os.makedirs(SAVE_FOLDER, exist_ok=True) # Ensure it exists
+
+TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") # Path to excel with all files names
+
+
+def load_tracked_files():
+    if os.path.exists(TRACKING_FILE):
+        df = pd.read_excel(TRACKING_FILE)
+        return [{'label': fname, 'value': fname} for fname in df['filename'].dropna()]
+    return []
 
 def create_home_layout():
     return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                html.Div([
+                    dcc.Upload(
+                        id="upload-data",
+                        children=html.Div([
+                            dbc.Button(
+                            ' Upload your Excel file here',
+                            className="bi bi-upload",
+                            style={"fontSize": "30px"},
+                            color="primary"
+                            )
+                        ]),
+                        multiple=True,    
+                    ),
+                    html.Div(id='output-data-upload'),
+                ])
+            ], width="auto"),
+            # Add excel part id needed
+            # dbc.Col([
+            #     html.Div([
+            #         dbc.Button(
+            #             " New Excel file",
+            #             id="create-excel-button",
+            #             className="bbi bi-file-earmark-plus",
+            #             style={"fontSize": "30px", "marginLeft": "10px"},
+            #             color="primary"
+            #         ),
+            #         dbc.Modal([
+            #             dbc.ModalHeader("Create a new Excel file"),
+            #             dbc.ModalBody([
+            #                 dcc.Input(
+            #                     id='new-excel-name',
+            #                     type='text',
+            #                     placeholder='Enter a name (without extension)',
+            #                     style={'width': '100%'}
+            #                 ),
+            #             ]),
+            #             dbc.ModalFooter([
+            #                 dbc.Button("Create", id="confirm-create-excel", color="success"),
+            #                 dbc.Button("Cancel", id="cancel-create-excel", color="secondary"),
+            #             ]),
+            #         ],
+            #         id="excel-modal",
+            #         is_open=False),
+            #     ]),
+            # ], width="auto"),
+        ], justify="center", align="center", className="mt-4"),
         dbc.Card([
             dbc.CardBody([
                 dbc.Row([
@@ -24,7 +79,7 @@ def create_home_layout():
                             ),
                             dcc.Dropdown(
                                 id="excels-DD",
-                                options=[{"label": f"{name}"[:-5],"value": name} for name in excel_files],
+                                options=load_tracked_files(),
                                 placeholder="Select an excel file...",
                             ),
                             html.H5(

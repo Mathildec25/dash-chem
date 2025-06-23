@@ -1,5 +1,6 @@
 # Global imports (libraries)
 import dash 
+import dash._utils
 import dash_bootstrap_components as dbc
 from dash import Input, Output, dcc, html, dash_table, State
 from dash.dash_table.Format import Format
@@ -44,7 +45,6 @@ app.layout = html.Div([
         }
     )
 ])
-
 
 # Launch the app
 if __name__ == '__main__':
