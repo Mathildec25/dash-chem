@@ -3,7 +3,7 @@ from dash import dcc, html
 import pandas as pd
 import os
 
-SAVE_FOLDER = r"/home/fsc-cloud153/dash-chem-main" # Path to the folder where files will be saved
+SAVE_FOLDER = "/root/dash-chem-main" # Path to the folder where files will be saved
 os.makedirs(SAVE_FOLDER, exist_ok=True) # Ensure it exists
 
 TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") # Path to excel with all files names
