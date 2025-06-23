@@ -1,6 +1,6 @@
 from dash import callback, Input, Output, State, no_update, ctx
 import plotly.express as px
-from components.Figures import load_filtered_df_graph, graph_scatter, graph_box, graph_pie, graph_histo, graph_2Dhisto, graph_histo_col, graph_contour
+from components.Figures import load_filtered_df_graph, graph_scatter, graph_box, graph_histo, graph_2Dhisto, graph_histo_col
 from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
 
 ###CALLBACKS TO GENERATE GRAPHS ### (visualization part)

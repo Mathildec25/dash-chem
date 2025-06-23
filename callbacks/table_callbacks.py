@@ -1,4 +1,5 @@
 from dash import callback, Input, Output, State, MATCH, ALL, dash_table, html, no_update
+from dash.exceptions import PreventUpdate
 from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
 import pandas as pd
 
@@ -9,17 +10,23 @@ import pandas as pd
     [Output("main-content", "children"),
      Output("column-dropdown", "options"),
      Output("column-dropdown", "value"),],
-    Input("selected-sheet-store", "data"),
+    Input("url", "pathname"),  # Add pathname as Input
+    State("selected-sheet-store", "data"),
     State("selected-excel-store", "data"),
+    prevent_initial_call=True
 )
-def load_table_for_sheet(sheet, excel):
+def load_table_for_sheet(pathname, sheet, excel):
+    # Only trigger callback if pathname is /table
+    if pathname != "/table":
+        raise PreventUpdate
+    
     if not sheet:
         return html.Div("No sheet selected"), [], []
-
+    
     df = load_filtered_df(excel, sheet)
     columns = get_columns(df)
     options = get_column_dropdown_options(df)
-
+    
     # Create the DataTable component
     table = dash_table.DataTable(
         id={"type": "editable-table", "sheet": sheet},
@@ -39,7 +46,7 @@ def load_table_for_sheet(sheet, excel):
         editable=True,
         style_header={
             'backgroundColor': 'white', 'textAlign': 'center', 'fontSize': '14px',
-            'fontWeight': 'bold', 'border': '1px solid black'
+            'whiteSpace': 'normal', 'maxWidth': '200px', 'fontWeight': 'bold', 'border': '1px solid black'
         },
         fixed_rows={'headers': True},
         style_data_conditional=[
@@ -55,7 +62,6 @@ def load_table_for_sheet(sheet, excel):
         sort_mode='single',
         filter_options={"placeholder_text": "Filter.."}
     )
-
     return html.Div(table, style={"padding": "4px"}), options, [opt["value"] for opt in options]
 
 # Update the columns of the table based on the selected columns in the dropdown
