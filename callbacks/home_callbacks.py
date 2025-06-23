@@ -8,10 +8,34 @@ import os
 import base64
 import io
 
-SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem" # Path to the folder where files will be saved
-os.makedirs(SAVE_FOLDER, exist_ok=True) # Ensure it exists
+SAVE_FOLDER = r"/home/fsc-cloud153/dash-chem-main" # folder in the server
+os.makedirs(SAVE_FOLDER, exist_ok=True)
 
-TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") # Path to excel with all files names
+TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") #File in the folder which tracks names
+tracking_filename = os.path.basename(TRACKING_FILE) # save its name to not include it in the dropdown
+
+# Valid extensions
+valid_extensions = ('.xlsx', '.xls', '.csv')
+existing_files = [
+    f for f in os.listdir(SAVE_FOLDER)
+    if f.lower().endswith(valid_extensions)
+    and f != tracking_filename
+    and os.path.isfile(os.path.join(SAVE_FOLDER, f))
+]
+
+# Create tracking file if not already existing
+if not os.path.exists(TRACKING_FILE):
+    df = pd.DataFrame({"filename": existing_files})
+    df.to_excel(TRACKING_FILE, index=False)
+else:
+    df = pd.read_excel(TRACKING_FILE)
+    tracked_files = df["filename"].tolist()
+
+    # Add missing files
+    new_files = [f for f in existing_files if f not in tracked_files]
+    if new_files:
+        df = pd.concat([df, pd.DataFrame({"filename": new_files})], ignore_index=True)
+        df.to_excel(TRACKING_FILE, index=False)
 
 def get_uploaded_excel_files():
     if os.path.exists(TRACKING_FILE):
