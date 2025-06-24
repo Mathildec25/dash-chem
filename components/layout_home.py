@@ -3,7 +3,10 @@ from dash import dcc, html
 import pandas as pd
 import os
 
-SAVE_FOLDER = "/root/dash-chem-main" # Path to the folder where files will be saved
+#r"C:\Users\ThBrHu\Dev\dash-chem"
+# "/root/dash-chem-main"
+
+SAVE_FOLDER = r"/root/dash-chem-main" # Path to the folder where files will be saved
 os.makedirs(SAVE_FOLDER, exist_ok=True) # Ensure it exists
 
 TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") # Path to excel with all files names
@@ -81,6 +84,16 @@ def create_home_layout():
                                 id="excels-DD",
                                 options=load_tracked_files(),
                                 placeholder="Select an excel file...",
+                            ),
+                            html.Div(
+                                dbc.Button(
+                                    "Delete selected Excel",
+                                    id="delete-excel-button",
+                                    color="danger",
+                                    className="bi bi-trash",
+                                    style={"marginTop": "12px", "display": "none"}
+                                ),
+                                id="delete-button-container"
                             ),
                             html.H5(
                                 id="text-DD-2",
