@@ -8,7 +8,7 @@ import os
 import base64
 import io
 
-SAVE_FOLDER = r"/home/fsc-cloud153/dash-chem-main" # folder in the server
+SAVE_FOLDER = "/root/dash-chem-main" # folder in the server
 os.makedirs(SAVE_FOLDER, exist_ok=True)
 
 TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") #File in the folder which tracks names
@@ -47,6 +47,7 @@ def get_uploaded_excel_files():
     Output('sheets-DD', 'children'),
     Output('text-DD-2', 'style'),
     Output('redirec-button', 'style'),
+    Output('delete-excel-button', 'style'), 
     Input('excels-DD', 'value'),
     Input({'type': 'sheet-dropdown', 'index': ALL}, 'value'),
     prevent_initial_call=True
@@ -54,41 +55,46 @@ def get_uploaded_excel_files():
 def update_dropdown_and_buttons(selected_excel, sheet_values):
     text_dd2_style = {"display": "none"}
     button_style = {"display": "none"}
-    
+    delete_button_style = {"display": "none"}  
+
     if selected_excel is None:
-        return None, text_dd2_style, button_style
-    
+        return None, text_dd2_style, button_style, delete_button_style
+
+    delete_button_style = {"display": "inline-block", "marginTop": "12px"}  
+
     text_dd2_style = {
         "display": "block",
         "fontSize": "20px",
         "textAlign": "left",
         "marginTop": "12px"
     }
+
     excel_path = os.path.join(SAVE_FOLDER, selected_excel)
 
     # Gather sheets names from the selected file
     try:
         if selected_excel.endswith(('.xls', '.xlsx')):
-            sheet_names = pd.ExcelFile(excel_path).sheet_names
-        elif selected_excel.endswith('.csv'): # CSV need to be handled differently
+            with pd.ExcelFile(excel_path) as xls:  # use context manager
+                sheet_names = xls.sheet_names
+        elif selected_excel.endswith('.csv'):
             sheet_names = [f"{selected_excel}"]
         else:
             return html.Div([dbc.Alert(
-             f"Unsupported file type: {selected_excel}",
-            id="alert-file-reading",
-            color="danger",
-            is_open=True,
-            duration=4000,
-        )]), text_dd2_style, button_style 
+                f"Unsupported file type: {selected_excel}",
+                id="alert-file-reading",
+                color="danger",
+                is_open=True,
+                duration=4000,
+            )]), text_dd2_style, button_style, delete_button_style
     except Exception as e:
         return html.Div([dbc.Alert(
-             f"Error reading file: {e}",
+            f"Error reading file: {e}",
             id="alert-file-reading",
             color="danger",
             is_open=True,
             duration=4000,
-        )]), text_dd2_style, button_style
-
+        )]), text_dd2_style, button_style, delete_button_style
+    
     # Gather a value for the dropdown if available
     current_sheet_value = sheet_values[0] if sheet_values else None
 
@@ -109,7 +115,7 @@ def update_dropdown_and_buttons(selected_excel, sheet_values):
             "padding": "80px"
         }
 
-    return sheet_dropdown, text_dd2_style, button_style
+    return sheet_dropdown, text_dd2_style, button_style, delete_button_style
 
 
 def update_tracking_file(filename):
@@ -216,73 +222,121 @@ def update_output(list_of_contents, list_of_names):
                 children.append(html.Div(f"Skipping invalid file: {name}"))
 
         return children
-
-# Open modal to create the excel file and name it
+    
+# Callback to delete and Excel file
 @callback(
-    Output("excel-modal", "is_open"),
-    [Input("create-excel-button", "n_clicks"),
-     Input("confirm-create-excel", "n_clicks"),
-     Input("cancel-create-excel", "n_clicks")],
-    [State("excel-modal", "is_open")]
+    Output('excels-DD', 'value', allow_duplicate=True),
+    Output('excels-DD', 'options', allow_duplicate=True),
+    Output('output-data-upload', 'children', allow_duplicate=True),
+    Input('delete-excel-button', 'n_clicks'),
+    State('excels-DD', 'value'),
+    prevent_initial_call=True
 )
-def toggle_modal(n_create, n_confirm, n_cancel, is_open):
-    triggered_id = ctx.triggered_id
-    if triggered_id in ["create-excel-button", "cancel-create-excel", "confirm-create-excel"]:
-        return not is_open
-    return is_open
-
-
-@callback(
-    Output("excels-DD", "options", allow_duplicate=True),
-    Output("excels-DD", "value", allow_duplicate=True),
-    Output("output-data-upload", "children", allow_duplicate=True),
-    Input("confirm-create-excel", "n_clicks"),
-    State("new-excel-name", "value"),
-    prevent_initial_call='initial_duplicate'
-)
-def create_new_excel(n_clicks, name):
-    if not name:
+def delete_excel_file(n_clicks, selected_file):
+    if not selected_file:
         return dash.no_update, dash.no_update, dbc.Alert(
-            "Please enter a name for the Excel file.",
-            color="danger",
-            duration=3000,
-            is_open=True,
-        )
-
-    filename = name.strip()
-    if not filename.endswith('.xlsx'):
-        filename += '.xlsx'
-
-    filepath = os.path.join(SAVE_FOLDER, filename)
-
-    if os.path.exists(filepath):
-        return dash.no_update, dash.no_update, dbc.Alert(
-            f"A file named '{filename}' already exists.",
+            "No file selected to delete.",
             color="warning",
-            duration=3000,
             is_open=True,
+            duration=4000
         )
+
+    file_path = os.path.join(SAVE_FOLDER, selected_file)
 
     try:
-        # Create a new Excel
-        pd.DataFrame().to_excel(filepath, index=False)
-        update_tracking_file(filename)
-    except Exception as e:
-        return dash.no_update, dash.no_update, dbc.Alert(
-            f"Error creating file: {e}",
-            color="danger",
-            duration=3000,
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        # Supprimer du fichier de suivi
+        if os.path.exists(TRACKING_FILE):
+            df = pd.read_excel(TRACKING_FILE)
+            df = df[df["filename"] != selected_file]
+            df.to_excel(TRACKING_FILE, index=False)
+
+        # Mettre à jour les options du dropdown
+        new_options = [{"label": f, "value": f} for f in get_uploaded_excel_files()]
+
+        return None, new_options, dbc.Alert(
+            f"Deleted: {selected_file}",
+            color="success",
             is_open=True,
+            duration=4000
         )
 
-    files = get_uploaded_excel_files()
-    return (
-        [{"label": f, "value": f} for f in files],
-        filename,
-        dbc.Alert(
-            f"Created new Excel file: {filename}",
-            color="success",
-            duration=3000,
+    except Exception as e:
+        return dash.no_update, dash.no_update, dbc.Alert(
+            f"Error deleting file: {e}",
+            color="danger",
             is_open=True,
-        ),
-    )
+            duration=4000
+        )
+
+# # Open modal to create the excel file and name it
+# @callback(
+#     Output("excel-modal", "is_open"),
+#     [Input("create-excel-button", "n_clicks"),
+#      Input("confirm-create-excel", "n_clicks"),
+#      Input("cancel-create-excel", "n_clicks")],
+#     [State("excel-modal", "is_open")]
+# )
+# def toggle_modal(n_create, n_confirm, n_cancel, is_open):
+#     triggered_id = ctx.triggered_id
+#     if triggered_id in ["create-excel-button", "cancel-create-excel", "confirm-create-excel"]:
+#         return not is_open
+#     return is_open
+
+
+# @callback(
+#     Output("excels-DD", "options", allow_duplicate=True),
+#     Output("excels-DD", "value", allow_duplicate=True),
+#     Output("output-data-upload", "children", allow_duplicate=True),
+#     Input("confirm-create-excel", "n_clicks"),
+#     State("new-excel-name", "value"),
+#     prevent_initial_call='initial_duplicate'
+# )
+# def create_new_excel(n_clicks, name):
+#     if not name:
+#         return dash.no_update, dash.no_update, dbc.Alert(
+#             "Please enter a name for the Excel file.",
+#             color="danger",
+#             duration=3000,
+#             is_open=True,
+#         )
+
+#     filename = name.strip()
+#     if not filename.endswith('.xlsx'):
+#         filename += '.xlsx'
+
+#     filepath = os.path.join(SAVE_FOLDER, filename)
+
+#     if os.path.exists(filepath):
+#         return dash.no_update, dash.no_update, dbc.Alert(
+#             f"A file named '{filename}' already exists.",
+#             color="warning",
+#             duration=3000,
+#             is_open=True,
+#         )
+
+#     try:
+#         # Create a new Excel
+#         pd.DataFrame().to_excel(filepath, index=False)
+#         update_tracking_file(filename)
+#     except Exception as e:
+#         return dash.no_update, dash.no_update, dbc.Alert(
+#             f"Error creating file: {e}",
+#             color="danger",
+#             duration=3000,
+#             is_open=True,
+#         )
+
+#     files = get_uploaded_excel_files()
+#     return (
+#         [{"label": f, "value": f} for f in files],
+#         filename,
+#         dbc.Alert(
+#             f"Created new Excel file: {filename}",
+#             color="success",
+#             duration=3000,
+#             is_open=True,
+#         ),
+#     )
