@@ -7,7 +7,7 @@ def create_visu_layout():
                 dbc.Row([
                     dbc.Col([
                         dcc.Location(id="url"),
-                        html.H2("Visualization part", className="display-4", style={"textAlign": "center", "marginTop": "35px", "marginBottom": "35px"}),
+                        html.H2("Visualization part", className="display-4", style={"textAlign": "center", "marginBottom": "35px"}),
                     ], width=12),
                 ]),
                         # Dropdowns for scatter plot

@@ -5,11 +5,13 @@ import dash_bootstrap_components as dbc
 from dash import Input, Output, dcc, html, dash_table, State
 from dash.dash_table.Format import Format
 import pandas as pd
+import os
+from flask import send_from_directory
 
 # Local imports (modules)
 from callbacks.app_callbacks import register_app_callbacks    
 from components.sidebar import generate_sidebar 
-from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks
+from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks, optimization_callbacks
 
 # Initialisation of the Dash app 
 app = dash.Dash(
@@ -21,6 +23,10 @@ app = dash.Dash(
 
 # ??? (Create the server???)
 server = app.server
+
+@server.route("/ketcher/<path:filename>")
+def serve_ketcher(filename):
+    return send_from_directory(os.path.join("public", "ketcher"), filename)
 
 # Create sidebar from function in sidebar.py
 sidebar = generate_sidebar()
@@ -45,6 +51,45 @@ app.layout = html.Div([
         }
     )
 ])
+
+## Like callbacks for js part (drawing mole part)
+app.clientside_callback(
+    """
+    function(n_clicks, current_store) {
+        console.log("Clicked button. n_clicks =", n_clicks);
+
+        if (!n_clicks) {
+            return window.dash_clientside.no_update;
+        }
+
+        const smiles = localStorage.getItem("ketcher_latest_smiles");
+        console.log("Collected from localStorage:", smiles);
+
+        if (!smiles) {
+            return window.dash_clientside.no_update;
+        }
+
+        localStorage.removeItem("ketcher_latest_smiles");
+
+        let updated_store = {};
+
+        if (current_store && typeof current_store === 'object') {
+            updated_store = { ...current_store };
+        }
+
+        const nextIndex = Object.keys(updated_store).length + 1;
+        updated_store["Reactant" + nextIndex] = [smiles];
+
+        console.log("Returning updated store:", updated_store);
+
+        return updated_store;
+    }
+    """,
+    Output("smiles-store", "data"),
+    Input("collect-smiles-btn", "n_clicks"),
+    State("smiles-store", "data"),
+    prevent_initial_call=True
+)
 
 # Launch the app
 if __name__ == '__main__':

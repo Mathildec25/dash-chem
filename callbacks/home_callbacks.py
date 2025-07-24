@@ -8,7 +8,7 @@ import os
 import base64
 import io
 
-SAVE_FOLDER = "/root/dash-chem-main" # folder in the server
+SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem" # folder in the server
 os.makedirs(SAVE_FOLDER, exist_ok=True)
 
 TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") #File in the folder which tracks names

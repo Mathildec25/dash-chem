@@ -6,7 +6,7 @@ import os
 #r"C:\Users\ThBrHu\Dev\dash-chem"
 # "/root/dash-chem-main"
 
-SAVE_FOLDER = r"/root/dash-chem-main" # Path to the folder where files will be saved
+SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem" # Path to the folder where files will be saved
 os.makedirs(SAVE_FOLDER, exist_ok=True) # Ensure it exists
 
 TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") # Path to excel with all files names
@@ -87,7 +87,7 @@ def create_home_layout():
                             ),
                             html.Div(
                                 dbc.Button(
-                                    "Delete selected Excel",
+                                    " Delete selected Excel",
                                     id="delete-excel-button",
                                     color="danger",
                                     className="bi bi-trash",
