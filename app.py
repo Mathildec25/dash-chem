@@ -10,8 +10,9 @@ from flask import send_from_directory
 
 # Local imports (modules)
 from callbacks.app_callbacks import register_app_callbacks    
+from callbacks.optimization_callbacks import reactant_part, parameter_part, objective_part, other_column_part
 from components.sidebar import generate_sidebar 
-from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks, optimization_callbacks
+from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks
 
 # Initialisation of the Dash app 
 app = dash.Dash(

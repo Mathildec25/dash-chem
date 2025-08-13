@@ -270,6 +270,15 @@ def delete_excel_file(n_clicks, selected_file):
             is_open=True,
             duration=4000
         )
+    
+@callback(
+    Output("output", "children"),
+    Input("multi-text", "value")
+)
+def update_output(value):
+    words = [w.strip() for w in value.replace(",", " ").split() if w.strip()]
+    return f"You entered {len(words)} words: {words}"
+
 
 # # Open modal to create the excel file and name it
 # @callback(

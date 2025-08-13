@@ -124,7 +124,16 @@ def create_home_layout():
         ], 
         color="#ff9e3d",
         outline=False,
-        style={"margin": "20px", "minHeight": "200px", "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)", "borderRadius": "10px" }, className="h-auto")
+        style={"margin": "20px", "minHeight": "200px", "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)", "borderRadius": "10px" }, className="h-auto"),
+        html.Div([
+            html.H4("Enter several words (space or comma separated)"),
+            dcc.Textarea(
+                id="multi-text",
+                value="",
+                style={"width": "300px", "height": "100px"}
+            ),
+            html.Div(id="output")
+        ]),
         ## If video is needed
         # dbc.Row([
         #     dbc.Col([

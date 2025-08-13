@@ -20,12 +20,12 @@ def chunk_list(lst, chunk_size):
 chunks = chunk_list(solvents, 5)
 
 # This function creates the layout for the dashboard page 
-def create_optimization_layout():
+def create_opti_param_layout():
     return dbc.Container([
         dbc.Row([
             dbc.Col([
                 dcc.Location(id="url"),
-                html.H2("Optimization part", className="display-4", style={"textAlign": "center", "marginBottom": "35px"}),
+                html.H2("Optimization Parameterization part", className="display-4", style={"textAlign": "center","marginTop":"5px", "marginBottom": "20px"}),
             ], width=12),
         ]),
         dbc.Row([
