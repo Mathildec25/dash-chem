@@ -10,9 +10,10 @@ from flask import send_from_directory
 
 # Local imports (modules)
 from callbacks.app_callbacks import register_app_callbacks    
-from callbacks.optimization_callbacks import reactant_part, parameter_part, objective_part, other_column_part
+from callbacks.opti_home_callbacks import new_proj_callbacks, already_created_callbacks
+from callbacks.opti_param_callbacks import reactant_part, parameter_part, objective_part, other_column_part, sampling_part
 from components.sidebar import generate_sidebar 
-from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks
+from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks, opti_run_callbacks
 
 # Initialisation of the Dash app 
 app = dash.Dash(
@@ -35,12 +36,14 @@ sidebar = generate_sidebar()
 # ??? (importing callbacks from other files???)
 register_app_callbacks(app)
 
-
 # Define the layout of the app
-
 app.layout = html.Div([
     dcc.Store(id="selected-excel-store", storage_type='session'),
     dcc.Store(id="selected-sheet-store", storage_type='session'),
+    dcc.Store(id='project-name-store', storage_type='session'),        # Store component to save the project name on BO part
+    dcc.Store(id='selected-file-store', storage_type='session'),       # Store file selected to restrat opti
+    dcc.Store(id="current-excel-file", storage_type='session'),        # Store file created to start BO
+    dcc.Store(id="current-domain", storage_type='session'),            # Store the domain of the current BO process
     dcc.Location(id="url", refresh=False),
     sidebar,  # Fixed + hover-based sidebar
     html.Div(
@@ -53,44 +56,46 @@ app.layout = html.Div([
     )
 ])
 
-## Like callbacks for js part (drawing mole part)
-app.clientside_callback(
-    """
-    function(n_clicks, current_store) {
-        console.log("Clicked button. n_clicks =", n_clicks);
+### If reacatant drawing is used ####
 
-        if (!n_clicks) {
-            return window.dash_clientside.no_update;
-        }
+# ## Like callbacks for js part (drawing mole part)
+# app.clientside_callback(
+#     """
+#     function(n_clicks, current_store) {
+#         console.log("Clicked button. n_clicks =", n_clicks);
 
-        const smiles = localStorage.getItem("ketcher_latest_smiles");
-        console.log("Collected from localStorage:", smiles);
+#         if (!n_clicks) {
+#             return window.dash_clientside.no_update;
+#         }
 
-        if (!smiles) {
-            return window.dash_clientside.no_update;
-        }
+#         const smiles = localStorage.getItem("ketcher_latest_smiles");
+#         console.log("Collected from localStorage:", smiles);
 
-        localStorage.removeItem("ketcher_latest_smiles");
+#         if (!smiles) {
+#             return window.dash_clientside.no_update;
+#         }
 
-        let updated_store = {};
+#         localStorage.removeItem("ketcher_latest_smiles");
 
-        if (current_store && typeof current_store === 'object') {
-            updated_store = { ...current_store };
-        }
+#         let updated_store = {};
 
-        const nextIndex = Object.keys(updated_store).length + 1;
-        updated_store["Reactant" + nextIndex] = [smiles];
+#         if (current_store && typeof current_store === 'object') {
+#             updated_store = { ...current_store };
+#         }
 
-        console.log("Returning updated store:", updated_store);
+#         const nextIndex = Object.keys(updated_store).length + 1;
+#         updated_store["Reactant" + nextIndex] = [smiles];
 
-        return updated_store;
-    }
-    """,
-    Output("smiles-store", "data"),
-    Input("collect-smiles-btn", "n_clicks"),
-    State("smiles-store", "data"),
-    prevent_initial_call=True
-)
+#         console.log("Returning updated store:", updated_store);
+
+#         return updated_store;
+#     }
+#     """,
+#     Output("smiles-store", "data"),
+#     Input("collect-smiles-btn", "n_clicks"),
+#     State("smiles-store", "data"),
+#     prevent_initial_call=True
+# )
 
 # Launch the app
 if __name__ == '__main__':

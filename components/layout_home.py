@@ -2,15 +2,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 import pandas as pd
 import os
-
-#r"C:\Users\ThBrHu\Dev\dash-chem"
-# "/root/dash-chem-main"
-
-SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem" # Path to the folder where files will be saved
-os.makedirs(SAVE_FOLDER, exist_ok=True) # Ensure it exists
-
-TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") # Path to excel with all files names
-
+from excel_storage import SAVE_FOLDER, TRACKING_FILE, TRACKING_FILENAME
 
 def load_tracked_files():
     if os.path.exists(TRACKING_FILE):
@@ -125,15 +117,6 @@ def create_home_layout():
         color="#ff9e3d",
         outline=False,
         style={"margin": "20px", "minHeight": "200px", "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)", "borderRadius": "10px" }, className="h-auto"),
-        html.Div([
-            html.H4("Enter several words (space or comma separated)"),
-            dcc.Textarea(
-                id="multi-text",
-                value="",
-                style={"width": "300px", "height": "100px"}
-            ),
-            html.Div(id="output")
-        ]),
         ## If video is needed
         # dbc.Row([
         #     dbc.Col([

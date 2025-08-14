@@ -7,41 +7,18 @@ import pandas as pd
 import os
 import base64
 import io
+from excel_storage import (SAVE_FOLDER, TRACKING_FILE, TRACKING_FILENAME, parse_contents, get_uploaded_excel_files,
+                           update_tracking_file, get_excel_dropdown_options, get_excel_dropdown_options_with_domain_status,
+                           cleanup_orphaned_domains)
 
-SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem" # folder in the server
-os.makedirs(SAVE_FOLDER, exist_ok=True)
-
-TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx") #File in the folder which tracks names
-tracking_filename = os.path.basename(TRACKING_FILE) # save its name to not include it in the dropdown
-
-# Valid extensions
-valid_extensions = ('.xlsx', '.xls', '.csv')
-existing_files = [
-    f for f in os.listdir(SAVE_FOLDER)
-    if f.lower().endswith(valid_extensions)
-    and f != tracking_filename
-    and os.path.isfile(os.path.join(SAVE_FOLDER, f))
-]
-
-# Create tracking file if not already existing
-if not os.path.exists(TRACKING_FILE):
-    df = pd.DataFrame({"filename": existing_files})
-    df.to_excel(TRACKING_FILE, index=False)
-else:
-    df = pd.read_excel(TRACKING_FILE)
-    tracked_files = df["filename"].tolist()
-
-    # Add missing files
-    new_files = [f for f in existing_files if f not in tracked_files]
-    if new_files:
-        df = pd.concat([df, pd.DataFrame({"filename": new_files})], ignore_index=True)
-        df.to_excel(TRACKING_FILE, index=False)
-
-def get_uploaded_excel_files():
-    if os.path.exists(TRACKING_FILE):
-        df = pd.read_excel(TRACKING_FILE) # read the tracking file
-        return df["filename"][df["filename"].str.endswith(('.xlsx', '.xls'))].tolist() # Only return excel files (CSV later???)
-    return []
+# 1. Import the domain storage system
+from domain_storage import (
+    DomainStorage, 
+    create_domain_and_excel_with_storage, 
+    check_domain_availability,
+    prepare_experiments_from_excel_data, 
+    load_experiments_from_excel_file
+)
 
 @callback(
     Output('sheets-DD', 'children'),
@@ -223,7 +200,7 @@ def update_output(list_of_contents, list_of_names):
 
         return children
     
-# Callback to delete and Excel file
+# Callback to delete Excel file and domain associated
 @callback(
     Output('excels-DD', 'value', allow_duplicate=True),
     Output('excels-DD', 'options', allow_duplicate=True),
@@ -232,7 +209,8 @@ def update_output(list_of_contents, list_of_names):
     State('excels-DD', 'value'),
     prevent_initial_call=True
 )
-def delete_excel_file(n_clicks, selected_file):
+def delete_excel_file_with_domain_cleanup(n_clicks, selected_file):
+    """Delete Excel file and associated domain"""
     if not selected_file:
         return dash.no_update, dash.no_update, dbc.Alert(
             "No file selected to delete.",
@@ -242,25 +220,39 @@ def delete_excel_file(n_clicks, selected_file):
         )
 
     file_path = os.path.join(SAVE_FOLDER, selected_file)
+    messages = []
 
     try:
+        # 1. Delete the Excel file
         if os.path.exists(file_path):
             os.remove(file_path)
+            messages.append(f"Excel file deleted: {selected_file}")
 
-        # Supprimer du fichier de suivi
+        # 2. Delete associated domain
+        domain_success, domain_message = DomainStorage.delete_domain(selected_file)
+        if domain_success:
+            messages.append(f"Domain cleaned up: {domain_message}")
+        else:
+            # Only add warning if there was actually a domain to delete
+            if "No domain found" not in domain_message:
+                messages.append(f"Domain cleanup warning: {domain_message}")
+
+        # 3. Remove from Excel tracking file
         if os.path.exists(TRACKING_FILE):
             df = pd.read_excel(TRACKING_FILE)
             df = df[df["filename"] != selected_file]
             df.to_excel(TRACKING_FILE, index=False)
 
-        # Mettre à jour les options du dropdown
+        # 4. Update dropdown options
         new_options = [{"label": f, "value": f} for f in get_uploaded_excel_files()]
 
+        # 5. Create success message
+        success_message = " | ".join(messages)
         return None, new_options, dbc.Alert(
-            f"Deleted: {selected_file}",
+            success_message,
             color="success",
             is_open=True,
-            duration=4000
+            duration=5000
         )
 
     except Exception as e:
@@ -270,15 +262,6 @@ def delete_excel_file(n_clicks, selected_file):
             is_open=True,
             duration=4000
         )
-    
-@callback(
-    Output("output", "children"),
-    Input("multi-text", "value")
-)
-def update_output(value):
-    words = [w.strip() for w in value.replace(",", " ").split() if w.strip()]
-    return f"You entered {len(words)} words: {words}"
-
 
 # # Open modal to create the excel file and name it
 # @callback(

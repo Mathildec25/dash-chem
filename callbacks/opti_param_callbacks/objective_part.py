@@ -37,10 +37,13 @@ def add_new_objective(n_clicks, current_children):
                             size="sm",
                             style={"fontSize": "18px"}
                         ),
-                    ], width=5),
+                    ], width=3),
                     dbc.Col([
                         html.Div(id={'type': 'objective-direction-container', 'index': new_id})
-                    ], width=5),
+                    ], width=3),
+                    dbc.Col([
+                        html.Div(id={'type': 'objective-bounds-container', 'index': new_id})
+                    ], width=4),
                     dbc.Col([
                         dbc.Button(
                             "✕",
@@ -52,8 +55,9 @@ def add_new_objective(n_clicks, current_children):
                 ],
                 style={"marginBottom": "10px"}
             )
-        ])
-        
+        ]
+    )
+
     return current_children + [new_block]
 
 # Display the dropdown to choose Min/Max
@@ -119,18 +123,22 @@ def delete_objective(n_clicks_list, current_children, stored_data):
     Input("save-objectives-btn", "n_clicks"),
     Input({"type": "objective-name", "index": ALL}, "value"),
     Input({"type": "objective-direction", "index": ALL}, "value"),
+    Input({"type": "objective-lower-bound", "index": ALL}, "value"),
+    Input({"type": "objective-upper-bound", "index": ALL}, "value"),
     State("objective-store", "data"),
     prevent_initial_call=False
 )
-def update_objectives(n_clicks, names, directions, current_store):
+def update_objectives(n_clicks, names, directions, lowers, uppers, current_store):
     triggered_id = ctx.triggered_id
 
     objectives = []
-    for name, direction in zip(names, directions):
+    for name, direction, lower, upper in zip(names, directions, lowers, uppers):
         if name and direction:
             objectives.append({
                 "name": name,
-                "direction": direction
+                "direction": direction,
+                "lower_bound": lower,
+                "upper_bound": upper
             })
 
     display = html.Pre(
@@ -138,9 +146,39 @@ def update_objectives(n_clicks, names, directions, current_store):
         style={"whiteSpace": "pre-wrap", "fontSize": "14px"}
     )
 
-    # Only update store if Save button clicked
     if triggered_id == "save-objectives-btn" and n_clicks:
         return objectives, display
     else:
-        # Update display only
         return dash.no_update, display
+    
+# Display lower and upper bounds inputs
+@callback(
+    Output({'type': 'objective-bounds-container', 'index': MATCH}, 'children'),
+    Input({'type': 'objective-name', 'index': MATCH}, 'value'),
+    prevent_initial_call=True
+)
+def show_objective_bounds(name):
+    if not name:
+        return ""
+    
+    return html.Div([
+        dbc.Label("Bounds (Lower / Upper)"),
+        dbc.Row([
+            dbc.Col(
+                dbc.Input(
+                    id={'type': 'objective-lower-bound', 'index': ctx.triggered_id['index']},
+                    type="number",
+                    placeholder="Lower bound",
+                    size="sm"
+                ), width=6
+            ),
+            dbc.Col(
+                dbc.Input(
+                    id={'type': 'objective-upper-bound', 'index': ctx.triggered_id['index']},
+                    type="number",
+                    placeholder="Upper bound",
+                    size="sm"
+                ), width=6
+            )
+        ])
+    ])

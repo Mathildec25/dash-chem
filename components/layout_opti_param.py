@@ -24,7 +24,6 @@ def create_opti_param_layout():
     return dbc.Container([
         dbc.Row([
             dbc.Col([
-                dcc.Location(id="url"),
                 html.H2("Optimization Parameterization part", className="display-4", style={"textAlign": "center","marginTop":"5px", "marginBottom": "20px"}),
             ], width=12),
         ]),
@@ -33,79 +32,79 @@ def create_opti_param_layout():
                 html.Div([
                     dbc.Accordion([
                             # First part to selct Batch/Flow
-                            dbc.AccordionItem(
-                                children=[
-                                    dcc.RadioItems(
-                                        options=[
-                                            {'label': 'Batch', 'value': 'Batch'},
-                                            {'label': 'Flow', 'value': 'Flow'},
-                                            {'label': "Don't know", 'value': "Don't know"},
-                                        ],
-                                        inline=True,
-                                        labelStyle={'marginLeft': '200px', 'fontSize': '20px', 'display': 'inline-block'},
-                                        inputStyle={'marginRight': '5px'},
-                                    )
-                                ],
-                                title="Batch/Flow", 
-                                item_id="item-1",
-                            ),
-                            # Second part to select Solvent
-                            dbc.AccordionItem(
-                                children=[
-                                    dbc.Row([
-                                        dbc.Col([
-                                            dcc.Checklist(
-                                                options=[{'label': item, 'value': item} for item in chunk],
-                                                labelStyle={'fontSize': '18px', 'display': 'block'},
-                                                inputStyle={'marginRight': '5px'},
-                                                id=f'checklist-col-{i}'
-                                            )
-                                        ], width='auto', style={"marginLeft":"20px"}) for i, chunk in enumerate(chunks)
-                                    ], justify='center'),
-                                ],
-                                title="Solvent",
-                                item_id="item-2",
-                            ),
-                            # Third part to draw Reactants and gather their SMILES
-                            dbc.AccordionItem(
-                                children=[
-                                    dbc.Row([
-                                        html.Iframe(
-                                            id='ketcher-frame',
-                                            src="/ketcher/index.html",
-                                            style={'width': '100%', 'height': '400px', 'border': '1px solid #ccc'},
-                                        )
-                                    ]),
-                                    dbc.Row([
-                                        dbc.Col([
-                                            html.Div([
-                                                dbc.Button(
-                                                    " Collect SMILES",
-                                                    id="collect-smiles-btn",
-                                                    color="primary",
-                                                    style={"fontSize": "18px", "marginTop": "12px"},
-                                                    n_clicks=0
-                                                )
-                                            ]),
-                                            dcc.Store(id="smiles-store", data=[], storage_type='session'),
-                                            html.Div(id="smiles-output", style={"marginTop": "12px"}),
-                                        ])
-                                    ])
-                                ],
-                                title="Reactants",
-                                item_id="item-3",
-                            ),
+                            # dbc.AccordionItem(
+                            #     children=[
+                            #         dcc.RadioItems(
+                            #             options=[
+                            #                 {'label': 'Batch', 'value': 'Batch'},
+                            #                 {'label': 'Flow', 'value': 'Flow'},
+                            #                 {'label': "Don't know", 'value': "Don't know"},
+                            #             ],
+                            #             inline=True,
+                            #             labelStyle={'marginLeft': '200px', 'fontSize': '20px', 'display': 'inline-block'},
+                            #             inputStyle={'marginRight': '5px'},
+                            #         )
+                            #     ],
+                            #     title="Batch/Flow", 
+                            #     item_id="item-1",
+                            # ),
+                            # # Second part to select Solvent
+                            # dbc.AccordionItem(
+                            #     children=[
+                            #         dbc.Row([
+                            #             dbc.Col([
+                            #                 dcc.Checklist(
+                            #                     options=[{'label': item, 'value': item} for item in chunk],
+                            #                     labelStyle={'fontSize': '18px', 'display': 'block'},
+                            #                     inputStyle={'marginRight': '5px'},
+                            #                     id=f'checklist-col-{i}'
+                            #                 )
+                            #             ], width='auto', style={"marginLeft":"20px"}) for i, chunk in enumerate(chunks)
+                            #         ], justify='center'),
+                            #     ],
+                            #     title="Solvent",
+                            #     item_id="item-2",
+                            # ),
+                            # # Third part to draw Reactants and gather their SMILES
+                            # dbc.AccordionItem(
+                            #     children=[
+                            #         dbc.Row([
+                            #             html.Iframe(
+                            #                 id='ketcher-frame',
+                            #                 src="/ketcher/index.html",
+                            #                 style={'width': '100%', 'height': '400px', 'border': '1px solid #ccc'},
+                            #             )
+                            #         ]),
+                            #         dbc.Row([
+                            #             dbc.Col([
+                            #                 html.Div([
+                            #                     dbc.Button(
+                            #                         " Collect SMILES",
+                            #                         id="collect-smiles-btn",
+                            #                         color="primary",
+                            #                         style={"fontSize": "18px", "marginTop": "12px"},
+                            #                         n_clicks=0
+                            #                     )
+                            #                 ]),
+                            #                 dcc.Store(id="smiles-store", data=[], storage_type='session'),
+                            #                 html.Div(id="smiles-output", style={"marginTop": "12px"}),
+                            #             ])
+                            #         ])
+                            #     ],
+                            #     title="Reactants",
+                            #     item_id="item-3",
+                            # ),
                             # Fourth part to select Parameters/Variables
                             dbc.AccordionItem(
                                 children=[
-                                    dcc.Store(id='parameter-store', data=[]),
+                                    dcc.Store(id='parameter-store', data=[], storage_type="session"),
                                     html.Div(id="parameter-container", children=[
                                         dbc.Row(
                                             id={'type': 'parameter-block', 'index': initial_id},
                                             children=[
                                                 dbc.Col([
                                                     dbc.Label("Name of the parameter"),
-                                                    dbc.Input(
+                                                    dbc.Input(  
                                                         id={'type': 'parameter-name', 'index': initial_id},
                                                         placeholder="Type here...",
                                                         type="text",
@@ -163,7 +162,7 @@ def create_opti_param_layout():
                             # Fifth part to select Objctives
                             dbc.AccordionItem(
                                 children=[
-                                    dcc.Store(id='objective-store', data=[]),
+                                    dcc.Store(id='objective-store', data=[], storage_type="session"),
                                     html.Div(id="objective-container", 
                                         children=[
                                             dbc.Row(
@@ -178,10 +177,13 @@ def create_opti_param_layout():
                                                             size="sm",
                                                             style={"fontSize": "18px"}
                                                         ),
-                                                    ], width=5),
+                                                    ], width=3),
                                                     dbc.Col([
                                                         html.Div(id={'type': 'objective-direction-container', 'index': initial_objective_id})
-                                                    ], width=5),
+                                                    ], width=3),
+                                                    dbc.Col([
+                                                        html.Div(id={'type': 'objective-bounds-container', 'index': initial_objective_id})
+                                                    ], width=4),
                                                     dbc.Col([
                                                         dbc.Button(
                                                             "✕",
@@ -222,13 +224,11 @@ def create_opti_param_layout():
                                 title="Objectives",
                                 item_id="item-5",
                             ),
-                           # Sixth part to choose Excel name + Other columns
+                           # Sixth part to add Other columns
                             dbc.AccordionItem(
                                 children=[
-                                    dcc.Store(id="extra-columns-store", data=[]),
-                                    dcc.Store(id="excel-name-store", data=""),
+                                    dcc.Store(id="extra-columns-store", data=[], storage_type="session"),
                                     dbc.Row([
-                                        # LEFT SIDE: Extra column names
                                         dbc.Col([
                                             html.Div(id="extra-column-container", children=[
                                                 dbc.Row(
@@ -279,46 +279,86 @@ def create_opti_param_layout():
                                                 ]
                                             ),
                                             html.Div(id="extra-columns-display", style={"marginTop": "15px", "fontSize": "14px"})
-                                        ], width=6, style={"borderRight": "1px solid #ddd"}),
-
-                                        # RIGHT SIDE: Excel name input
-                                        dbc.Col([
-                                            html.H6("Excel File Name"),
-                                            dbc.Input(
-                                                id="excel-name-input",
-                                                placeholder="e.g. my_parameters.xlsx",
-                                                type="text",
-                                                style={"marginBottom": "8px"}
-                                            ),
-                                            dbc.Button(
-                                                " Save Excel Name",
-                                                id="save-excel-name-btn",
-                                                color="success",
-                                                className="bi bi-floppy",
-                                                style={"marginTop": "12px"}
-                                            ),
-                                            html.Div(
-                                                id="create-excel-btn-container",
-                                                children=[
-                                                    dbc.Button(
-                                                    " Create the Excel",
-                                                    id="create-excel-btn",
-                                                    color="primary",
-                                                    className="bi bi-file-earmark-plus",
-                                                    style={"marginTop": "12px"}
-                                                    ),
-                                                ], 
-                                                style={"display": "none"}
-                                            ),    
-                                            html.Div(id="excel-confirmation", style={"marginTop": "10px", "fontSize": "14px"}),
-                                            html.Div(id="excel-create-message", style={"marginTop": "10px", "fontSize": "14px"}),
-                                        ], width=6),
+                                        ], width=12, style={"borderRight": "1px solid #ddd"}),
                                     ])
                                 ],
                                 title="Other Columns & Excel Name",
                                 item_id="item-6",
                             ),
-                            # Seventh part to select specifications about BO algorithm
+                            # # Seventh part to select specifications about BO algorithm
+                            # dbc.AccordionItem(
+                            #     children=[
+                            #         # html.Hr(),
+                            #         # dbc.Row([
+                            #         #     dbc.Col([
+                            #         #             html.H6("Scalarization techniques", style={"textAlign": "center", "fontSize": "20px"}),
+                            #         #             dcc.Dropdown(
+                            #         #                 id="scalarization-technique-DD",
+                            #         #                 options=[
+                            #         #                     {"label": "None", "value": "none"},
+                            #         #                     {"label": "Tchebychev", "value": "TCH"},
+                            #         #                     {"label": "Lexicographical/Chimera", "value": "chimera"},
+                            #         #                     {"label": "Weighted sum", "value": "weighted_sum"},
+                            #         #                 ],
+                            #         #                 style={"marginBottom": "10px", "marginTop": "10px"},
+                            #         #             ),
+                            #         #     ], width=12)
+                            #         # ]),
+                            #         html.Hr(),
+                            #         dbc.Row([
+                            #             dbc.Col([
+                            #                     html.H6("Surrogate models", style={"textAlign": "center", "fontSize": "20px"}),
+                            #                     dcc.Dropdown(
+                            #                         id="surrogate-model-DD",
+                            #                         options=[
+                            #                             {"label": "BoTorch/Gaussian Process (GP)", "value": "botorch"},
+                            #                             {"label": "Gryffin/Bayesian Neural Network (BNN)", "value": "gryffin"},
+                            #                             {"label": "Smac/Random Forest (RF)", "value": "smac"},
+                            #                             {"label": "Grid search", "value": "grid"},
+                            #                             {"label": "Random sampling", "value": "random"},
+                            #                         ],
+                            #                         style={"marginBottom": "10px", "marginTop": "10px"},
+                            #                     ),
+                            #             ], width=12)
+                            #         ]),
+                            #         html.Hr(),
+                            #         dbc.Row([
+                            #             dbc.Col([
+                            #                     html.H6("Acquisition functions", style={"textAlign": "center", "fontSize": "20px"}),
+                            #                     dcc.Dropdown(
+                            #                         id="acquisition-function-DD",
+                            #                         options=[
+                            #                             {"label": "Expected Improvement (EI)", "value": "EI"},
+                            #                             {"label": "Expected HyperVolume Improvement (EHVI)", "value": "EHVI"},
+                            #                             {"label": "Genetic", "value": "genetic"},
+                            #                             {"label": "qNEHVI", "value": "qNEHVI"},
+                            #                             {"label": "Probability of Improvement (PI)", "value": "PI"},
+                            #                         ],
+                            #                         style={"marginBottom": "10px", "marginTop": "10px"},
+                            #                     ),
+                            #             ], width=12)
+                            #         ]),
+                            #         # html.Hr(),
+                            #         # dbc.Row([
+                            #         #     dbc.Col([
+                            #         #             html.H6("Ending conditions", style={"textAlign": "center", "fontSize": "20px"}),
+                            #         #             dcc.Dropdown(
+                            #         #                 id="ending-condition-DD",
+                            #         #                 options=[
+                            #         #                     {"label": "None", "value": "none"},
+                            #         #                     {"label": "Iterations", "value": "iterations"},
+                            #         #                     {"label": "No more improvement", "value": "no_improvement"},
+                            #         #                     {"label": "Goal", "value": "goal"},
+                            #         #                 ],
+                            #         #                 style={"marginBottom": "10px", "marginTop": "10px"},
+                            #         #             ),
+                            #         #     ], width=12)
+                            #         # ])
+                            #     ],
+                            #     title="Algorithm Specifications",
+                            #     item_id="item-7",
+                            # ),
+                            # Eighth part to launch the optimization/sampling
                             dbc.AccordionItem(
                                 children=[
                                     dbc.Row([
@@ -334,94 +374,39 @@ def create_opti_param_layout():
                                                     ],
                                                     style={"marginBottom": "10px", "marginTop": "10px"},
                                                 ),
-                                        ], width=12)
-                                    ]),
-                                    html.Hr(),
-                                    dbc.Row([
+                                        ], width=6),
                                         dbc.Col([
-                                                html.H6("Scalarization techniques", style={"textAlign": "center", "fontSize": "20px"}),
-                                                dcc.Dropdown(
-                                                    id="scalarization-technique-DD",
-                                                    options=[
-                                                        {"label": "None", "value": "none"},
-                                                        {"label": "Tchebychev", "value": "TCH"},
-                                                        {"label": "Lexicographical/Chimera", "value": "chimera"},
-                                                        {"label": "Weighted sum", "value": "weighted_sum"},
-                                                    ],
+                                                html.H6("How many points to do", style={"textAlign": "center", "fontSize": "20px"}),
+                                                dbc.Input(
+                                                    id="nb-sampling-points",
+                                                    type="number",
+                                                    placeholder=" 2 * (numbers of parameters) is recommended",
                                                     style={"marginBottom": "10px", "marginTop": "10px"},
                                                 ),
-                                        ], width=12)
+                                        ], width=6)
                                     ]),
-                                    html.Hr(),
-                                    dbc.Row([
-                                        dbc.Col([
-                                                html.H6("Surrogate models", style={"textAlign": "center", "fontSize": "20px"}),
-                                                dcc.Dropdown(
-                                                    id="surrogate-model-DD",
-                                                    options=[
-                                                        {"label": "BoTorch/Gaussian Process (GP)", "value": "botorch"},
-                                                        {"label": "Gryffin/Bayesian Neural Network (BNN)", "value": "gryffin"},
-                                                        {"label": "Smac/Random Forest (RF)", "value": "smac"},
-                                                        {"label": "Grid search", "value": "grid"},
-                                                        {"label": "Random sampling", "value": "random"},
-                                                    ],
-                                                    style={"marginBottom": "10px", "marginTop": "10px"},
-                                                ),
-                                        ], width=12)
-                                    ]),
-                                    html.Hr(),
-                                    dbc.Row([
-                                        dbc.Col([
-                                                html.H6("Acquisition functions", style={"textAlign": "center", "fontSize": "20px"}),
-                                                dcc.Dropdown(
-                                                    id="acquisition-function-DD",
-                                                    options=[
-                                                        {"label": "Expected Improvement (EI)", "value": "EI"},
-                                                        {"label": "Expected HyperVolume Improvement (EHVI)", "value": "EHVI"},
-                                                        {"label": "Genetic", "value": "genetic"},
-                                                        {"label": "qNEHVI", "value": "qNEHVI"},
-                                                        {"label": "Probability of Improvement (PI)", "value": "PI"},
-                                                    ],
-                                                    style={"marginBottom": "10px", "marginTop": "10px"},
-                                                ),
-                                        ], width=12)
-                                    ]),
-                                    html.Hr(),
-                                    dbc.Row([
-                                        dbc.Col([
-                                                html.H6("Ending conditions", style={"textAlign": "center", "fontSize": "20px"}),
-                                                dcc.Dropdown(
-                                                    id="ending-condition-DD",
-                                                    options=[
-                                                        {"label": "None", "value": "none"},
-                                                        {"label": "Iterations", "value": "iterations"},
-                                                        {"label": "No more improvement", "value": "no_improvement"},
-                                                        {"label": "Goal", "value": "goal"},
-                                                    ],
-                                                    style={"marginBottom": "10px", "marginTop": "10px"},
-                                                ),
-                                        ], width=12)
-                                    ])
-                                ],
-                                title="Algorithm Specifications",
-                                item_id="item-7",
-                            ),
-                            # Eighth part to launch the optimization
-                            dbc.AccordionItem(
-                                children=[
                                     dbc.Row([
                                         dbc.Col([
                                             html.H6("Are you ready?", style={"textAlign": "center", "fontSize": "20px"}),
                                             html.Div([
-                                                dbc.Button(
-                                                    " Give next conditions",
-                                                    id="run-BO-btn",
-                                                    color="primary",
-                                                    className="bi bi-rocket-takeoff",
-                                                    style={"marginTop": "12px", "fontSize": "30px"}
-                                                    ),
+                                                dcc.Link(
+                                                    dbc.Button(
+                                                        " Start sampling",
+                                                        id="run-BO-btn",
+                                                        color="success",
+                                                        className="bi bi-rocket-takeoff",
+                                                        style={"marginTop": "6px", "fontSize": "20px"}
+                                                    ), href="/Opt-run"),
                                             ],
                                             style={"textAlign": "center"}
+                                            ),
+                                        ]),
+                                    ]),
+                                    dbc.Row([
+                                        dbc.Col([
+                                            html.Div(
+                                                id = "domain-create-message",
+                                                children=[]
                                             ),
                                         ]),
                                     ]),
@@ -430,17 +415,17 @@ def create_opti_param_layout():
                                 item_id="item-8",
                             ),
                             # Ninth part to display the results
-                            dbc.AccordionItem(
-                                children=[
-                                    dbc.Row([
-                                        dbc.Col([
-                                            html.H6("Graph to be added", style={"textAlign": "center", "fontSize": "20px"}),
-                                        ]),
-                                    ]),
-                                ],
-                                title="Visualizations",
-                                item_id="item-9",
-                            ),    
+                            # dbc.AccordionItem(
+                            #     children=[
+                            #         dbc.Row([
+                            #             dbc.Col([
+                            #                 html.H6("Graph to be added", style={"textAlign": "center", "fontSize": "20px"}),
+                            #             ]),
+                            #         ]),
+                            #     ],
+                            #     title="Visualizations",
+                            #     item_id="item-9",
+                            # ),    
                     ], id="accordion", active_item="item-1"),
                 ]),
             ], width=12),        

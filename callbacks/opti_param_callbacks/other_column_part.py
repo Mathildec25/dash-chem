@@ -7,10 +7,7 @@ import pandas as pd
 import uuid
 import json
 import os
-
-### NEED CHANGEMENT BEFORE DEPLOY IT ###
-SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem"
-TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx")
+from excel_storage import SAVE_FOLDER, TRACKING_FILE, TRACKING_FILENAME
 
 ## EXTRA COLUMNS PART ##
 
@@ -129,86 +126,3 @@ def save_extra_columns(n_clicks, column_names, current_store):
     else:
         # Update display only
         return dash.no_update, display
-
-# Save Excel name 
-@callback(
-    Output("excel-name-store", "data"),
-    Output("excel-confirmation", "children"),
-    Input("save-excel-name-btn", "n_clicks"),
-    State("excel-name-input", "value"),
-    prevent_initial_call=True
-)
-def save_excel_name(n_clicks, filename):
-    if not filename:
-        raise dash.exceptions.PreventUpdate
-
-    return filename, f"✔️ Saved: '{filename}'"
-
-# Display the create excel button when the name is saved
-@callback(
-    Output("create-excel-btn-container", "style"),
-    Input("excel-name-store", "data"),
-    prevent_initial_call=True
-)
-def show_create_excel_button(excel_name):
-    if excel_name:
-        return {"display": "block"}
-    return {"display": "none"}
-
-# Create the Excel from all store components 
-@callback(
-    Output("excel-create-message", "children"),
-    Input("create-excel-btn", "n_clicks"),
-    State("extra-columns-store", "data"),
-    State("parameter-store", "data"),
-    State("objective-store", "data"),
-    State("excel-name-store", "data"),
-    prevent_initial_call=True
-)
-def create_excel_file(n_clicks, extra_cols, parameters, objectives, excel_name):
-    if not excel_name:
-        return "❌ Please provide a valid Excel file name."
-
-    # Ensure .xlsx extension
-    if not excel_name.endswith(".xlsx"):
-        excel_name += ".xlsx"
-
-    file_path = os.path.join(SAVE_FOLDER, excel_name)
-
-    headers = []
-
-    # 1. Extra columns: expect a list of strings
-    if extra_cols :
-        headers.extend([col.get("name") for col in extra_cols])
-
-    # 2. Parameters: expect list of dicts with "name"
-    if parameters:
-        headers.extend([param.get("name") for param in parameters])
-
-    # 3. Objectives: expect list of dicts with "name"
-    if objectives:
-        headers.extend([obj.get("name") for obj in objectives])
-
-    if not headers:
-        return "⚠️ No columns to write into Excel."
-
-    df = pd.DataFrame(columns=headers)
-
-    try:
-        # Save Excel file
-        df.to_excel(file_path, index=False, engine='openpyxl')
-
-        # Update tracking file if needed
-        if os.path.exists(TRACKING_FILE):
-            df_tracking = pd.read_excel(TRACKING_FILE)
-        else:
-            df_tracking = pd.DataFrame(columns=["filename"])
-
-        if excel_name not in df_tracking["filename"].values:
-            df_tracking.loc[len(df_tracking)] = [excel_name]
-            df_tracking.to_excel(TRACKING_FILE, index=False)
-
-        return f"✅ Excel file '{excel_name}' created successfully with {len(headers)} columns."
-
-    except Exception as e:
-        return f"❌ Failed to create Excel file: {str(e)}"
