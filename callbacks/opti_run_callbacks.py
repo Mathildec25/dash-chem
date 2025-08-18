@@ -3,7 +3,7 @@ from dash import Input, Output, State, callback, html, dash_table
 import dash_bootstrap_components as dbc
 import pandas as pd
 import os
-from config_path import SAVE_FOLDER, COLUMN_COLORS
+from config_path import EXCEL_FOLDER, COLUMN_COLORS
 from domain_storage import (
     DomainStorage,
     load_experiments_from_excel_file,
@@ -42,7 +42,6 @@ def display_excel_table(current_excel_data, selected_file_data, pathname):
         return html.Div([
             html.H4("⚠️ No Excel file selected", className="text-center text-muted mt-5"),
             html.P("Please go back and create/select an Excel file first.", className="text-center"),
-            dbc.Button("← Go to Home", href="/", color="primary", className="mt-3")
         ])
     
     try:
@@ -50,7 +49,7 @@ def display_excel_table(current_excel_data, selected_file_data, pathname):
         if not excel_filename.endswith('.xlsx'):
             excel_filename += '.xlsx'
         
-        file_path = os.path.join(SAVE_FOLDER, excel_filename)
+        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
         
         if not os.path.exists(file_path):
             return html.Div([
@@ -142,7 +141,6 @@ def display_excel_table(current_excel_data, selected_file_data, pathname):
                 "name": col,
                 "id": col,
                 "editable": True,
-                "type": "numeric" if col_type in ['parameter', 'objective'] else "text"
             })
             
             # Add light background color based on type
@@ -245,7 +243,7 @@ def save_excel_changes(n_clicks, table_data, current_excel_data, selected_file_d
         if not excel_filename.endswith('.xlsx'):
             excel_filename += '.xlsx'
         
-        file_path = os.path.join(SAVE_FOLDER, excel_filename)
+        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
         
         # Convert table data to DataFrame
         df = pd.DataFrame(table_data)
@@ -283,27 +281,41 @@ def save_excel_changes(n_clicks, table_data, current_excel_data, selected_file_d
         
     except Exception as e:
         return dbc.Alert(f"❌ Failed to save: {str(e)}", color="danger", duration=4000)
+    
+@callback(
+    [Output("loading-modal", "is_open", allow_duplicate=True),
+     Output("run-BO-btn", "disabled", allow_duplicate=True),
+     Output("optimization-store", "data", allow_duplicate=True)],
+    Input("run-BO-btn", "n_clicks"),
+    prevent_initial_call=True
+)
+def open_modal(n_clicks):
+    # This triggers the second callback
+    return True, True, {"trigger": n_clicks}
 
 
 @callback(
-    Output('optimization-results', 'children'),
-    Input('run-BO-btn', 'n_clicks'),
-    [State('current-excel-file', 'data'),
-     State('selected-file-store', 'data'),
-     State('excel-editable-table', 'data')],
+    [Output("optimization-results", "children"),
+     Output("loading-modal", "is_open", allow_duplicate=True),
+     Output("run-BO-btn", "disabled", allow_duplicate=True)],
+    Input("optimization-store", "data"),  # trigger when store updated
+    State("current-excel-file", "data"),
+    State("selected-file-store", "data"),
+    State("excel-editable-table", "data"),
     prevent_initial_call=True
 )
-def run_bayesian_optimization(n_clicks, current_excel_data, selected_file_data, table_data):
+def run_bayesian_optimization(_, current_excel_data, selected_file_data, table_data):
     """Run Bayesian optimization using stored domain and current table data"""
-    if not n_clicks:
-        return dash.no_update
+
+    # Note: The modal will open immediately when the callback starts
+    # and close when it ends, giving immediate feedback to the user
     
     try:
         # Determine Excel filename
         excel_filename = current_excel_data or (selected_file_data.get('excel_file') if selected_file_data else None)
         
         if not excel_filename:
-            return dbc.Alert("❌ No Excel file selected", color="danger")
+            return dbc.Alert("❌ No Excel file selected", color="danger"), False, False
         
         # Ensure filename has extension
         if not excel_filename.endswith('.xlsx'):
@@ -314,47 +326,184 @@ def run_bayesian_optimization(n_clicks, current_excel_data, selected_file_data, 
             return dbc.Alert(
                 "❌ No domain found for this Excel file.",
                 color="danger"
-            )
+            ), False, False
         
         # Load domain and metadata
         success, domain, metadata = DomainStorage.load_domain(excel_filename)
         if not success:
-            return dbc.Alert(f"❌ Failed to load domain: {domain}", color="danger")
+            return dbc.Alert(f"❌ Failed to load domain: {domain}", color="danger"), False, False
         
-        # Prepare experiments data from current table
+        # Convert table data to DataFrame
         experiments_df = pd.DataFrame(table_data)
-        experiments = prepare_experiments_from_excel_data(experiments_df, metadata)
         
-        if experiments is None or experiments.empty:
+        # Get parameter and objective column names from metadata
+        param_names = metadata.get('parameter_names', [])
+        obj_names = metadata.get('objective_names', [])
+        
+        # Filter to only parameter and objective columns
+        relevant_columns = param_names + obj_names
+        existing_columns = [col for col in relevant_columns if col in experiments_df.columns]
+        
+        if not existing_columns:
+            return dbc.Alert([
+                html.H6("❌ Column Mismatch"),
+                html.P("No matching columns found between Excel and domain definition.")
+            ], color="danger"), False, False
+        
+        # Filter to relevant columns
+        experiments_df = experiments_df[existing_columns].copy()
+        
+        # Filter rows with complete objective values
+        complete_rows = []
+        for idx, row in experiments_df.iterrows():
+            # Check if all objectives have values (not NaN, not empty string)
+            has_all_objectives = True
+            for obj_col in obj_names:
+                if obj_col in row:
+                    val = row[obj_col]
+                    if pd.isna(val) or str(val).strip() == "" or str(val).lower() == "none":
+                        has_all_objectives = False
+                        break
+                else:
+                    has_all_objectives = False
+                    break
+            
+            if has_all_objectives:
+                complete_rows.append(idx)
+        
+        if not complete_rows:
             return dbc.Alert([
                 html.H6("⚠️ No Complete Experiments Found"),
                 html.P("Please ensure all objective values are filled for at least one experiment.")
-            ], color="warning")
+            ], color="warning"), False, False
         
-        # Run optimization
-        result = optimization(domain, strategy=None, AF=None, experiments=experiments)
+        # Get only complete experiments
+        experiments = experiments_df.loc[complete_rows].reset_index(drop=True)
         
-        # Format the result for display
-        if result is not None and not result.empty:
-            return html.Div([
-                dbc.Alert("✅ Optimization Complete!", color="success", className="mb-3"),
-                html.H5("🎯 Recommended Next Experiments:", className="mb-3"),
-                dash_table.DataTable(
-                    data=result.to_dict('records'),
-                    columns=[{"name": col, "id": col, "type": "numeric", "format": {"specifier": ".4f"}} 
-                           for col in result.columns],
-                    style_table={"overflowX": "auto"},
-                    style_cell={"textAlign": "center", "padding": "10px"},
-                    style_header={"fontWeight": "bold", "backgroundColor": "#007bff", "color": "white"}
-                ),
-                html.Hr(),
-                html.P("💡 Run these experiments in your lab, add the results to the table above, and run optimization again.")
-            ])
+        # Run optimization - pass the DataFrame directly
+        result = optimization(obj_names, domain, Strategy=None, AF=None, experiments=experiments)
+        
+        # Check if result is valid
+        if result is None:
+            return dbc.Alert("No recommendations generated. Check your optimization configuration.", color="warning"), False, False
+        
+        # Handle different result types
+        if hasattr(result, 'empty'):
+            # It's a DataFrame
+            if result.empty:
+                return dbc.Alert("No recommendations generated. Check your data.", color="warning"), False, False
+            
+            result_df = result
+        elif isinstance(result, pd.DataFrame):
+            if result.empty:
+                return dbc.Alert("No recommendations generated. Check your data.", color="warning"), False, False
+            result_df = result
         else:
-            return dbc.Alert("No recommendations generated. Check your data.", color="warning")
+            # Try to convert to DataFrame
+            try:
+                result_df = pd.DataFrame(result)
+                if result_df.empty:
+                    return dbc.Alert("No recommendations generated. Check your data.", color="warning"), False, False
+            except:
+                return dbc.Alert(f"Unexpected result type: {type(result)}", color="warning"), False, False
+        
+        # 🔹 Round continuous parameters (type == float)
+        param_defs = metadata.get("parameters", [])
+        for p in param_defs:
+            pname = p.get("name")
+            ptype = p.get("type", "").lower()
+            if pname in result_df.columns and ptype == "float":
+                result_df[pname] = result_df[pname].apply(
+                    lambda v: round(v, 2) if pd.notna(v) else v
+                )
+
+        # 🔹 Round all columns after the parameter block (predictions, std, desirability)
+        param_names = metadata.get("parameter_names", [])
+        if param_names:
+            try:
+                last_param_index = max(result_df.columns.get_loc(p) for p in param_names if p in result_df.columns)
+                post_param_cols = result_df.columns[last_param_index+1:]
+                for col in post_param_cols:
+                    result_df[col] = result_df[col].apply(lambda v: round(v, 2) if pd.notna(v) else v)
+            except Exception as e:
+                print(f"⚠️ Could not round post-parameter columns: {e}")
+
+        # Format the result for display with animation
+        result_content = html.Div([
+            dbc.Alert([
+                html.I(className="bi bi-check-circle-fill me-2"),
+                "Optimization Complete!"
+            ], color="success", className="mb-3", fade=True, is_open=True),
+            
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H5([
+                        "Recommended Next Experiments"
+                    ], className="mb-0")
+                ]),
+                dbc.CardBody([
+                    dash_table.DataTable(
+                        data=result_df.to_dict('records'),
+                        columns=[{"name": col, "id": col, "format": {"specifier": ".4f"}} 
+                               for col in result_df.columns],
+                        style_table={"overflowX": "auto"},
+                        style_cell={"textAlign": "center", "padding": "10px", "fontSize": "14px"},
+                        style_header={
+                            "fontWeight": "bold", 
+                            "backgroundColor": "#007bff", 
+                            "color": "white"
+                        },
+                        style_data_conditional=[
+                            {
+                                'if': {'row_index': 0},
+                                'backgroundColor': '#e3f2fd',
+                                'fontWeight': 'bold'
+                            }
+                        ]
+                    )
+                ])
+            ], className="mb-3"),
+            
+            dbc.Alert([
+                html.H6([
+                    html.I(className="bi bi-lightbulb me-2"),
+                    "Next Steps:"
+                ], className="alert-heading"),
+                html.Hr(),
+                html.P([
+                    "1. Run the recommended experiment(s) in your lab",
+                    html.Br(),
+                    "2. Add the results to the table above",
+                    html.Br(),
+                    "3. Save the Excel file",
+                    html.Br(),
+                    "4. Run optimization again for the next recommendation"
+                ], className="mb-0"),
+                html.Hr(),
+                html.P([
+                    html.I(className="bi bi-graph-up me-2"),
+                    f"Based on {len(experiments)} completed experiments"
+                ], className="mb-0 small")
+            ], color="info")
+        ])
+        
+        return result_content, False, False
         
     except Exception as e:
-        return dbc.Alert([
-            html.H6("❌ Optimization Failed"),
-            html.P(f"Error: {str(e)}")
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Optimization error: {error_details}")
+        
+        error_content = dbc.Alert([
+            html.H6([
+                html.I(className="bi bi-exclamation-triangle-fill me-2"),
+                "Optimization Failed"
+            ]),
+            html.P(f"Error: {str(e)}"),
+            html.Details([
+                html.Summary("Technical Details"),
+                html.Pre(error_details, style={"fontSize": "12px", "whiteSpace": "pre-wrap"})
+            ])
         ], color="danger")
+        
+        return error_content, False, False

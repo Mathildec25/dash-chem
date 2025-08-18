@@ -1,13 +1,28 @@
 import pandas as pd
 from dash.dash_table.Format import Format
+import os
+
+from config_path import EXCEL_FOLDER
 
 # Return the selected sheet after formatting the date column
 def load_filtered_df(excel, sheet):
-    df = pd.read_excel(excel, sheet_name=sheet)
+    # Ensure extension
+    if not excel.endswith(".xlsx"):
+        excel += ".xlsx"
+
+    # Build full path
+    file_path = os.path.join(EXCEL_FOLDER, excel)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Excel file not found: {file_path}")
+
+    df = pd.read_excel(file_path, sheet_name=sheet, engine="openpyxl")
+
     if 'Date' in df.columns:    
-        df['Date'] = pd.to_datetime(df['Date'])     # Transform to datetime
-        df.sort_values(by=['Date'], inplace=True, ascending=False)      # Sort by date and descending
-        df['Date']=df['Date'].dt.strftime('%d/%m/%Y')       # Apply the good format
+        df['Date'] = pd.to_datetime(df['Date'], errors="coerce")   # Safe conversion
+        df.sort_values(by=['Date'], inplace=True, ascending=False)
+        df['Date'] = df['Date'].dt.strftime('%d/%m/%Y')
+
     return df
 
 # Return the columns of the selected sheet after round needed values

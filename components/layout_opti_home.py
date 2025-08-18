@@ -2,7 +2,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 import pandas as pd
 import os
-from excel_storage import SAVE_FOLDER, TRACKING_FILE, TRACKING_FILENAME
+from excel_storage import EXCEL_FOLDER, TRACKING_FILE, TRACKING_FILENAME
 
 def load_tracked_files():
     if os.path.exists(TRACKING_FILE):

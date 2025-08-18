@@ -9,18 +9,25 @@ import dash_bootstrap_components as dbc
 import numpy as np
 from sklearn.manifold import TSNE
 import plotly.colors as pc
+import os
+
+from config_path import EXCEL_FOLDER
 
 ### FUNCTIONS TO CREATE GRAPHS ###
 
 # Load the selected sheet with formatting
 def load_filtered_df_graph(excel, sheet):
-    df = pd.read_excel(excel, sheet_name=sheet)
+    # Ensure we look in the subfolder (e.g. "data")
+    file_path = os.path.join(EXCEL_FOLDER, excel)
+
+    df = pd.read_excel(file_path, sheet_name=sheet, engine="openpyxl")
     dff = df.copy()
+
     if 'Date' in dff.columns:
         dff['Date'] = pd.to_datetime(dff['Date'], dayfirst=True).dt.strftime('%d/%m/%Y')
     
-    # Combine all replace calls into one
-    with pd.option_context('future.no_silent_downcasting', True):  ### Don't trigger error of changing element type while replacing
+    # Replace special values
+    with pd.option_context('future.no_silent_downcasting', True):
         dff = dff.replace({
             'nd': np.nan,
             'rt': 25,
@@ -29,84 +36,57 @@ def load_filtered_df_graph(excel, sheet):
             r'^\s*>100\s*$': np.nan
         }, regex=True)
     
-    for col in dff.columns:     # try for col where is needed else do nothing (to don't raise error with ignore argument of pd.to_numeric)
+    # Convert columns to numeric where possible
+    for col in dff.columns:
         try:
             dff[col] = pd.to_numeric(dff[col])
         except (ValueError, TypeError):
             pass
-   
-    # Dynamically detect React columns (columns that start with 'React')
+
+    # Dynamically detect "React" and "equivalent" columns
     react_cols = [col for col in dff.columns if col.lower().startswith('react')]
-    react_cols.sort()  # Sort to ensure consistent ordering
-    
-    # Dynamically detect equivalent/concentration columns
-    # These come after each React column and contain 'eq' or 'c' (case insensitive)
+    react_cols.sort()
     eq_cols = []
-    
     for react_col in react_cols:
         react_idx = dff.columns.get_loc(react_col)
-        # Look for the next column that contains concentration/equivalent info
         for i in range(react_idx + 1, len(dff.columns)):
             next_col = dff.columns[i]
-            # Check if this column is likely a concentration/equivalent column
             if any(keyword in next_col.lower() for keyword in ['eq', 'c ', 'conc', 'concentration', '(m)']):
                 eq_cols.append(next_col)
                 break
-    
-    # Ensure we have matching pairs
+
     if len(react_cols) != len(eq_cols):
         print(f"Warning: Found {len(react_cols)} React columns but {len(eq_cols)} equivalent columns")
-        # Truncate to the minimum length to avoid errors
         min_len = min(len(react_cols), len(eq_cols))
         react_cols = react_cols[:min_len]
         eq_cols = eq_cols[:min_len]
-    
-    # If no React columns found, return original dataframe
+
     if not react_cols:
         return dff
     
-    # Step 2: ID columns = all except the above
     id_vars_common = dff.columns.difference(react_cols + eq_cols).tolist()
-    
-    # Step 3: Melt both
     df_react = dff.melt(id_vars=id_vars_common, value_vars=react_cols,
                         var_name='react_type', value_name='Reactant')
     df_eq = dff.melt(id_vars=id_vars_common, value_vars=eq_cols,
-                    var_name='eq_type', value_name='C/eq')
-    
-    # Step 4: Extract indices - more robust extraction
-    # Extract number from React column names
+                     var_name='eq_type', value_name='C/eq')
     df_react['index'] = df_react['react_type'].str.extract(r'(\d+)')
-    # For equivalent columns, we'll use the position in the list since naming might vary
     eq_col_to_index = {col: str(i+1) for i, col in enumerate(eq_cols)}
     df_eq['index'] = df_eq['eq_type'].map(eq_col_to_index)
-    
-    # Step 5: Merge on all metadata + index
     df_merged = pd.merge(df_react, df_eq, on=id_vars_common + ['index'])
-    
-    # Step 6: Reorder columns to match original DataFrame
-    # Remove old react/eq cols from the original
+
     base_cols = [col for col in dff.columns if col not in react_cols + eq_cols]
-    
-    # Find the position of the first React column to insert new columns
     first_react_pos = dff.columns.get_loc(react_cols[0])
     first_eq_pos = dff.columns.get_loc(eq_cols[0])
-    
-    # Insert the new columns at appropriate positions
-    # Insert Reactant at the position of the first React column
     base_cols.insert(first_react_pos, 'Reactant')
-    # Insert C/eq at the position of the first equivalent column, adjusted for the previous insert
     eq_insert_pos = first_eq_pos + 1 if first_eq_pos > first_react_pos else first_eq_pos
     base_cols.insert(eq_insert_pos, 'C/eq')
-    
-    # Reorder final df
     df_merged = df_merged[base_cols]
-    
+
     return df_merged
 
 
 # Create a scatter graph
-def graph_scatter(df, x_axis, y_axis, colors, size_param):
+def graph_scatter(df, x_axis, y_axis, colors, size_param, hover):
     # Drop rows with NaN values in the essential columns
     df = df.dropna(subset=[colors, size_param])
     
@@ -128,7 +108,7 @@ def graph_scatter(df, x_axis, y_axis, colors, size_param):
             y=y_axis, 
             color=colors, 
             size='size_numeric',
-            hover_name="Exp code", 
+            hover_name=hover, 
             hover_data={size_param: True, 'size_numeric': False},  # Show original category in hover
             color_continuous_scale="bluered",
             size_max=35
@@ -155,7 +135,7 @@ def graph_scatter(df, x_axis, y_axis, colors, size_param):
             y=y_axis, 
             color=colors, 
             size=size_param,
-            hover_name="Exp code", 
+            hover_name=hover, 
             color_continuous_scale="bluered",
             size_max=35
         )

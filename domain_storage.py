@@ -12,7 +12,7 @@ from dash import html, dash_table, dcc
 import dash_bootstrap_components as dbc
 
 from utils.BoFire import create_bofire_domain_from_store, sampling, optimization
-from config_path import SAVE_FOLDER, DOMAIN_FOLDER, TRACKING_FILE, DOMAIN_TRACKING_FILE, DOMAIN_TRACKING_FILENAME
+from config_path import EXCEL_FOLDER, DOMAIN_FOLDER, TRACKING_FILE, DOMAIN_TRACKING_FILE, DOMAIN_TRACKING_FILENAME
 
 class DomainStorage:
     @staticmethod
@@ -34,7 +34,7 @@ class DomainStorage:
         """
         try:
             # Ensure folders exist
-            os.makedirs(SAVE_FOLDER, exist_ok=True)
+            os.makedirs(EXCEL_FOLDER, exist_ok=True)
             os.makedirs(DOMAIN_FOLDER, exist_ok=True)
 
             # Ensure Excel name has .xlsx extension
@@ -147,7 +147,7 @@ class DomainStorage:
         """Update the domain tracking file with new metadata"""
         try:
             # Ensure save folder exists
-            os.makedirs(SAVE_FOLDER, exist_ok=True)
+            os.makedirs(EXCEL_FOLDER, exist_ok=True)
 
             # Load existing tracking data
             if os.path.exists(DOMAIN_TRACKING_FILE):
@@ -238,7 +238,7 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
         excel_name = excel_name.strip()
         if not excel_name.endswith(".xlsx"):
             excel_name += ".xlsx"
-        file_path = os.path.join(SAVE_FOLDER, excel_name)
+        file_path = os.path.join(EXCEL_FOLDER, excel_name)
 
         # 4️⃣ Build column structure in correct order
         # Extra columns → Parameters → Objectives
@@ -314,9 +314,17 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
                     # Extra columns are empty
                     df_excel[col_name] = ""
                 elif col_type == 'parameter':
-                    # Parameter columns get sampled values
                     if col_name in sampled_data.columns:
-                        df_excel[col_name] = sampled_data[col_name].values
+                        values = sampled_data[col_name].values
+                        
+                        # Check parameter type
+                        param_def = col_info["data"]
+                        ptype = param_def.get("type", "").lower()
+                        
+                        if ptype == "float":
+                            df_excel[col_name] = [round(v, 2) if pd.notna(v) else v for v in values]
+                        else:
+                            df_excel[col_name] = values
                     else:
                         df_excel[col_name] = ""
                 elif col_type == 'objective':
@@ -583,7 +591,7 @@ def load_experiments_from_excel_file(excel_name: str, sheet_name: str = None) ->
         if not excel_name.endswith(".xlsx"):
             excel_name += ".xlsx"
             
-        file_path = os.path.join(SAVE_FOLDER, excel_name)
+        file_path = os.path.join(EXCEL_FOLDER, excel_name)
         
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Excel file not found: {excel_name}")

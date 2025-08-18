@@ -174,12 +174,12 @@ def update_parameters(n_clicks, name_ids, names, type_ids, types,
             type_info = {"range": [lower, upper]}
 
         elif typ == "int":
-            # Discrete: parse numbers from textarea
+            # Discrete (but allow decimal values like 0.5, 1.5)
             raw_val = text_dict.get(idx, "")
             parsed_vals = []
             for v in str(raw_val).replace(",", " ").split():
                 try:
-                    parsed_vals.append(int(v))
+                    parsed_vals.append(float(v))  # accept decimals
                 except ValueError:
                     continue
             type_info = {"range": parsed_vals}

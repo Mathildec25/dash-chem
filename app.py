@@ -40,10 +40,13 @@ register_app_callbacks(app)
 app.layout = html.Div([
     dcc.Store(id="selected-excel-store", storage_type='session'),
     dcc.Store(id="selected-sheet-store", storage_type='session'),
-    dcc.Store(id='project-name-store', storage_type='session'),        # Store component to save the project name on BO part
-    dcc.Store(id='selected-file-store', storage_type='session'),       # Store file selected to restrat opti
-    dcc.Store(id="current-excel-file", storage_type='session'),        # Store file created to start BO
-    dcc.Store(id="current-domain", storage_type='session'),            # Store the domain of the current BO process
+    dcc.Store(id='parameter-store', data=[], storage_type="session"),       # Store parameters info for BO part 
+    dcc.Store(id='objective-store', data=[], storage_type="session"),       # Store objectives info for BO part
+    dcc.Store(id="extra-columns-store", data=[], storage_type="session"),   # Store extre-columns info for BO part
+    dcc.Store(id='project-name-store', storage_type='session'),             # Store component to save the project name on BO part
+    dcc.Store(id='selected-file-store', storage_type='session'),            # Store file selected to restrat opti
+    dcc.Store(id="current-excel-file", storage_type='session'),             # Store file created to start BO
+    dcc.Store(id="current-domain", storage_type='session'),                 # Store the domain of the current BO process
     dcc.Location(id="url", refresh=False),
     sidebar,  # Fixed + hover-based sidebar
     html.Div(

@@ -97,7 +97,6 @@ def create_opti_param_layout():
                             # Fourth part to select Parameters/Variables
                             dbc.AccordionItem(
                                 children=[
-                                    dcc.Store(id='parameter-store', data=[], storage_type="session"),
                                     html.Div(id="parameter-container", children=[
                                         dbc.Row(
                                             id={'type': 'parameter-block', 'index': initial_id},
@@ -162,7 +161,6 @@ def create_opti_param_layout():
                             # Fifth part to select Objctives
                             dbc.AccordionItem(
                                 children=[
-                                    dcc.Store(id='objective-store', data=[], storage_type="session"),
                                     html.Div(id="objective-container", 
                                         children=[
                                             dbc.Row(
@@ -227,7 +225,6 @@ def create_opti_param_layout():
                            # Sixth part to add Other columns
                             dbc.AccordionItem(
                                 children=[
-                                    dcc.Store(id="extra-columns-store", data=[], storage_type="session"),
                                     dbc.Row([
                                         dbc.Col([
                                             html.Div(id="extra-column-container", children=[

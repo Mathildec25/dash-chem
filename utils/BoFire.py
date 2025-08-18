@@ -130,11 +130,32 @@ def sampling(domain, sampling_method: str, nb_points: int):
 
 
 ## Think about ref point and add strat and AF dyna ##
-def optimization(domain, strategy, AF, experiments):
+def optimization(obj, domain, Strategy, AF, experiments):
+    """
+    Run Bayesian optimization using the appropriate strategy based on the number of objectives.
+    
+    - Single objective: SoboStrategy + qLogNEI
+    - Multiple objectives: MoboStrategy + qLogNEHVI
+    """
+    
+   # Determine number of objectives
+    n_obj = len(obj) 
+    
+    # Select strategy and acquisition function based on objective count
+    if n_obj == 1:
+        data_model = SoboStrategy(domain=domain, acquisition_function=qLogNEI())
+    elif n_obj >= 2:
+        data_model = MoboStrategy(domain=domain, acquisition_function=qLogNEHVI())
+    else:
+        raise ValueError("Domain must have at least one objective")
 
-    data_model = MoboStrategy(domain=domain, acquisition_function=qLogNEHVI())
-    Strat =  strategies.map(data_model)
+    # Initialize strategy
+    Strat = strategies.map(data_model)
+    
+    # Provide past experiments
     Strat.tell(experiments=experiments)
-
+    
+    # Ask for next candidate
     return Strat.ask(candidate_count=1)
-
+    
+    

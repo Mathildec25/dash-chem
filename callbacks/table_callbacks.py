@@ -2,6 +2,9 @@ from dash import callback, Input, Output, State, MATCH, ALL, dash_table, html, n
 from dash.exceptions import PreventUpdate
 from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
 import pandas as pd
+import os
+
+from config_path import EXCEL_FOLDER
 
 ### CALLBACKS TO GENERATE THE TABLE PARTS###
 
@@ -9,8 +12,8 @@ import pandas as pd
 @callback(
     [Output("main-content", "children"),
      Output("column-dropdown", "options"),
-     Output("column-dropdown", "value"),],
-    Input("url", "pathname"),  # Add pathname as Input
+     Output("column-dropdown", "value")],
+    Input("url", "pathname"),
     State("selected-sheet-store", "data"),
     State("selected-excel-store", "data"),
     prevent_initial_call=True
@@ -22,12 +25,24 @@ def load_table_for_sheet(pathname, sheet, excel):
     
     if not sheet:
         return html.Div("No sheet selected"), [], []
+
+    # Ensure filename has extension
+    if not excel.endswith(".xlsx"):
+        excel += ".xlsx"
     
-    df = load_filtered_df(excel, sheet)
+    # Build full path like in first callback
+    file_path = os.path.join(EXCEL_FOLDER, excel)
+
+    if not os.path.exists(file_path):
+        return html.Div(f"❌ File not found: {file_path}"), [], []
+
+    # Use your helper with correct path
+    df = pd.read_excel(file_path, sheet_name=sheet, engine="openpyxl")
+
     columns = get_columns(df)
     options = get_column_dropdown_options(df)
     
-    # Create the DataTable component
+    # Create the DataTable
     table = dash_table.DataTable(
         id={"type": "editable-table", "sheet": sheet},
         data=df.to_dict('records'),
@@ -49,9 +64,7 @@ def load_table_for_sheet(pathname, sheet, excel):
             'whiteSpace': 'normal', 'maxWidth': '200px', 'fontWeight': 'bold', 'border': '1px solid black'
         },
         fixed_rows={'headers': True},
-        style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': 'rgb(248, 248, 248)'}
-        ],    
+        style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': 'rgb(248, 248, 248)'}],    
         style_as_list_view=True,
         style_cell={'padding': '8px', 'textAlign':'center'},
         page_action='none',
@@ -63,6 +76,7 @@ def load_table_for_sheet(pathname, sheet, excel):
         filter_options={"placeholder_text": "Filter.."}
     )
     return html.Div(table, style={"padding": "4px"}), options, [opt["value"] for opt in options]
+
 
 # Update the columns of the table based on the selected columns in the dropdown
 @callback(
@@ -105,8 +119,12 @@ def add_row(n_clicks, rows, columns):
 )
 def save_changes(n_clicks, all_tables_data, all_tables_columns, excel, sheet):
     if n_clicks > 0 and all_tables_data and all_tables_columns and sheet:
+        if not excel.endswith(".xlsx"):
+            excel += ".xlsx"
+        file_path = os.path.join(EXCEL_FOLDER, excel)
+
         df = pd.DataFrame(all_tables_data[0], columns=[c["id"] for c in all_tables_columns[0]])
-        with pd.ExcelWriter(excel, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+        with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
             df.to_excel(writer, sheet_name=sheet, index=False)
         return "Changes saved ✅"
     return "Save Changes"

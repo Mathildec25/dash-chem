@@ -6,18 +6,21 @@ import os
 # "/root/dash-chem-main"
 
 # Base save folder
-SAVE_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem"  ###### TO BE CHANGED BEFORE DEPLOYMENT #####
-os.makedirs(SAVE_FOLDER, exist_ok=True)
+ROOT_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem"  ###### TO BE CHANGED BEFORE DEPLOYMENT #####
+
+
+EXCEL_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem\excels"
+os.makedirs(EXCEL_FOLDER, exist_ok=True)
 
 # Excel tracking file
-TRACKING_FILE = os.path.join(SAVE_FOLDER, "Excel_names.xlsx")
+TRACKING_FILE = os.path.join(EXCEL_FOLDER, "Excel_names.xlsx")
 TRACKING_FILENAME = os.path.basename(TRACKING_FILE)
 
 # Domain folder and tracking
-DOMAIN_FOLDER = os.path.join(SAVE_FOLDER, "domains")
+DOMAIN_FOLDER = os.path.join(ROOT_FOLDER, "domains")
 os.makedirs(DOMAIN_FOLDER, exist_ok=True)
 
-DOMAIN_TRACKING_FILE = os.path.join(SAVE_FOLDER, "domain_tracking.xlsx")
+DOMAIN_TRACKING_FILE = os.path.join(EXCEL_FOLDER, "domain_tracking.xlsx")
 DOMAIN_TRACKING_FILENAME = os.path.basename(DOMAIN_TRACKING_FILE)
 
 # Files to exclude from dropdowns

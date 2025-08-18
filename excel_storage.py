@@ -7,7 +7,7 @@ import base64
 import io
 import datetime
 
-from config_path import SAVE_FOLDER, TRACKING_FILE, TRACKING_FILENAME, DOMAIN_TRACKING_FILENAME, EXCLUDED_FILES
+from config_path import EXCEL_FOLDER, TRACKING_FILE, TRACKING_FILENAME, DOMAIN_TRACKING_FILENAME, EXCLUDED_FILES
 from domain_storage import DomainStorage, check_domain_availability
 
 # Valid extensions
@@ -15,15 +15,15 @@ valid_extensions = ('.xlsx', '.xls', '.csv')
 
 def get_existing_files():
     """Get existing files excluding tracking files"""
-    if not os.path.exists(SAVE_FOLDER):
-        os.makedirs(SAVE_FOLDER, exist_ok=True)
+    if not os.path.exists(EXCEL_FOLDER):
+        os.makedirs(EXCEL_FOLDER, exist_ok=True)
         return []
     
     return [
-        f for f in os.listdir(SAVE_FOLDER)
+        f for f in os.listdir(EXCEL_FOLDER)
         if f.lower().endswith(valid_extensions)
         and f not in EXCLUDED_FILES
-        and os.path.isfile(os.path.join(SAVE_FOLDER, f))
+        and os.path.isfile(os.path.join(EXCEL_FOLDER, f))
     ]
 
 def get_uploaded_excel_files():
@@ -67,7 +67,7 @@ def update_tracking_file(filename):
     
     try:
         # Ensure save folder exists
-        os.makedirs(SAVE_FOLDER, exist_ok=True)
+        os.makedirs(EXCEL_FOLDER, exist_ok=True)
         
         # Create or load tracking file
         if os.path.exists(TRACKING_FILE):
@@ -114,7 +114,7 @@ def parse_contents(contents, filename):
     try:
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
-        filepath = os.path.join(SAVE_FOLDER, filename)
+        filepath = os.path.join(EXCEL_FOLDER, filename)
 
         # Check if file already exists
         if os.path.exists(filepath):
@@ -126,7 +126,7 @@ def parse_contents(contents, filename):
             )
         
         # Save the file
-        os.makedirs(SAVE_FOLDER, exist_ok=True)
+        os.makedirs(EXCEL_FOLDER, exist_ok=True)
         with open(filepath, 'wb') as f:
             f.write(decoded)
 
@@ -266,7 +266,7 @@ def validate_excel_structure(file_path, expected_structure=None):
 def get_file_info(filename):
     """Get detailed information about an Excel file"""
     try:
-        file_path = os.path.join(SAVE_FOLDER, filename)
+        file_path = os.path.join(EXCEL_FOLDER, filename)
         
         if not os.path.exists(file_path):
             return {'error': f'File not found: {filename}'}

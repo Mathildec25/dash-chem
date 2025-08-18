@@ -14,17 +14,23 @@ def create_visu_layout():
                 dbc.Row([
                     dbc.Col([
                         dcc.Dropdown(id="DD-x-axis-scatter", options=[], placeholder="Select x-axis", style={"width": "100%"}),
-                    ], width=3),
+                    ], width=2),
                     dbc.Col([
                         dcc.Dropdown(id="DD-y-axis-scatter", options=[], placeholder="Select y-axis", style={"width": "100%"}),
-                    ], width=3),
+                    ], width=2),
                     dbc.Col([
                         dcc.Dropdown(id="DD-colors-scatter", options=[], placeholder="Select a col for colors", style={"width": "100%"}),
-                    ], width=3),
+                    ], width=2),
                     dbc.Col([
                         dcc.Dropdown(id="DD-size-scatter", options=[], placeholder="Select a col for point size", style={"width": "100%"}),
                     ], width=3),
-                ]),
+                    dbc.Col([
+                        dcc.Dropdown(id="DD-hover-scatter", options=[], placeholder="Select a col for hover information", style={"width": "100%"}),
+                    ], width=3),
+                ],
+                justify="center",   # centers all cols inside the row
+                align="center",     # vertical alignment
+                ),
                 # Scatter plot
                 dbc.Row([
                     dbc.Col([

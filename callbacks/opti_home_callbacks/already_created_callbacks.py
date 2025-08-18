@@ -7,7 +7,7 @@ import base64
 import io
 
 from excel_storage import (
-    SAVE_FOLDER, 
+    EXCEL_FOLDER, 
     TRACKING_FILE, 
     get_uploaded_excel_files,
     get_excel_dropdown_options
@@ -87,7 +87,7 @@ def update_sheet_dropdown_and_buttons(selected_excel):
                 )
             ]), text_style, restart_button_style, delete_button_style
         
-        excel_path = os.path.join(SAVE_FOLDER, selected_excel)
+        excel_path = os.path.join(EXCEL_FOLDER, selected_excel)
         
         # Read sheet names
         if selected_excel.endswith(('.xls', '.xlsx')):
@@ -168,7 +168,7 @@ def delete_excel_file_with_domain(n_clicks, selected_file):
     if not n_clicks or not selected_file:
         return dash.no_update, dash.no_update
     
-    file_path = os.path.join(SAVE_FOLDER, selected_file)
+    file_path = os.path.join(EXCEL_FOLDER, selected_file)
     
     try:
         # Delete the Excel file

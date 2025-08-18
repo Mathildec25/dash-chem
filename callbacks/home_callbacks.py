@@ -1,334 +1,408 @@
 import dash
-from dash import callback, Input, Output, State, no_update, ctx, dcc, ALL
+from dash import Input, Output, State, callback, ALL, html, dcc
 import dash_bootstrap_components as dbc
-from dash import dcc, html
-import plotly.express as px
 import pandas as pd
 import os
 import base64
 import io
-from excel_storage import (SAVE_FOLDER, TRACKING_FILE, TRACKING_FILENAME, parse_contents, get_uploaded_excel_files,
-                           update_tracking_file, get_excel_dropdown_options, get_excel_dropdown_options_with_domain_status,
-                           cleanup_orphaned_domains)
 
-# 1. Import the domain storage system
-from domain_storage import (
-    DomainStorage, 
-    create_domain_and_excel_with_storage, 
-    check_domain_availability,
-    prepare_experiments_from_excel_data, 
-    load_experiments_from_excel_file
+# Import all functions from excel_storage instead of redefining
+from excel_storage import (
+    EXCEL_FOLDER, 
+    TRACKING_FILE,
+    get_uploaded_excel_files,
+    get_existing_files,
+    update_tracking_file,
+    parse_contents,
+    get_excel_dropdown_options,
+    get_excel_dropdown_options_with_domain_status,
+    cleanup_orphaned_domains,
+    validate_excel_structure,
+    get_file_info,
+    create_file_summary_card
 )
+from domain_storage import DomainStorage
+
+# ============================================
+# TAB CONTENT CALLBACK
+# ============================================
 
 @callback(
-    Output('sheets-DD', 'children'),
-    Output('text-DD-2', 'style'),
-    Output('redirec-button', 'style'),
-    Output('delete-excel-button', 'style'), 
-    Input('excels-DD', 'value'),
-    Input({'type': 'sheet-dropdown', 'index': ALL}, 'value'),
+    Output('tab-content', 'children'),
+    Input('file-tabs', 'active_tab')
+)
+def render_tab_content(active_tab):
+    """Render content based on selected tab"""
+    if active_tab == "upload-tab":
+        return html.Div([
+            dcc.Upload(
+                id="upload-data",
+                children=html.Div([
+                    html.Div([
+                        html.I(className="bi bi-cloud-upload", 
+                              style={"fontSize": "48px", "color": "#3498db"}),
+                        html.H5("Drop files here or click to browse", 
+                               className="mt-3 mb-2"),
+                        html.P("Supported formats: Excel (.xlsx, .xls) and CSV files",
+                              className="text-muted")
+                    ], className="text-center p-4")
+                ]),
+                style={
+                    'width': '100%',
+                    'minHeight': '200px',
+                    'borderWidth': '2px',
+                    'borderStyle': 'dashed',
+                    'borderRadius': '10px',
+                    'borderColor': '#dee2e6',
+                    'backgroundColor': '#f8f9fa',
+                    'cursor': 'pointer'
+                },
+                className="upload-area",
+                multiple=True,
+            )
+        ])
+    
+    elif active_tab == "select-tab":
+        files = get_uploaded_excel_files()
+        if not files:
+            return dbc.Alert([
+                html.I(className="bi bi-folder-x me-2"),
+                "No files available. Please upload a file first."
+            ], color="warning")
+        
+        return html.Div([
+            html.P("Select a previously uploaded file:", className="text-muted mb-2"),
+            dcc.Dropdown(
+                id="excels-DD-visible",
+                options=[{"label": f, "value": f} for f in files],
+                placeholder="Choose a file...",
+                className="mb-3"
+            ),
+            html.Div(id="sheet-selector-container"),
+            html.Div(id="file-actions-container")
+        ])
+
+
+# ============================================
+# FILE SELECTION CALLBACKS
+# ============================================
+
+@callback(
+    [Output('sheet-selector-container', 'children'),
+     Output('file-actions-container', 'children')],
+    Input('excels-DD-visible', 'value'),
     prevent_initial_call=True
 )
-def update_dropdown_and_buttons(selected_excel, sheet_values):
-    text_dd2_style = {"display": "none"}
-    button_style = {"display": "none"}
-    delete_button_style = {"display": "none"}  
-
-    if selected_excel is None:
-        return None, text_dd2_style, button_style, delete_button_style
-
-    delete_button_style = {"display": "inline-block", "marginTop": "12px"}  
-
-    text_dd2_style = {
-        "display": "block",
-        "fontSize": "20px",
-        "textAlign": "left",
-        "marginTop": "12px"
-    }
-
-    excel_path = os.path.join(SAVE_FOLDER, selected_excel)
-
-    # Gather sheets names from the selected file
-    try:
-        if selected_excel.endswith(('.xls', '.xlsx')):
-            with pd.ExcelFile(excel_path) as xls:  # use context manager
-                sheet_names = xls.sheet_names
-        elif selected_excel.endswith('.csv'):
-            sheet_names = [f"{selected_excel}"]
-        else:
-            return html.Div([dbc.Alert(
-                f"Unsupported file type: {selected_excel}",
-                id="alert-file-reading",
-                color="danger",
-                is_open=True,
-                duration=4000,
-            )]), text_dd2_style, button_style, delete_button_style
-    except Exception as e:
-        return html.Div([dbc.Alert(
-            f"Error reading file: {e}",
-            id="alert-file-reading",
-            color="danger",
-            is_open=True,
-            duration=4000,
-        )]), text_dd2_style, button_style, delete_button_style
+def handle_file_selection(selected_file):
+    """Handle file selection from dropdown"""
+    if not selected_file:
+        return html.Div(), html.Div()
     
-    # Gather a value for the dropdown if available
-    current_sheet_value = sheet_values[0] if sheet_values else None
+    excel_path = os.path.join(EXCEL_FOLDER, selected_file)
+    
+    try:
+        # Get sheet names
+        if selected_file.endswith(('.xls', '.xlsx')):
+            with pd.ExcelFile(excel_path) as xls:
+                sheet_names = xls.sheet_names
+        elif selected_file.endswith('.csv'):
+            sheet_names = ["CSV Data"]
+        else:
+            return dbc.Alert("Unsupported file type", color="danger"), html.Div()
+        
+        sheet_selector = html.Div([
+            html.P("Select a sheet:", className="text-muted mb-2 mt-3"),
+            dcc.Dropdown(
+                id={'type': 'sheet-dropdown-visible', 'index': selected_file},
+                options=[{"label": name, "value": name} for name in sheet_names],
+                value=sheet_names[0] if len(sheet_names) == 1 else None,
+                placeholder="Choose a sheet..." if len(sheet_names) > 1 else None,
+                className="mb-3"
+            )
+        ])
+        
+        actions = html.Div([
+            dbc.ButtonGroup([
+                dbc.Button([
+                    html.I(className="bi bi-check-circle me-2"),
+                    "Use This File"
+                ], id="confirm-file-btn", color="success", className="me-2"),
+                dbc.Button([
+                    html.I(className="bi bi-trash me-2"),
+                    "Delete"
+                ], id="delete-file-btn", color="danger", outline=True)
+            ], className="mt-2")
+        ])
+        
+        return sheet_selector, actions
+        
+    except Exception as e:
+        return dbc.Alert(f"Error reading file: {e}", color="danger"), html.Div()
 
-    # Create the sheet dropdown
-    sheet_dropdown = dcc.Dropdown(
-        id={'type': 'sheet-dropdown', 'index': selected_excel},
-        options=[{"label": name, "value": name} for name in sheet_names],
-        placeholder="Select a sheet..." if len(sheet_names) > 1 else None,
-        value=current_sheet_value or (sheet_names[0] if len(sheet_names) == 1 else None),
+
+# ============================================
+# CONFIRM FILE SELECTION - UPDATE BOTH STORES
+# ============================================
+
+@callback(
+    [Output('excels-DD', 'value', allow_duplicate=True),
+     Output('selected-excel-store', 'data', allow_duplicate=True),  # Update the main excel store
+     Output('selected-sheet-store', 'data', allow_duplicate=True),  # Update the sheet store
+     Output('step-2-container', 'style'),
+     Output('output-data-upload', 'children', allow_duplicate=True)],
+    Input('confirm-file-btn', 'n_clicks'),
+    [State('excels-DD-visible', 'value'),
+     State({'type': 'sheet-dropdown-visible', 'index': ALL}, 'value')],
+    prevent_initial_call=True
+)
+def confirm_file_selection(n_clicks, selected_file, sheet_values):
+    """Confirm file selection and update stores"""
+    if not n_clicks or not selected_file:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    selected_sheet = sheet_values[0] if sheet_values else None
+    
+    # If no sheet selected for multi-sheet file, don't proceed
+    if not selected_sheet:
+        excel_path = os.path.join(EXCEL_FOLDER, selected_file)
+        if selected_file.endswith(('.xls', '.xlsx')):
+            try:
+                with pd.ExcelFile(excel_path) as xls:
+                    if len(xls.sheet_names) > 1:
+                        return (dash.no_update, dash.no_update, dash.no_update, dash.no_update,
+                               dbc.Alert("Please select a sheet first", color="warning", dismissable=True))
+                    else:
+                        selected_sheet = xls.sheet_names[0]
+            except:
+                pass
+        elif selected_file.endswith('.csv'):
+            selected_sheet = "CSV Data"
+    
+    # Update all stores and UI
+    success_alert = dbc.Alert([
+        html.I(className="bi bi-check-circle-fill me-2"),
+        f"File '{selected_file}' is ready to use!",
+        html.Br(),
+        html.Small(f"Sheet: {selected_sheet}")
+    ], color="success", dismissable=True)
+    
+    return (
+        selected_file,           # Update hidden dropdown
+        selected_file,           # Update selected-excel-store
+        selected_sheet,          # Update selected-sheet-store
+        {"display": "block"},    # Show step 2
+        success_alert           # Show success message
     )
 
-    # Show buttons if a sheet is selected or if there is only one sheet available 
-    if current_sheet_value or (len(sheet_names) == 1 and not sheet_values):
-        button_style = {
-            "display": "flex",
-            "alignItems": "center",
-            "justifyContent": "center",
-            "padding": "80px"
-        }
 
-    return sheet_dropdown, text_dd2_style, button_style, delete_button_style
-
-
-def update_tracking_file(filename):
-    allowed_extensions = ('.csv', '.xls', '.xlsx')
-    if not filename.lower().endswith(allowed_extensions):
-        return dbc.Alert(
-             f"Skipping unsupported file type: {filename}",
-            id="alert-file-reading",
-            color="warning",
-            is_open=True,
-            duration=4000,
-        )
-
-    # If the tracking file doesn't exist, create it
-    if not os.path.exists(TRACKING_FILE):
-        df = pd.DataFrame(columns=["filename"])
-        df.to_excel(TRACKING_FILE, index=False)
-
-    # Load the existing tracking file
-    df = pd.read_excel(TRACKING_FILE)
-
-    # Add the filename only if it’s not already there
-    if filename not in df["filename"].values:
-        df.loc[len(df)] = {"filename": filename}
-        df.to_excel(TRACKING_FILE, index=False)
-
-# Function to decode files which have been uploaded 
-def parse_contents(contents, filename):
-    allowed_extensions = ('.csv', '.xls', '.xlsx')
-    if not filename.lower().endswith(allowed_extensions):
-        return dbc.Alert(
-            'Unsupported file format.',
-            id="alert-file-unsupported",
-            color="danger",
-            is_open=True,
-            duration=4000,
-        )
-    
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-    filepath = os.path.join(SAVE_FOLDER, filename) # ✅ Save to your custom path
-
-    if os.path.exists(filepath):
-        return dbc.Alert(
-             f"A file named '{filename}' already exists. Please rename your file before uploading.",
-            id="alert-file-exists",
-            color="warning",
-            is_open=True,
-            duration=4000,
-        )
-
-    with open(filepath, 'wb') as f:
-        f.write(decoded)
-
-    # Load into DataFrame (for display in Dash)
-    try:
-        if filename.endswith('.csv'):
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        else:
-            df = pd.read_excel(io.BytesIO(decoded))
-    except Exception as e:
-        return dbc.Alert(
-            f'Error processing file: {e}',
-            id="alert-file-error",
-            color="danger",
-            is_open=True,
-            duration=4000,
-        )
-    
-    update_tracking_file(filename)
-
-    return html.Div([
-        dbc.Alert(
-            f"Saved file: {filename}",
-            id="alert-file-saved",
-            is_open=True,
-            duration=4000,
-        ),
-    ])
+# ============================================
+# UPLOAD FILE CALLBACK - UPDATE STORES AFTER UPLOAD
+# ============================================
 
 @callback(
-    Output('excels-DD', 'options'),
-    Input('output-data-upload', 'children')  # Trigger après un upload
-)
-def refresh_excel_dropdown(_):
-    files = get_uploaded_excel_files()
-    return [{"label": f, "value": f} for f in files]
-
-@callback(
-    Output('output-data-upload', 'children'),
+    [Output('output-data-upload', 'children', allow_duplicate=True),
+     Output('excels-DD', 'options', allow_duplicate=True),
+     Output('selected-excel-store', 'data', allow_duplicate=True),
+     Output('selected-sheet-store', 'data', allow_duplicate=True),
+     Output('step-2-container', 'style', allow_duplicate=True)],
     Input('upload-data', 'contents'),
-    State('upload-data', 'filename')
-)
-def update_output(list_of_contents, list_of_names):
-    if list_of_contents is not None:
-        if isinstance(list_of_names, str):
-            list_of_names = [list_of_names]
-
-        children = []
-        for contents, name in zip(list_of_contents, list_of_names):
-            if contents and ',' in contents:
-                children.append(parse_contents(contents, name))
-            else:
-                children.append(html.Div(f"Skipping invalid file: {name}"))
-
-        return children
-    
-# Callback to delete Excel file and domain associated
-@callback(
-    Output('excels-DD', 'value', allow_duplicate=True),
-    Output('excels-DD', 'options', allow_duplicate=True),
-    Output('output-data-upload', 'children', allow_duplicate=True),
-    Input('delete-excel-button', 'n_clicks'),
-    State('excels-DD', 'value'),
+    State('upload-data', 'filename'),
     prevent_initial_call=True
 )
-def delete_excel_file_with_domain_cleanup(n_clicks, selected_file):
-    """Delete Excel file and associated domain"""
-    if not selected_file:
-        return dash.no_update, dash.no_update, dbc.Alert(
-            "No file selected to delete.",
-            color="warning",
-            is_open=True,
-            duration=4000
+def handle_file_upload(list_of_contents, list_of_names):
+    """Handle file upload and update stores"""
+    if not list_of_contents:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    if isinstance(list_of_names, str):
+        list_of_names = [list_of_names]
+    
+    messages = []
+    success = False
+    last_successful_file = None
+    last_successful_sheet = None
+    
+    for contents, name in zip(list_of_contents, list_of_names):
+        if contents and ',' in contents:
+            # Use the parse_contents from excel_storage
+            result = parse_contents(contents, name)
+            messages.append(result)
+            
+            # Check if upload was successful
+            if hasattr(result, 'children'):
+                children_str = str(result.children)
+                if "Successfully uploaded" in children_str:
+                    success = True
+                    last_successful_file = name
+                    
+                    # Determine sheet name
+                    if name.endswith('.csv'):
+                        last_successful_sheet = "CSV Data"
+                    else:
+                        # For Excel files, get the first sheet
+                        try:
+                            excel_path = os.path.join(EXCEL_FOLDER, name)
+                            with pd.ExcelFile(excel_path) as xls:
+                                last_successful_sheet = xls.sheet_names[0]
+                        except:
+                            last_successful_sheet = "Sheet1"
+    
+    # Refresh dropdown options
+    files = get_uploaded_excel_files()
+    options = [{"label": f, "value": f} for f in files]
+    
+    # If upload was successful, update stores and show step 2
+    if success and last_successful_file:
+        return (
+            html.Div(messages),
+            options,
+            last_successful_file,    # Update selected-excel-store
+            last_successful_sheet,    # Update selected-sheet-store
+            {"display": "block"}      # Show step 2
+        )
+    else:
+        return (
+            html.Div(messages),
+            options,
+            dash.no_update,
+            dash.no_update,
+            {"display": "none"}
         )
 
-    file_path = os.path.join(SAVE_FOLDER, selected_file)
-    messages = []
 
+# ============================================
+# DELETE FILE CALLBACK
+# ============================================
+
+@callback(
+    [Output('excels-DD-visible', 'value'),
+     Output('excels-DD-visible', 'options'),
+     Output('selected-excel-store', 'data', allow_duplicate=True),
+     Output('selected-sheet-store', 'data', allow_duplicate=True),
+     Output('output-data-upload', 'children', allow_duplicate=True)],
+    Input('delete-file-btn', 'n_clicks'),
+    State('excels-DD-visible', 'value'),
+    prevent_initial_call=True
+)
+def delete_file(n_clicks, selected_file):
+    """Delete selected file and clear stores"""
+    if not n_clicks or not selected_file:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    file_path = os.path.join(EXCEL_FOLDER, selected_file)
+    messages = []
+    
     try:
-        # 1. Delete the Excel file
+        # Delete file
         if os.path.exists(file_path):
             os.remove(file_path)
-            messages.append(f"Excel file deleted: {selected_file}")
-
-        # 2. Delete associated domain
+            messages.append(f"File deleted: {selected_file}")
+        
+        # Delete domain if exists
         domain_success, domain_message = DomainStorage.delete_domain(selected_file)
-        if domain_success:
-            messages.append(f"Domain cleaned up: {domain_message}")
-        else:
-            # Only add warning if there was actually a domain to delete
-            if "No domain found" not in domain_message:
-                messages.append(f"Domain cleanup warning: {domain_message}")
-
-        # 3. Remove from Excel tracking file
+        if domain_success and "No domain found" not in domain_message:
+            messages.append("Associated domain cleaned up")
+        
+        # Update tracking
         if os.path.exists(TRACKING_FILE):
             df = pd.read_excel(TRACKING_FILE)
             df = df[df["filename"] != selected_file]
             df.to_excel(TRACKING_FILE, index=False)
-
-        # 4. Update dropdown options
-        new_options = [{"label": f, "value": f} for f in get_uploaded_excel_files()]
-
-        # 5. Create success message
-        success_message = " | ".join(messages)
-        return None, new_options, dbc.Alert(
-            success_message,
-            color="success",
-            is_open=True,
-            duration=5000
-        )
-
+        
+        # Refresh options
+        files = get_uploaded_excel_files()
+        new_options = [{"label": f, "value": f} for f in files]
+        
+        alert = dbc.Alert([
+            html.I(className="bi bi-trash me-2"),
+            " | ".join(messages)
+        ], color="info", dismissable=True)
+        
+        # Clear stores since file was deleted
+        return None, new_options, None, None, alert
+        
     except Exception as e:
-        return dash.no_update, dash.no_update, dbc.Alert(
-            f"Error deleting file: {e}",
-            color="danger",
-            is_open=True,
-            duration=4000
-        )
-
-# # Open modal to create the excel file and name it
-# @callback(
-#     Output("excel-modal", "is_open"),
-#     [Input("create-excel-button", "n_clicks"),
-#      Input("confirm-create-excel", "n_clicks"),
-#      Input("cancel-create-excel", "n_clicks")],
-#     [State("excel-modal", "is_open")]
-# )
-# def toggle_modal(n_create, n_confirm, n_cancel, is_open):
-#     triggered_id = ctx.triggered_id
-#     if triggered_id in ["create-excel-button", "cancel-create-excel", "confirm-create-excel"]:
-#         return not is_open
-#     return is_open
+        error_alert = dbc.Alert([
+            html.I(className="bi bi-x-circle me-2"),
+            f"Delete failed: {e}"
+        ], color="danger", dismissable=True)
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, error_alert
 
 
-# @callback(
-#     Output("excels-DD", "options", allow_duplicate=True),
-#     Output("excels-DD", "value", allow_duplicate=True),
-#     Output("output-data-upload", "children", allow_duplicate=True),
-#     Input("confirm-create-excel", "n_clicks"),
-#     State("new-excel-name", "value"),
-#     prevent_initial_call='initial_duplicate'
-# )
-# def create_new_excel(n_clicks, name):
-#     if not name:
-#         return dash.no_update, dash.no_update, dbc.Alert(
-#             "Please enter a name for the Excel file.",
-#             color="danger",
-#             duration=3000,
-#             is_open=True,
-#         )
+# ============================================
+# MAINTAIN COMPATIBILITY WITH OLD CALLBACKS - UPDATE STORES
+# ============================================
 
-#     filename = name.strip()
-#     if not filename.endswith('.xlsx'):
-#         filename += '.xlsx'
+@callback(
+    [Output('sheets-DD', 'children'),
+     Output('text-DD-2', 'style'),
+     Output('redirec-button', 'style'),
+     Output('delete-excel-button', 'style'),],
+    [Input('excels-DD', 'value'),
+     Input({'type': 'sheet-dropdown', 'index': ALL}, 'value')],
+    prevent_initial_call=True
+)
+def update_dropdown_and_buttons(selected_excel, sheet_values):
+    """Maintain compatibility with existing callbacks and update stores"""
+    text_dd2_style = {"display": "none"}
+    button_style = {"display": "none"}
+    delete_button_style = {"display": "none"}
+    
+    if not selected_excel:
+        return None, text_dd2_style, button_style, delete_button_style
+    
+    excel_path = os.path.join(EXCEL_FOLDER, selected_excel)
+    
+    try:
+        if selected_excel.endswith(('.xls', '.xlsx')):
+            with pd.ExcelFile(excel_path) as xls:
+                sheet_names = xls.sheet_names
+        elif selected_excel.endswith('.csv'):
+            sheet_names = ["CSV Data"]
+        else:
+            return None, text_dd2_style, button_style, delete_button_style
+    except:
+        return None, text_dd2_style, button_style, delete_button_style
+    
+    current_sheet_value = sheet_values[0] if sheet_values else None
+    
+    # If only one sheet, auto-select it
+    if len(sheet_names) == 1 and not current_sheet_value:
+        current_sheet_value = sheet_names[0]
+    
+    sheet_dropdown = dcc.Dropdown(
+        id={'type': 'sheet-dropdown', 'index': selected_excel},
+        options=[{"label": name, "value": name} for name in sheet_names],
+        value=current_sheet_value or (sheet_names[0] if len(sheet_names) == 1 else None),
+    )
+    
+    # Show buttons if a sheet is selected
+    if current_sheet_value:
+        button_style = {"display": "flex", "alignItems": "center", "justifyContent": "center", "padding": "80px"}
+        text_dd2_style = {"display": "block", "fontSize": "20px", "textAlign": "left", "marginTop": "12px"}
+    
+    # Show delete button whenever a file is selected
+    delete_button_style = {"display": "inline-block", "marginTop": "12px"}
+    
+    # Update stores with selected excel and sheet
+    return (
+        sheet_dropdown, 
+        text_dd2_style, 
+        button_style, 
+        delete_button_style,
+    )
 
-#     filepath = os.path.join(SAVE_FOLDER, filename)
 
-#     if os.path.exists(filepath):
-#         return dash.no_update, dash.no_update, dbc.Alert(
-#             f"A file named '{filename}' already exists.",
-#             color="warning",
-#             duration=3000,
-#             is_open=True,
-#         )
+# ============================================
+# REFRESH DROPDOWN AFTER UPLOAD
+# ============================================
 
-#     try:
-#         # Create a new Excel
-#         pd.DataFrame().to_excel(filepath, index=False)
-#         update_tracking_file(filename)
-#     except Exception as e:
-#         return dash.no_update, dash.no_update, dbc.Alert(
-#             f"Error creating file: {e}",
-#             color="danger",
-#             duration=3000,
-#             is_open=True,
-#         )
-
-#     files = get_uploaded_excel_files()
-#     return (
-#         [{"label": f, "value": f} for f in files],
-#         filename,
-#         dbc.Alert(
-#             f"Created new Excel file: {filename}",
-#             color="success",
-#             duration=3000,
-#             is_open=True,
-#         ),
-#     )
+@callback(
+    Output('excels-DD', 'options', allow_duplicate=True),
+    Input('output-data-upload', 'children'),
+    prevent_initial_call=True
+)
+def refresh_excel_dropdown(upload_children):
+    """Refresh the hidden dropdown options after upload"""
+    files = get_uploaded_excel_files()
+    return [{"label": f, "value": f} for f in files]
