@@ -43,7 +43,7 @@ def render_tab_content(active_tab):
                               style={"fontSize": "48px", "color": "#3498db"}),
                         html.H5("Drop files here or click to browse", 
                                className="mt-3 mb-2"),
-                        html.P("Supported formats: Excel (.xlsx, .xls) and CSV files",
+                        html.P("Supported formats: Excel (.xlsx, .xls)",
                               className="text-muted")
                     ], className="text-center p-4")
                 ]),

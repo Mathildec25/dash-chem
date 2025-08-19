@@ -18,9 +18,9 @@ def create_home_layout():
                 html.H1("Data Analysis & Optimization Platform", 
                        className="text-center mb-2",
                        style={"color": "#2c3e50", "fontWeight": "bold"}),
-                html.P("Welcome to your comprehensive data analysis and Bayesian optimization tool",
-                      className="text-center text-muted mb-4",
-                      style={"fontSize": "18px"})
+                html.P("Welcome to MET !!",
+                      className="text-center text-muted mb-2",
+                      style={"fontSize": "25px"})
             ], width=12)
         ], className="mt-4"),
         
@@ -95,7 +95,7 @@ def create_home_layout():
                             dbc.CardHeader([
                                 html.H5([
                                     html.Span("Step 1: ", className="text-primary"),
-                                    "Load Your Data"
+                                    "Load or Select Data"
                                 ], className="mb-0")
                             ], style={"backgroundColor": "#f8f9fa"}),
                             dbc.CardBody([
@@ -175,7 +175,7 @@ def create_home_layout():
                                                 ), 
                                                 href="/carac"
                                             ),
-                                            html.Small("Analyze data properties",
+                                            html.Small("Manage analysis",
                                                       className="text-muted")
                                         ], md=6, lg=3, className="mb-3"),
                                         
@@ -229,6 +229,10 @@ def create_home_layout():
                     html.P([
                         html.Strong("Visualization: "),
                         "Best for understanding trends and patterns in your data."
+                    ], className="mb-2"),
+                    html.P([
+                        html.Strong("Caracterization: "),
+                        "Need to be updated"
                     ], className="mb-2"),
                     html.P([
                         html.Strong("Optimization: "),

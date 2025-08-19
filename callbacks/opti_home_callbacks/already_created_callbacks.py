@@ -26,6 +26,10 @@ from domain_storage import DomainStorage, check_domain_availability
     )
 def update_excel_dropdown_with_domain_status(selected_excel, pathname):
     """Update Excel dropdown showing which files have domains"""
+
+    if pathname != "/Opt-home":
+        return dash.no_update
+    
     excel_files = get_uploaded_excel_files()
     domain_availability = check_domain_availability()
     
