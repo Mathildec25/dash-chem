@@ -1,128 +1,144 @@
 import dash
-from dash import callback, Input, Output, State, MATCH, ALL, dash_table, html, no_update, dcc, ctx
+from dash import callback, Input, Output, State, MATCH, ALL, html, dcc, ctx
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
-from utils.data_handling import load_filtered_df, get_columns, get_column_dropdown_options
-import pandas as pd
 import uuid
 import json
-import os
-from excel_storage import EXCEL_FOLDER, TRACKING_FILE, TRACKING_FILENAME
 
-## EXTRA COLUMNS PART ##
+from utils.data_handling import find_component_id_in_structure
 
-# Add a new other column block
+## FIXED EXTRA COLUMNS CALLBACKS ##
+
+# Add a new extra column block within the same card structure
 @callback(
     Output("extra-column-container", "children", allow_duplicate=True),
     Input("add-extra-column-button", "n_clicks"),
     State("extra-column-container", "children"),
-    prevent_initial_call="initial_duplicate"
+    prevent_initial_call="initial_duplicate"  # FIXED: Use initial_duplicate
 )
 def add_extra_column(n_clicks, current_children):
     if not n_clicks:
-        raise dash.exceptions.PreventUpdate
+        raise PreventUpdate
 
     new_id = str(uuid.uuid4())
 
-    new_row = dbc.Row([
-        dbc.Col([
-            dbc.Input(
-                id={'type': 'extra-column-name', 'index': new_id},
-                placeholder="Enter column name...",
-                type="text",
-                style={"marginBottom": "8px"}
+    # Create new extra column block that matches the layout structure
+    new_block = dbc.Card([
+        dbc.CardBody([
+            dbc.Row(
+                id={'type': 'extra-column-block', 'index': new_id},
+                children=[
+                    dbc.Col([
+                        dbc.Label("Column Name", className="fw-bold"),
+                        dbc.Input(
+                            id={'type': 'extra-column-name', 'index': new_id},
+                            placeholder="e.g., Batch_ID, Operator, Notes...",
+                            type="text",
+                            size="md",
+                            style={"fontSize": "16px"}
+                        ),
+                    ], width=10),
+                    dbc.Col([
+                        dbc.Label("Delete", className="fw-bold"),  # FIXED: Changed from "Action"
+                        dbc.Button(
+                            "✕",
+                            id={'type': 'delete-extra-column-btn', 'index': new_id},
+                            color="outline-danger",
+                            size="sm",
+                            className="w-100"
+                        )
+                    ], width=2),
+                ],
+                className="align-items-end mb-3"
             )
-        ], width=10),
-        dbc.Col([
-            dbc.Button(
-                "✕",
-                id={'type': 'delete-extra-column-btn', 'index': new_id},
-                color="danger",
-                size="sm",
-                style={"marginBottom": "8px"}
-            )
-        ], width=2),
-    ], style={"marginBottom": "5px"})
+        ])
+    ], className="mb-3 shadow-sm")
 
-    return current_children + [new_row]
+    return current_children + [new_block]
 
+# FIXED EXTRA COLUMN DELETE  
 @callback(
     Output("extra-column-container", "children", allow_duplicate=True),
     Output("extra-columns-store", "data", allow_duplicate=True),
     Input({'type': 'delete-extra-column-btn', 'index': ALL}, 'n_clicks'),
     State("extra-column-container", "children"),
     State("extra-columns-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call="initial_duplicate"
 )
 def delete_extra_column(n_clicks_list, current_children, stored_data):
-    ctx_trigger = ctx.triggered_id
-    if not ctx_trigger:
-        raise dash.exceptions.PreventUpdate
+    if not any(n_clicks_list):
+        raise PreventUpdate
     
-    # Check if any delete button was clicked
-    if not any(n_clicks_list) or all(click is None for click in n_clicks_list):
-        raise dash.exceptions.PreventUpdate
+    triggered_id = ctx.triggered_id
+    if not triggered_id:
+        raise PreventUpdate
 
-    delete_index = ctx_trigger["index"]
+    index_to_delete = triggered_id['index']
+    print(f"🗑️ Attempting to delete extra column with index: {index_to_delete}")
+
+    # ROBUST: Find and remove the card containing our extra column
     new_children = []
-
-    for child in current_children:
+    for i, child in enumerate(current_children):
         try:
-            # Loop through Cols inside the Row
-            row_cols = child["props"]["children"]
-            found = False
-
-            for col in row_cols:
-                col_children = col["props"].get("children", [])
-                # Force into list if it's a single component
-                if isinstance(col_children, dict):
-                    col_children = [col_children]
-
-                for comp in col_children:
-                    comp_id = comp["props"].get("id")
-                    if isinstance(comp_id, dict) and comp_id.get("type") == "delete-extra-column-btn" and comp_id.get("index") == delete_index:
-                        found = True
-                        break
-
-                if found:
-                    break
-
-            if not found:
+            # Search for extra-column-block with our index in this card
+            found_id = find_component_id_in_structure(child, 'extra-column-block')
+            
+            if found_id != index_to_delete:
                 new_children.append(child)
+            else:
+                print(f"✅ Found and removing extra column card #{i}: {index_to_delete}")
+                
         except Exception as e:
-            print("Skipping a child due to error:", e)
+            print(f"⚠️ Error processing child #{i}: {e}")
+            # Keep the child if we can't determine its ID
             new_children.append(child)
 
-    # Store remains untouched (will be saved again on save button)
-    return new_children, stored_data
+    # Remove from store
+    new_store = [
+        col for col in stored_data or []
+        if col.get("id") != index_to_delete
+    ]
 
-# Save extra columns part information described by the user
+    return new_children, new_store
+
+# Enhanced extra columns saving with better display
 @callback(
     Output("extra-columns-store", "data", allow_duplicate=True),
     Output("extra-columns-display", "children", allow_duplicate=True),
     Input("save-extra-columns-btn", "n_clicks"),
-    Input({"type": "extra-column-name", "index": ALL}, "value"),
-    State("extra-columns-store", "data"),
-    prevent_initial_call=True
+    State({"type": "extra-column-name", "index": ALL}, "id"),
+    State({"type": "extra-column-name", "index": ALL}, "value"),
+    prevent_initial_call="initial_duplicate"  # FIXED: Use initial_duplicate for consistency
 )
-def save_extra_columns(n_clicks, column_names, current_store):
-    triggered_id = ctx.triggered_id
+def save_extra_columns(n_clicks, column_ids, column_names):
+    
+    # Create mapping dictionary
+    name_dict = {cid['index']: val for cid, val in zip(column_ids, column_names) if val and val.strip()}
 
     columns = []
-    for name in column_names:
-        if name:
-            columns.append({
-                "name": name
-            })
+    for idx, name in name_dict.items():
+        columns.append({
+            "id": idx,
+            "name": name.strip()
+        })
 
-    display = html.Pre(
-        json.dumps(columns, indent=2),
-        style={"whiteSpace": "pre-wrap", "fontSize": "14px"}
-    )
-
-    # Only update store if Save button clicked
-    if triggered_id == "save-extra-columns-btn" and n_clicks:
-        return columns, display
+    # Create enhanced display
+    if columns:
+        display_items = []
+        for i, col in enumerate(columns, 1):
+            display_items.append(
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H6(f"{i}. {col['name']}", className="mb-1"),
+                        dbc.Badge("Extra Column", color="secondary", className="me-2"),
+                        html.Small("For additional data tracking", className="text-muted")
+                    ])
+                ], className="mb-2")
+            )
+        display = html.Div(display_items)
     else:
-        # Update display only
-        return dash.no_update, display
+        display = html.P("No additional columns defined", className="text-muted")
+
+    if n_clicks:
+        return columns, display
+    return dash.no_update, display

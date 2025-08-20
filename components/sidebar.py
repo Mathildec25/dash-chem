@@ -8,7 +8,7 @@ icon_map = {
     "Dashboard": "bi-table",
     "Visualization": "bi-bar-chart-line",
     "Caracterization": "bi-gear",
-    "Opti home": "/assets/BO_icon.svg",
+    "Optimization": "/assets/BO_icon.svg",
 }
 
 def generate_sidebar():

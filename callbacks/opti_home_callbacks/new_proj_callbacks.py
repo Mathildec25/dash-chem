@@ -64,5 +64,5 @@ def handle_go_button_click(n_clicks, project_name):
     """Save project name to store and redirect to parameter page"""
     if n_clicks and project_name and project_name.strip():
         # Save the project name to store and redirect to parameter page
-        return project_name.strip(), '/param'
+        return project_name.strip(), '/Opt-param'
     return dash.no_update, dash.no_update

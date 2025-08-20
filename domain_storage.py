@@ -213,7 +213,7 @@ class DomainStorage:
 
 
 def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra_columns, 
-                                        excel_name, sampling_method, nb_points):
+                                        excel_name, sampling_method=None, nb_points=None):
     """
     Create BoFire domain and Excel file with proper column organization and sampling
     """
@@ -349,7 +349,7 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
             objectives=objectives,
             extra_columns=extra_columns,
             metadata={
-                'sampling_method': sampling_method,
+                'sampling_method': sampling_method or "none",
                 'nb_points': nb_points if nb_points else 0,
                 'column_order': [col_info['name'] for col_info in column_info],
                 'parameter_names': [col_info['name'] for col_info in column_info if col_info['type'] == 'parameter'],
@@ -364,12 +364,8 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
         # 9️⃣ Update Excel tracking file
         update_excel_tracking(excel_name)
 
-        # 🔟 Create success message
-        success_message = create_success_message(
-            excel_name, column_info, sampling_message, file_path, domain
-        )
-
-        return success_message, excel_name
+        # 🔟 Return success (no message needed since user gets redirected)
+        return None, excel_name
 
     except Exception as e:
         return create_error_message(f"Creation failed: {str(e)}"), None
@@ -445,89 +441,6 @@ def create_error_message(message: str):
     return html.Div([
         html.H5("❌ Error", className="text-danger"),
         html.P(message, className="text-danger"),
-    ])
-
-
-def create_success_message(excel_name: str, column_info: list, sampling_message: str, 
-                         file_path: str, domain) -> html.Div:
-    """Create a comprehensive success message"""
-    # Count columns by type
-    extra_count = len([c for c in column_info if c['type'] == 'extra'])
-    param_count = len([c for c in column_info if c['type'] == 'parameter'])
-    obj_count = len([c for c in column_info if c['type'] == 'objective'])
-    
-    # Get domain representation for display
-    try:
-        df_inputs = domain.inputs.get_reps_df()
-        df_outputs = domain.outputs.get_reps_df()
-        all_reps_df = pd.concat([df_inputs, df_outputs], ignore_index=True)
-    except:
-        all_reps_df = pd.DataFrame()
-
-    return html.Div([
-        html.H5("✅ Success!", className="text-success mb-3"),
-        
-        # File info
-        html.Div([
-            html.P([
-                html.Strong("📄 Excel file created: "), 
-                excel_name
-            ], className="mb-1"),
-            html.P([
-                html.Strong("📁 Location: "), 
-                file_path
-            ], className="mb-1 text-muted small"),
-            html.P([
-                html.Strong("🎯 Status: "), 
-                f"Domain saved and ready for optimization{sampling_message}"
-            ], className="mb-3 text-info"),
-        ]),
-        
-        # Column structure
-        html.Div([
-            html.H6("📊 Excel Structure:", className="mb-2"),
-            html.Div([
-                dbc.Badge(f"Extra: {extra_count}", color="secondary", className="me-2"),
-                dbc.Badge(f"Parameters: {param_count}", color="primary", className="me-2"), 
-                dbc.Badge(f"Objectives: {obj_count}", color="success"),
-            ], className="mb-3"),
-            
-            html.P([
-                html.Strong("Column order: "),
-                " → ".join([f"{c['name']} ({c['type']})" for c in column_info[:3]]),
-                f" → ... ({len(column_info)} total)" if len(column_info) > 3 else ""
-            ], className="mb-3 small text-muted"),
-        ], className="p-3 bg-light rounded"),
-        
-        # Domain summary
-        html.Div([
-            html.H6("🔧 Domain Summary:", className="mb-2 mt-3"),
-            dash_table.DataTable(
-                data=all_reps_df.to_dict("records") if not all_reps_df.empty else [],
-                columns=[{"name": col, "id": col} for col in all_reps_df.columns] if not all_reps_df.empty else [],
-                style_table={"overflowX": "auto"},
-                style_cell={"textAlign": "left", "padding": "5px", "fontSize": "12px"},
-                style_header={"fontWeight": "bold", "backgroundColor": "#e9ecef"},
-                page_size=10
-            ) if not all_reps_df.empty else html.P("Domain created successfully", className="text-muted")
-        ]),
-        
-        # Next step guidance
-        html.Hr(),
-        html.Div([
-            html.H6("🚀 Next Steps:", className="mb-2"),
-            html.Ol([
-                html.Li("Go to the 'Run Optimization' page"),
-                html.Li("Fill in the objective values (experimental results)"),
-                html.Li("Click 'Start Bayesian Optimization' to get recommendations")
-            ]),
-            dbc.Button(
-                "Go to Run Optimization →", 
-                href="/run", 
-                color="success", 
-                className="mt-2"
-            )
-        ], className="alert alert-info")
     ])
 
 
