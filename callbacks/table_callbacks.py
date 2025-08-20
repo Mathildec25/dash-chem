@@ -16,7 +16,6 @@ from config_path import EXCEL_FOLDER
     Input("url", "pathname"),
     State("selected-sheet-store", "data"),
     State("selected-excel-store", "data"),
-    prevent_initial_call=True
 )
 def load_table_for_sheet(pathname, sheet, excel):
     # Only trigger callback if pathname is /table

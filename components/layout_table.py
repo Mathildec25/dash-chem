@@ -6,7 +6,6 @@ def create_dashboard_layout():
     return dbc.Container([
         dbc.Row([
             dbc.Col([
-                dcc.Location(id="url"),
                 html.H2("Display part", className="display-4", style={"textAlign": "center", "marginBottom": "35px"}),
             ], width=12),
         ]),

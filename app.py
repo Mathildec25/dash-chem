@@ -48,7 +48,7 @@ app.layout = html.Div([
     dcc.Store(id='selected-file-store', storage_type='session'),            # Store file selected to restrat opti
     dcc.Store(id="current-excel-file", storage_type='session'),             # Store file created to start BO
     dcc.Store(id="current-domain", storage_type='session'),                 # Store the domain of the current BO process
-    dcc.Location(id="url", refresh=False),
+    dcc.Location(id="url", refresh="callback-nav"),
     sidebar,  # Fixed + hover-based sidebar
     html.Div(
         id="main-content",

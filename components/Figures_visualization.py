@@ -86,94 +86,91 @@ def load_filtered_df_graph(excel, sheet):
 
 
 # Create a scatter graph
-def graph_scatter(df, x_axis, y_axis, colors, size_param, hover):
-    # Drop rows with NaN values in the essential columns
-    df = df.dropna(subset=[colors, size_param])
-    
-    # Check if size_param is categorical or numerical
-    is_categorical = df[size_param].dtype == 'object' or df[size_param].dtype.name == 'category'
-    
-    if is_categorical:
-        # For categorical variables, create a numerical mapping
+def graph_scatter(df, x_axis, y_axis, colors=None, size_param=None, hover=None):
+    # --- Drop only necessary NaNs ---
+    drop_cols = [c for c in [x_axis, y_axis, colors, size_param] if c]
+    df = df.dropna(subset=drop_cols)
+
+    # Default hover handling
+    hover_args = {}
+    if hover:
+        hover_args["hover_name"] = hover
+
+    fig = None
+
+    # Case 1: categorical size_param
+    if size_param and (df[size_param].dtype == 'object' or df[size_param].dtype.name == 'category'):
         unique_categories = df[size_param].unique()
-        # Create size mapping: assign different sizes to categories
         size_mapping = {cat: (i + 1) * 12 for i, cat in enumerate(unique_categories)}
         df_plot = df.copy()
         df_plot['size_numeric'] = df_plot[size_param].map(size_mapping)
-        
-        # Create the scatter plot
+
         fig = px.scatter(
-            df_plot, 
-            x=x_axis, 
-            y=y_axis, 
-            color=colors, 
-            size='size_numeric',
-            hover_name=hover, 
-            hover_data={size_param: True, 'size_numeric': False},  # Show original category in hover
-            color_continuous_scale="bluered",
-            size_max=35
+            df_plot,
+            x=x_axis,
+            y=y_axis,
+            color=colors if colors else None,
+            size="size_numeric",
+            color_continuous_scale="bluered" if colors else None,
+            size_max=35,
+            hover_data={size_param: True, "size_numeric": False},
+            **hover_args
         )
-        
-        # Add custom legend for categorical sizes
-        fig.add_annotation(
-            x=0.01, y=0.99,
-            xref="paper", yref="paper",
-            text=f"<b>{size_param} </b><br>" + 
-                 "<br>".join([f"● {cat}" for cat in unique_categories]),
-            showarrow=False,
-            align="left",
-            font=dict(size=10),
-            bgcolor="rgba(255,255,255,0.8)",
-            bordercolor="gray",
-            borderwidth=1
-        )
-    else:
-        # For numerical variables, use original approach
+
+    # Case 2: numeric size_param
+    elif size_param:
         fig = px.scatter(
-            df, 
-            x=x_axis, 
-            y=y_axis, 
-            color=colors, 
+            df,
+            x=x_axis,
+            y=y_axis,
+            color=colors if colors else None,
             size=size_param,
-            hover_name=hover, 
-            color_continuous_scale="bluered",
-            size_max=35
+            color_continuous_scale="bluered" if colors else None,
+            size_max=35,
+            **hover_args
         )
-    
-    # Generate dynamic title
-    title = f"Scatter plot of {y_axis} Vs {x_axis} with Color = {colors} and Size = {size_param}"
-    
-    # Update layout with title and larger axis labels
+
+    # Case 3: only x,y,(color)
+    else:
+        fig = px.scatter(
+            df,
+            x=x_axis,
+            y=y_axis,
+            color=colors if colors else None,
+            color_continuous_scale="bluered" if colors else None,
+            **hover_args
+        )
+
+    # --- Dynamic title ---
+    title_parts = [f"{y_axis} vs {x_axis}"]
+    if colors:
+        title_parts.append(f"Color={colors}")
+    if size_param:
+        title_parts.append(f"Size={size_param}")
+    title = " | ".join(title_parts)
+
+    # --- Layout updates ---
     fig.update_layout(
         title={
-            'text': title,
-            'x': 0.5,  # Center the title
-            'xanchor': 'center',
-            'font': {'size': 28}
+            "text": title,
+            "x": 0.5,
+            "xanchor": "center",
+            "font": {"size": 24}
         },
-        xaxis={
-            'title': {
-                'text': x_axis,
-                'font': {'size': 20}
-            }
-        },
-        yaxis={
-            'title': {
-                'text': y_axis,
-                'font': {'size': 20}
-            }
-        }
+        xaxis_title={"text": x_axis, "font": {"size": 18}},
+        yaxis_title={"text": y_axis, "font": {"size": 18}},
+        legend_title_text=""
     )
-    
-    # Update traces to increase base point size, remove borders, and add opacity
+
+    # --- Marker style ---
     fig.update_traces(
         marker=dict(
-            sizemin=5,  # Minimum size for the smallest points
-            opacity=0.6,  # Set transparency
-            line=dict(width=0)  # Remove borders
+            sizemin=5,
+            opacity=0.6,
+            line=dict(width=0)
         )
     )
-    
+
     return fig
 
 # Create a boxplot
@@ -273,7 +270,7 @@ def graph_histo_col(df):
         y=uniques_count.values,
         labels={'x': 'Columns', 'y': 'Number of Unique Values'},
     )
-    title = f"Histogramm of all the columns"
+    title = f"Histogram of all the columns"
     
     # Update layout with title and larger axis labels
     fig.update_layout(

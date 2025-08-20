@@ -65,6 +65,9 @@ def create_parallel_coordinates(data, domain_metadata):
         )
         fig.update_layout(height=600)
         return fig
+    
+    # number of iterations (rows) used for the plot
+    n_iter = len(plot_data)
 
     dimensions_list = []
 
@@ -118,8 +121,10 @@ def create_parallel_coordinates(data, domain_metadata):
         dimensions=dimensions_list
     ))
 
-    # Generate dynamic title
-    title = f"Parallel Coordinates Plot{' (Colored by ' + color_column + ')' if color_column else ''}"
+    # Generate dynamic title 
+    color_part = f" (Colored by {color_column})" if color_column else ""
+    plural = "iteration" if n_iter == 1 else "iterations"
+    title = f"Parallel Coordinates Plot with {n_iter} {plural}{color_part}"
 
     # 1) increase the dimension label font and tick font
     fig.update_traces(

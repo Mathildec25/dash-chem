@@ -236,7 +236,7 @@ def create_home_layout():
                     ], className="mb-2"),
                     html.P([
                         html.Strong("Optimization: "),
-                        "Use when you want AI to suggest your next experiments based on previous results."
+                        "Use when you want AI to suggest your next experiments."
                     ], className="mb-0"),
                 ], color="info", className="mt-4")
             ], width=12)
