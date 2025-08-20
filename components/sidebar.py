@@ -27,7 +27,7 @@ def generate_sidebar():
                 # Otherwise use Bootstrap icon
                 icon_component = html.I(
                     className=f"bi {icon_entry} me-2",
-                    style={"font-size": "1.2rem"}
+                    style={"fontSize": "1.2rem"}
                 )
 
             nav_links.append(

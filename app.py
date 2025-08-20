@@ -55,7 +55,7 @@ app.layout = html.Div([
         className="main-content",
         children=[dash.page_container],  # Will render content of the current page
         style={
-            "margin-left": "68px",
+            "marginLeft": "68px",
         }
     )
 ])
