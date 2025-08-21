@@ -1,5 +1,6 @@
 import os
 import pickle
+import uuid
 import pandas as pd
 from typing import Optional, Dict, Any, Tuple
 import json
@@ -240,11 +241,28 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
             excel_name += ".xlsx"
         file_path = os.path.join(EXCEL_FOLDER, excel_name)
 
-        # 4️⃣ Build column structure in correct order
+        # 4️⃣ AUTOMATICALLY ADD "Point type" COLUMN
+        # Ensure extra_columns is a list
+        if extra_columns is None:
+            extra_columns = []
+        
+        # Check if "Point type" already exists
+        point_type_exists = any(col.get("name") == "Point type" for col in extra_columns)
+        
+        # Add "Point type" column if it doesn't exist
+        if not point_type_exists:
+            point_type_column = {
+                "id": str(uuid.uuid4()),  # Generate unique ID
+                "name": "Point type"
+            }
+            extra_columns.append(point_type_column)
+            print("✅ Automatically added 'Point type' column")
+
+        # 5️⃣ Build column structure in correct order
         # Extra columns → Parameters → Objectives
         column_info = []
         
-        # Add extra columns first
+        # Add extra columns first (including our automatic "Point type")
         if extra_columns:
             for col in extra_columns:
                 if col.get("name"):
@@ -275,7 +293,7 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
         if not column_info:
             return create_error_message("No valid columns defined."), None
 
-        # 5️⃣ Handle sampling if requested
+        # 6️⃣ Handle sampling if requested
         sampled_data = None
         sampling_message = ""
         
@@ -299,7 +317,7 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
             except Exception as e:
                 return create_error_message(f"Sampling failed: {str(e)}"), None
 
-        # 6️⃣ Create DataFrame with proper structure
+        # 7️⃣ Create DataFrame with proper structure
         if sampled_data is not None and not sampled_data.empty:
             # Use sampled data as base
             num_rows = len(sampled_data)
@@ -311,8 +329,14 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
                 col_type = col_info['type']
                 
                 if col_type == 'extra':
-                    # Extra columns are empty
-                    df_excel[col_name] = ""
+                    # SPECIAL HANDLING FOR "Point type" COLUMN
+                    if col_name == "Point type":
+                        # All sampled points are "Init" (initial sampling)
+                        df_excel[col_name] = "Init"
+                        print(f"✅ Set {num_rows} sampling points as 'Init'")
+                    else:
+                        # Other extra columns are empty
+                        df_excel[col_name] = ""
                 elif col_type == 'parameter':
                     if col_name in sampled_data.columns:
                         values = sampled_data[col_name].values
@@ -335,19 +359,27 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
             headers = [col_info['name'] for col_info in column_info]
             df_excel = pd.DataFrame(columns=headers)
             # Add one empty row for user to start
-            empty_row = {col: "" for col in headers}
+            empty_row = {}
+            for col in headers:
+                if col == "Point type":
+                    # First manual row gets "BO" (since it's like adding a row)
+                    empty_row[col] = "BO"
+                else:
+                    empty_row[col] = ""
+            
             df_excel = pd.concat([df_excel, pd.DataFrame([empty_row])], ignore_index=True)
+            print("✅ Created initial empty row with 'BO' point type")
 
-        # 7️⃣ Save Excel file with formatting
-        save_formatted_excel(df_excel, file_path, column_info)
+        # 8️⃣ Save Excel file with formatting
+        save_formatted_excel_with_point_type_highlighting(df_excel, file_path, column_info)
 
-        # 8️⃣ Save domain with proper metadata
+        # 9️⃣ Save domain with proper metadata (include updated extra_columns)
         success, domain_message = DomainStorage.save_domain(
             excel_name=excel_name,
             domain=domain,
             parameters=parameters,
             objectives=objectives,
-            extra_columns=extra_columns,
+            extra_columns=extra_columns,  # This now includes "Point type"
             metadata={
                 'sampling_method': sampling_method or "none",
                 'nb_points': nb_points if nb_points else 0,
@@ -361,18 +393,19 @@ def create_domain_and_excel_with_storage(n_clicks, parameters, objectives, extra
         if not success:
             return create_error_message(f"Domain storage failed: {domain_message}"), None
 
-        # 9️⃣ Update Excel tracking file
+        # 🔟 Update Excel tracking file
         update_excel_tracking(excel_name)
 
-        # 🔟 Return success (no message needed since user gets redirected)
+        # 1️⃣1️⃣ Return success (no message needed since user gets redirected)
         return None, excel_name
 
     except Exception as e:
         return create_error_message(f"Creation failed: {str(e)}"), None
 
 
-def save_formatted_excel(df_excel: pd.DataFrame, file_path: str, column_info: list):
-    """Save Excel file with proper formatting and color coding"""
+# Optional: Enhanced save_formatted_excel function to highlight Point type column
+def save_formatted_excel_with_point_type_highlighting(df_excel: pd.DataFrame, file_path: str, column_info: list):
+    """Save Excel file with special formatting for Point type column"""
     try:
         with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
             df_excel.to_excel(writer, index=False, sheet_name='Experiments')
@@ -408,16 +441,34 @@ def save_formatted_excel(df_excel: pd.DataFrame, file_path: str, column_info: li
                 col_info = next((info for info in column_info if info['name'] == cell.value), None)
                 if col_info:
                     if col_info['type'] == 'extra':
-                        cell.fill = PatternFill(start_color="6C757D", end_color="6C757D", fill_type="solid")  # Gray
+                        if cell.value == "Point type":
+                            # Special color for Point type column
+                            cell.fill = PatternFill(start_color="FF6B35", end_color="FF6B35", fill_type="solid")  # Orange
+                        else:
+                            cell.fill = PatternFill(start_color="6C757D", end_color="6C757D", fill_type="solid")  # Gray
                     elif col_info['type'] == 'parameter':
                         cell.fill = PatternFill(start_color="007BFF", end_color="007BFF", fill_type="solid")  # Blue
                     elif col_info['type'] == 'objective':
                         cell.fill = PatternFill(start_color="28A745", end_color="28A745", fill_type="solid")  # Green
                 else:
                     cell.fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")  # Default gray
+
+            # Optional: Add data validation for Point type column
+            if "Point type" in df_excel.columns:
+                point_type_col_idx = df_excel.columns.get_loc("Point type") + 1  # Excel is 1-indexed
+                point_type_col_letter = worksheet.cell(row=1, column=point_type_col_idx).column_letter
+                
+                # Add dropdown validation for Point type column
+                from openpyxl.worksheet.datavalidation import DataValidation
+                dv = DataValidation(type="list", formula1='"Init,BO"', allow_blank=True)
+                dv.error = 'Please select Init or BO'
+                dv.errorTitle = 'Invalid Point Type'
+                worksheet.add_data_validation(dv)
+                dv.add(f"{point_type_col_letter}2:{point_type_col_letter}{len(df_excel) + 1}")
                     
     except Exception as e:
         raise Exception(f"Failed to save Excel file: {str(e)}")
+
 
 
 def update_excel_tracking(excel_name: str):

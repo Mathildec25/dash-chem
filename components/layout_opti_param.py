@@ -31,14 +31,65 @@ def create_opti_param_layout():
                       style={"fontSize": "18px"})
             ], width=12)
         ], className="mt-4"),
-        
-        # Process Overview Alert
-        dbc.Alert([
-            html.I(className="bi bi-lightbulb-fill me-2"),
-            html.Strong("Domain Setup Process: "),
-            "Parameters (what you can control) → Objectives (what you want to optimize) → "
-            "Additional Data → Sampling Strategy → Domain Creation"
-        ], color="info", className="mb-4"),
+
+        # Progress Overview
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.I(className="bi bi-sliders", 
+                                  style={"fontSize": "32px", "color": "#007bff"}),
+                            html.H6("1. Parameters", className="mt-2 mb-1"),
+                            html.Small("Variables you can control",
+                                      className="text-muted")
+                        ], className="text-center")
+                    ])
+                ], className="h-100 shadow-sm border-0")
+            ], md=3, className="mb-3"),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.I(className="bi bi-bullseye", 
+                                  style={"fontSize": "32px", "color": "#28a745"}),
+                            html.H6("2. Objectives", className="mt-2 mb-1"),
+                            html.Small("Goals to optimize",
+                                      className="text-muted")
+                        ], className="text-center")
+                    ])
+                ], className="h-100 shadow-sm border-0")
+            ], md=3, className="mb-3"),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.I(className="bi bi-table", 
+                                  style={"fontSize": "32px", "color": "#6c757d"}),
+                            html.H6("3. Extra Data", className="mt-2 mb-1"),
+                            html.Small("Additional tracking columns",
+                                      className="text-muted")
+                        ], className="text-center")
+                    ])
+                ], className="h-100 shadow-sm border-0")
+            ], md=3, className="mb-3"),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.I(className="bi bi-gear-fill", 
+                                  style={"fontSize": "32px", "color": "#ffc107"}),
+                            html.H6("4. Launch", className="mt-2 mb-1"),
+                            html.Small("Configure & start optimization",
+                                      className="text-muted")
+                        ], className="text-center")
+                    ])
+                ], className="h-100 shadow-sm border-0")
+            ], md=3, className="mb-3"),
+        ], className="mb-4"),
 
         # Main Configuration Accordion
         dbc.Card([
@@ -46,14 +97,6 @@ def create_opti_param_layout():
                 dbc.Accordion([
                     # Parameters Section
                     dbc.AccordionItem([
-                        # Header explanation
-                        dbc.Alert([
-                            html.I(className="bi bi-lightbulb-fill me-2"),
-                            html.Strong("Parameters "),
-                            "are the experimental variables you can control (temperature, concentration, time, etc.). "
-                            "Define their types and valid ranges."
-                        ], color="info", className="mb-4"),
-                        
                         # Parameter container
                         html.Div(id="parameter-container", children=[
                             dbc.Card([
@@ -72,7 +115,6 @@ def create_opti_param_layout():
                                                 ),
                                             ], width=5),
                                             dbc.Col([
-                                                dbc.Label("Parameter Type", className="fw-bold"),
                                                 html.Div(id={'type': 'parameter-type-container', 'index': initial_id})
                                             ], width=5),
                                             dbc.Col([
@@ -142,14 +184,6 @@ def create_opti_param_layout():
                     
                     # Objectives Section
                     dbc.AccordionItem([
-                        # Header explanation
-                        dbc.Alert([
-                            html.I(className="bi bi-lightbulb-fill me-2"),
-                            html.Strong("Objectives "),
-                            "are the goals you want to optimize (yield, purity, cost, etc.). "
-                            "Specify whether to minimize or maximize each one."
-                        ], color="info", className="mb-4"),
-                        
                         html.Div(id="objective-container", children=[
                             dbc.Card([
                                 dbc.CardBody([
@@ -167,11 +201,9 @@ def create_opti_param_layout():
                                                 ),
                                             ], width=3),
                                             dbc.Col([
-                                                dbc.Label("Optimization Direction", className="fw-bold"),
                                                 html.Div(id={'type': 'objective-direction-container', 'index': initial_objective_id})
                                             ], width=3),
                                             dbc.Col([
-                                                dbc.Label("Bounds", className="fw-bold"),
                                                 html.Div(id={'type': 'objective-bounds-container', 'index': initial_objective_id})
                                             ], width=4),
                                             dbc.Col([
@@ -442,7 +474,7 @@ def create_opti_param_layout():
                     ], className="mb-2"),
                     html.P([
                         html.Strong("Objectives: "),
-                        "• Minimize • Maximize • Bounds help the AI"
+                        "• Minimize • Maximize • Bounds are used to normalized parameters values"
                     ], className="mb-2"),
                     html.P([
                         html.Strong("Sampling: "),

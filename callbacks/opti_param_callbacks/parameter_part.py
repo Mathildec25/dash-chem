@@ -7,9 +7,9 @@ import json
 
 from utils.data_handling import find_component_id_in_structure
 
-## FIXED PARAMETERS CALLBACKS ##
+## UPDATED PARAMETERS CALLBACKS WITH LABELS ##
 
-# Show type dropdown when name is entered
+# Show type dropdown with label when name is entered
 @callback(
     Output({'type': 'parameter-type-container', 'index': MATCH}, 'children'),
     Input({'type': 'parameter-name', 'index': MATCH}, 'value'),
@@ -19,23 +19,26 @@ def show_type_dropdown(name):
     if not name:
         return ""
 
-    return dcc.Dropdown(
-        id={'type': 'parameter-type', 'index': ctx.triggered_id['index']},
-        options=[
-            {"label": "Continuous", "value": "float"},
-            {"label": "Discrete", "value": "int"},
-            {"label": "Categorical", "value": "cat"},
-        ],
-        placeholder="Select parameter type...",
-        style={"fontSize": "16px"},
-    )
+    return html.Div([
+        dbc.Label("Parameter Type", className="fw-bold"),  # ADDED: Label included with content
+        dcc.Dropdown(
+            id={'type': 'parameter-type', 'index': ctx.triggered_id['index']},
+            options=[
+                {"label": "Continuous", "value": "float"},
+                {"label": "Discrete", "value": "int"},
+                {"label": "Categorical", "value": "cat"},
+            ],
+            placeholder="Select parameter type...",
+            style={"fontSize": "16px"},
+        )
+    ])
 
 # Add a new parameter block within the same card structure
 @callback(
     Output("parameter-container", "children", allow_duplicate=True),
     Input("add-para-button", "n_clicks"),
     State("parameter-container", "children"),
-    prevent_initial_call="initial_duplicate"  # FIXED: Use initial_duplicate
+    prevent_initial_call="initial_duplicate"
 )
 def add_new_parameter(n_clicks, current_children):
     if not n_clicks:
@@ -60,8 +63,7 @@ def add_new_parameter(n_clicks, current_children):
                         ),
                     ], width=5),
                     dbc.Col([
-                        dbc.Label("Parameter Type", className="fw-bold"),
-                        html.Div(id={'type': 'parameter-type-container', 'index': new_id})
+                        html.Div(id={'type': 'parameter-type-container', 'index': new_id})  # No static label
                     ], width=5),
                     dbc.Col([
                         dbc.Label("Delete", className="fw-bold"),
@@ -103,7 +105,7 @@ def render_type_specific_component(selected_type):
                         dbc.Input(
                             type="number",
                             id={'type': 'parameter-type-specific-lower', 'index': ctx.triggered_id['index']},
-                            step="any"
+                            step="any",
                         )
                     ], width=6),
                     dbc.Col([
@@ -111,7 +113,7 @@ def render_type_specific_component(selected_type):
                         dbc.Input(
                             type="number",
                             id={'type': 'parameter-type-specific-upper', 'index': ctx.triggered_id['index']},
-                            step="any"
+                            step="any",
                         )
                     ], width=6),
                 ]),

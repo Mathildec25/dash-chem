@@ -7,14 +7,14 @@ import json
 
 from utils.data_handling import find_component_id_in_structure
 
-## FIXED OBJECTIVES CALLBACKS ##
+## UPDATED OBJECTIVES CALLBACKS WITH LABELS ##
 
 # Add a new objective block within the same card structure
 @callback(
     Output("objective-container", "children", allow_duplicate=True),
     Input("add-objective-button", "n_clicks"),
     State("objective-container", "children"),
-    prevent_initial_call="initial_duplicate"  # FIXED: Use initial_duplicate
+    prevent_initial_call="initial_duplicate"
 )
 def add_new_objective(n_clicks, current_children):
     if not n_clicks:
@@ -39,12 +39,10 @@ def add_new_objective(n_clicks, current_children):
                         ),
                     ], width=3),
                     dbc.Col([
-                        dbc.Label("Optimization Direction", className="fw-bold"),
-                        html.Div(id={'type': 'objective-direction-container', 'index': new_id})
+                        html.Div(id={'type': 'objective-direction-container', 'index': new_id})  # No static label
                     ], width=3),
                     dbc.Col([
-                        dbc.Label("Bounds", className="fw-bold"),
-                        html.Div(id={'type': 'objective-bounds-container', 'index': new_id})
+                        html.Div(id={'type': 'objective-bounds-container', 'index': new_id})  # No static label
                     ], width=4),
                     dbc.Col([
                         dbc.Label("Delete", className="fw-bold"),
@@ -64,7 +62,7 @@ def add_new_objective(n_clicks, current_children):
 
     return current_children + [new_block]
 
-# Display the dropdown to choose Min/Max
+# Display the dropdown to choose Min/Max with label
 @callback(
     Output({'type': 'objective-direction-container', 'index': MATCH}, 'children'),
     Input({'type': 'objective-name', 'index': MATCH}, 'value'),
@@ -74,17 +72,20 @@ def show_objective_direction(name):
     if not name:
         return ""
 
-    return dcc.Dropdown(
-        id={'type': 'objective-direction', 'index': ctx.triggered_id['index']},
-        options=[
-            {"label": "Minimize", "value": "min"},
-            {"label": "Maximize", "value": "max"},
-        ],
-        placeholder="Choose optimization goal...",
-        style={"fontSize": "16px"}
-    )
+    return html.Div([
+        dbc.Label("Optimization Direction", className="fw-bold"),  # ADDED: Label included with content
+        dcc.Dropdown(
+            id={'type': 'objective-direction', 'index': ctx.triggered_id['index']},
+            options=[
+                {"label": "🔻 Minimize", "value": "min"},
+                {"label": "🔺 Maximize", "value": "max"},
+            ],
+            placeholder="Choose optimization goal...",
+            style={"fontSize": "16px"}
+        )
+    ])
 
-# Display lower and upper bounds inputs
+# Display lower and upper bounds inputs with label
 @callback(
     Output({'type': 'objective-bounds-container', 'index': MATCH}, 'children'),
     Input({'type': 'objective-name', 'index': MATCH}, 'value'),
@@ -95,13 +96,15 @@ def show_objective_bounds(name):
         return ""
     
     return html.Div([
+        dbc.Label("Bounds", className="fw-bold"),  # ADDED: Label included with content
         dbc.Row([
             dbc.Col([
                 dbc.Input(
                     id={'type': 'objective-lower-bound', 'index': ctx.triggered_id['index']},
                     type="number",
                     size="md",
-                    step="any"
+                    step="any",
+                    placeholder="Min"
                 )
             ], width=6),
             dbc.Col([
@@ -109,7 +112,8 @@ def show_objective_bounds(name):
                     id={'type': 'objective-upper-bound', 'index': ctx.triggered_id['index']},
                     type="number",
                     size="md",
-                    step="any"
+                    step="any",
+                    placeholder="Max"
                 )
             ], width=6)
         ]),

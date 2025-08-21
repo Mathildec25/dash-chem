@@ -113,7 +113,7 @@ def get_bo_tab_content():
 # ============================================
 
 def get_visualization_tab_content():
-    """Create the visualization tab layout with parallel coordinates"""
+    """Create the visualization tab layout with parallel coordinates and iteration plot"""
     return html.Div([
         dbc.Card([
             dbc.CardHeader([
@@ -125,17 +125,20 @@ def get_visualization_tab_content():
             dbc.CardBody([
                 # Info section
                 dbc.Alert([
-                    html.H6("📊 Parallel Coordinates Plot", className="alert-heading"),
+                    html.H6("📊 Visualization Tools", className="alert-heading"),
                     html.Hr(),
                     html.P([
-                        "This plot shows the relationships between all parameters and objectives in your experiments.",
+                        "Multiple views of your optimization data:",
                         html.Br(),
-                        html.Strong("How to read: "),
-                        "Each line represents one experiment. Follow the lines across to see how parameter values relate to objective outcomes."
+                        html.Strong("Parallel Coordinates: "), "Shows relationships between all parameters and objectives.",
+                        html.Br(),
+                        html.Strong("Objectives Scatter: "), "2D/3D scatter plot of objectives.",
+                        html.Br(),
+                        html.Strong("Iteration Plot: "), "Track how objectives change over experiment iterations."
                     ], className="mb-2"),
                 ], color="info", className="mb-3"),
                 
-                # Plot container
+                # Plot container for parallel coordinates
                 dcc.Loading(
                     id="loading-viz",
                     type="circle",
@@ -146,15 +149,121 @@ def get_visualization_tab_content():
                     ]
                 ),
                 
-                dcc.Loading(
-                    id="loading-scatter",
-                    type="circle",
-                    children=[
-                        dcc.Graph(
-                            id="objectives-scatter",
+                # NEW SECTION: Interactive Objectives Scatter with Controls
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5([
+                            html.I(className="bi bi-scatter-chart me-2"),
+                            "Interactive Objectives Scatter Plot"
+                        ], className="mb-0")
+                    ]),
+                    dbc.CardBody([
+                        # Controls row
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label("X-Axis:", className="form-label"),
+                                dcc.Dropdown(
+                                    id="scatter-x-dropdown",
+                                    placeholder="Select X axis...",
+                                    className="mb-2"
+                                )
+                            ], width=4),
+                            dbc.Col([
+                                html.Label("Y-Axis:", className="form-label"),
+                                dcc.Dropdown(
+                                    id="scatter-y-dropdown",
+                                    placeholder="Select Y axis...",
+                                    className="mb-2"
+                                )
+                            ], width=4),
+                            dbc.Col([
+                                html.Label("Z-Axis (3D):", className="form-label"),
+                                dcc.Dropdown(
+                                    id="scatter-z-dropdown",
+                                    placeholder="Select Z axis (optional)...",
+                                    className="mb-2"
+                                )
+                            ], width=4),
+                        ], className="mb-3"),
+                        
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label("Color By:", className="form-label"),
+                                dcc.Dropdown(
+                                    id="scatter-color-dropdown",
+                                    placeholder="Select color column (optional)...",
+                                    className="mb-2"
+                                )
+                            ], width=4),
+                            dbc.Col([
+                                html.Label("Size By:", className="form-label"),
+                                dcc.Dropdown(
+                                    id="scatter-size-dropdown",
+                                    placeholder="Select size column (optional)...",
+                                    className="mb-2"
+                                )
+                            ], width=4),
+                            dbc.Col([
+                                dbc.Button(
+                                    "Generate Scatter Plot",
+                                    id="generate-scatter-btn",
+                                    color="primary",
+                                    size="lg",
+                                    className="mt-4"
+                                )
+                            ], width=4),
+                        ], className="mb-3"),
+                        
+                        # Plot container for objectives scatter
+                        dcc.Loading(
+                            id="loading-scatter",
+                            type="circle",
+                            children=[
+                                dcc.Graph(
+                                    id="objectives-scatter",
+                                    style={"height": "600px"}
+                                ),
+                            ]
                         ),
-                    ]
-                ),
+                    ])
+                ], className="mb-3"),
+                
+                html.Hr(),
+                
+                # NEW SECTION: Iteration Plot with Controls
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5([
+                            html.I(className="bi bi-graph-up-arrow me-2"),
+                            "Iteration Progress Plot"
+                        ], className="mb-0")
+                    ]),
+                    dbc.CardBody([
+                        # Controls row
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label("Y-Axis (Objective):", className="form-label"),
+                                dcc.Dropdown(
+                                    id="iteration-y-dropdown",
+                                    placeholder="Select objective to plot...",
+                                    className="mb-3"
+                                )
+                            ], width=6),
+                        ], className="mb-3"),
+                        
+                        # Plot container for iteration plot
+                        dcc.Loading(
+                            id="loading-iteration",
+                            type="circle",
+                            children=[
+                                dcc.Graph(
+                                    id="iteration-plot",
+                                    style={"height": "500px"}
+                                ),
+                            ]
+                        ),
+                    ])
+                ], className="mt-3")
             ])
         ])
     ])

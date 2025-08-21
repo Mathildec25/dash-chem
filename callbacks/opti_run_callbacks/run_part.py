@@ -1,5 +1,6 @@
 import dash
 from dash import Input, Output, State, callback, html, dash_table, dcc
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
@@ -339,91 +340,128 @@ def update_experiment_counter_and_button(table_data, metadata_json):
     except Exception as e:
         return html.P(f"Error: {str(e)}", className="text-danger"), dash.no_update, True
 
-# ============================================
-# STEP 1: OPEN MODAL on button click
-# ============================================
-
-@callback(
-    Output("loading-modal", "is_open", allow_duplicate=True),
-    Input("run-BO-btn", "n_clicks"),
-    prevent_initial_call=True
-)
-def open_modal(n_clicks):
-    """First step: just open the modal when button is clicked"""
-    if n_clicks:
-        return True
-    return False
-
-# ============================================
-# STEP 2: RUN OPTIMIZATION (after modal is open)
-# ============================================
+# FIXED: Single robust callback for Bayesian Optimization
 
 @callback(
     [Output("optimization-results", "children"),
-     Output("loading-modal", "is_open", allow_duplicate=True)],
-    Input("loading-modal", "is_open"),
+     Output("loading-modal", "is_open"),
+     Output("save-status", "children", allow_duplicate=True)],
+    Input("run-BO-btn", "n_clicks"),
     [State("current-excel-file", "data"),
      State("selected-file-store", "data"),
      State("excel-editable-table", "data"),
      State("domain-metadata", "children")],
-    prevent_initial_call=True
+    prevent_initial_call=True,
+    running=[
+        (Output("run-BO-btn", "disabled"), True, False),
+        (Output("loading-modal", "is_open"), True, False)
+    ]
 )
-def run_bayesian_optimization(modal_open, current_excel_data, selected_file_data, table_data, metadata_json):
-    """Second step: run optimization once modal is open"""
-    if not modal_open:
-        return dash.no_update, False
+def run_bayesian_optimization_single(n_clicks, current_excel_data, selected_file_data, table_data, metadata_json):
+    """Single callback to handle entire BO process with proper error handling"""
+    
+    if not n_clicks:
+        raise PreventUpdate
+    
+    # Clear previous results and status
+    initial_status = ""
     
     try:
-        # Determine Excel filename
-        excel_filename = current_excel_data or (selected_file_data.get('excel_file') if selected_file_data else None)
+        
+        # Step 1: Validate inputs
+        if not table_data:
+            error_msg = dbc.Alert("❌ No table data available", color="danger")
+            return error_msg, False, error_msg
+        
+        # Step 2: Determine Excel filename with better validation
+        excel_filename = None
+        if current_excel_data:
+            excel_filename = current_excel_data
+        elif selected_file_data and isinstance(selected_file_data, dict):
+            excel_filename = selected_file_data.get('excel_file')
+        elif selected_file_data and isinstance(selected_file_data, str):
+            excel_filename = selected_file_data
         
         if not excel_filename:
-            return dbc.Alert("❌ No Excel file selected", color="danger"), False
+            error_msg = dbc.Alert([
+                html.H6("❌ No Excel File Selected"),
+                html.P("Please go back and create/select an Excel file first."),
+                html.Small(f"Debug: current_excel={current_excel_data}, selected_file={selected_file_data}", className="text-muted")
+            ], color="danger")
+            return error_msg, False, error_msg
         
-        # Ensure filename has extension
+        # Step 3: Ensure filename has extension
         if not excel_filename.endswith('.xlsx'):
             excel_filename += '.xlsx'
         
-        # Check if domain exists
+        # Step 4: Check domain exists
         if not DomainStorage.domain_exists(excel_filename):
-            return dbc.Alert("❌ No domain found for this Excel file.", color="danger"), False
+            error_msg = dbc.Alert([
+                html.H6("❌ No Domain Found"),
+                html.P(f"No domain configuration found for '{excel_filename}'."),
+                html.P("Please create a domain first in the Parameter Configuration page.")
+            ], color="danger")
+            return error_msg, False, error_msg
         
-        # Load domain and metadata
+        # Step 5: Load domain and metadata
         success, domain, metadata = DomainStorage.load_domain(excel_filename)
         if not success:
-            return dbc.Alert(f"❌ Failed to load domain: {domain}", color="danger"), False
+            error_msg = dbc.Alert([
+                html.H6("❌ Domain Loading Failed"),
+                html.P(f"Failed to load domain: {domain}")
+            ], color="danger")
+            return error_msg, False, error_msg
         
-        # Convert table data to DataFrame
+        # Step 6: Parse metadata 
+        if metadata_json:
+            try:
+                import json
+                metadata_parsed = json.loads(metadata_json)
+                param_names = metadata_parsed.get("parameter_names", [])
+                obj_names = metadata_parsed.get("objective_names", [])
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"⚠️ Metadata parsing error: {e}")
+                param_names = metadata.get('parameter_names', [])
+                obj_names = metadata.get('objective_names', [])
+        else:
+            param_names = metadata.get('parameter_names', [])
+            obj_names = metadata.get('objective_names', [])
+        
+        if not param_names or not obj_names:
+            error_msg = dbc.Alert([
+                html.H6("❌ Invalid Domain Configuration"),
+                html.P("Domain must have at least one parameter and one objective.")
+            ], color="danger")
+            return error_msg, False, error_msg
+        
+        # Step 7: Process experiments data
         experiments_df = pd.DataFrame(table_data)
         
-        # Get parameter and objective column names from metadata
-        param_names = metadata.get('parameter_names', [])
-        obj_names = metadata.get('objective_names', [])
-        
-        # Filter to only parameter and objective columns
+        # Filter to relevant columns
         relevant_columns = param_names + obj_names
         existing_columns = [col for col in relevant_columns if col in experiments_df.columns]
         
         if not existing_columns:
-            return dbc.Alert([
+            error_msg = dbc.Alert([
                 html.H6("❌ Column Mismatch"),
-                html.P("No matching columns found between Excel and domain definition.")
-            ], color="danger"), False
+                html.P("No matching columns found between Excel and domain definition."),
+                html.P(f"Expected: {relevant_columns}"),
+                html.P(f"Available: {list(experiments_df.columns)}")
+            ], color="danger")
+            return error_msg, False, error_msg
         
-        # Filter to relevant columns
         experiments_df = experiments_df[existing_columns].copy()
         
-        # Filter rows with complete values (both parameters and objectives)
+        # Step 8: Find complete experiments
         complete_rows = []
         for idx, row in experiments_df.iterrows():
-            # Check all parameters and objectives are filled
             all_filled = True
             
             # Check parameters
             for param_col in param_names:
                 if param_col in row:
                     val = row[param_col]
-                    if pd.isna(val) or str(val).strip() == "" or str(val).lower() == "none":
+                    if pd.isna(val) or str(val).strip() == "" or str(val).lower() in ["none", "null"]:
                         all_filled = False
                         break
             
@@ -432,7 +470,7 @@ def run_bayesian_optimization(modal_open, current_excel_data, selected_file_data
                 for obj_col in obj_names:
                     if obj_col in row:
                         val = row[obj_col]
-                        if pd.isna(val) or str(val).strip() == "" or str(val).lower() == "none":
+                        if pd.isna(val) or str(val).strip() == "" or str(val).lower() in ["none", "null"]:
                             all_filled = False
                             break
             
@@ -440,55 +478,51 @@ def run_bayesian_optimization(modal_open, current_excel_data, selected_file_data
                 complete_rows.append(idx)
         
         if not complete_rows:
-            return dbc.Alert([
-                html.H6("⚠️ No Complete Experiments Found"),
-                html.P("Please ensure all parameter and objective values are filled for at least one experiment.")
-            ], color="warning"), False
+            error_msg = dbc.Alert([
+                html.H6("⚠️ No Complete Experiments"),
+                html.P("Please fill all parameter and objective values before running optimization."),
+                html.P(f"Found {len(experiments_df)} rows, but none have complete data.")
+            ], color="warning")
+            return error_msg, False, error_msg
         
-        # Get only complete experiments
+        # Step 9: Get complete experiments
         experiments = experiments_df.loc[complete_rows].reset_index(drop=True)
         
-        # Run optimization
+        # Step 10: Run optimization
         result = optimization(obj_names, domain, Strategy=None, AF=None, experiments=experiments)
         
-        # Check if result is valid
-        if result is None:
-            return dbc.Alert("No recommendations generated. Check your optimization configuration.", color="warning"), False
-        
-        # Handle different result types
-        if hasattr(result, 'empty') and result.empty:
-            return dbc.Alert("No recommendations generated. Check your data.", color="warning"), False
-        elif isinstance(result, pd.DataFrame) and result.empty:
-            return dbc.Alert("No recommendations generated. Check your data.", color="warning"), False
+        # Step 11: Process results
+        if result is None or (hasattr(result, 'empty') and result.empty):
+            warning_msg = dbc.Alert([
+                html.H6("⚠️ No Recommendations Generated"),
+                html.P("The optimization algorithm couldn't generate new recommendations."),
+                html.P("This might happen if the current experiments already cover the optimal space.")
+            ], color="warning")
+            return warning_msg, False, warning_msg
         
         result_df = result if isinstance(result, pd.DataFrame) else pd.DataFrame(result)
         
-        # Round values for display
+        # Step 12: Format results for display
         if metadata_json:
-            import json
-            metadata_full = json.loads(metadata_json)
-            param_defs = metadata_full.get("parameters", [])
-            
-            # Round continuous parameters
-            for p in param_defs:
-                pname = p.get("name")
-                ptype = p.get("type", "").lower()
-                if pname in result_df.columns and ptype == "float":
-                    result_df[pname] = result_df[pname].round(2)
-            
-            # Round prediction columns
-            for col in result_df.columns:
-                if col not in param_names and col not in ['index']:
-                    try:
-                        result_df[col] = pd.to_numeric(result_df[col], errors='ignore').round(2)
-                    except:
-                        pass
+            try:
+                import json
+                metadata_full = json.loads(metadata_json)
+                param_defs = metadata_full.get("parameters", [])
+                
+                # Round continuous parameters
+                for p in param_defs:
+                    pname = p.get("name")
+                    ptype = p.get("type", "").lower()
+                    if pname in result_df.columns and ptype == "float":
+                        result_df[pname] = result_df[pname].round(2)
+            except Exception as e:
+                print(f"⚠️ Result formatting error: {e}")
         
-        # Format the result for display
-        result_content = html.Div([
+        # Step 13: Create success response
+        success_content = html.Div([
             dbc.Alert([
                 html.I(className="bi bi-check-circle-fill me-2"),
-                "Optimization Complete!"
+                f"Optimization Complete! Generated {len(result_df)} recommendations."
             ], color="success", className="mb-3"),
             
             dbc.Card([
@@ -533,13 +567,19 @@ def run_bayesian_optimization(modal_open, current_excel_data, selected_file_data
             ], color="info")
         ])
         
-        # Close modal and return results
-        return result_content, False
+        success_status = dbc.Alert(
+            f"✅ BO completed: {len(result_df)} new recommendations generated", 
+            color="success", 
+            duration=5000
+        )
+        
+        print(f"✅ BO optimization completed successfully")
+        return success_content, False, success_status
         
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"Optimization error: {error_details}")
+        print(f"💥 BO Error: {error_details}")
         
         error_content = dbc.Alert([
             html.H6("❌ Optimization Failed"),
@@ -550,8 +590,9 @@ def run_bayesian_optimization(modal_open, current_excel_data, selected_file_data
             ])
         ], color="danger")
         
-        # Close modal and return error
-        return error_content, False
+        error_status = dbc.Alert(f"❌ BO failed: {str(e)}", color="danger", duration=5000)
+        
+        return error_content, False, error_status
 
 
 # ============================================
@@ -566,9 +607,15 @@ def run_bayesian_optimization(modal_open, current_excel_data, selected_file_data
     prevent_initial_call=True
 )
 def add_row_to_table(n_clicks, data, columns):
-    """Add a new empty row to the table"""
+    """Add a new empty row to the table with automatic 'BO' point type"""
     if n_clicks and data is not None:
+        # Create new row with empty values
         new_row = {col['id']: '' for col in columns}
+        
+        # AUTOMATICALLY SET "Point type" TO "BO" FOR NEW ROWS
+        if 'Point type' in new_row:
+            new_row['Point type'] = 'BO'
+        
         data.append(new_row)
         return data
     return dash.no_update
