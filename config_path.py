@@ -6,10 +6,10 @@ import os
 # "/root/dash-chem-main"
 
 # Base save folder
-ROOT_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem"  ###### TO BE CHANGED BEFORE DEPLOYMENT #####
+ROOT_FOLDER = r"/root/dash-chem-main"  ###### TO BE CHANGED BEFORE DEPLOYMENT #####
 
 
-EXCEL_FOLDER = r"C:\Users\ThBrHu\Dev\dash-chem\excels"
+EXCEL_FOLDER = r"/root/dash-chem-main/excels"
 os.makedirs(EXCEL_FOLDER, exist_ok=True)
 
 # Excel tracking file
