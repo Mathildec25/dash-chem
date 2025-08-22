@@ -1,5 +1,5 @@
 import dash
-from components.layout_dashboard import create_dashboard_layout
+from components.layout_table import create_dashboard_layout
 
 # Include this file as a page in the Dash app
 dash.register_page(__name__, name="Dashboard", path="/table", order=2)

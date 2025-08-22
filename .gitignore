@@ -7,4 +7,6 @@ __pycache__/
 .vscode/
 results.xlsx
 *.xlsx
+*.csv
 *.mp4
+*.pkl

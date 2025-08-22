@@ -4,7 +4,7 @@ import pandas as pd
 from utils.data_handling import load_filtered_df, get_columns_carac, get_column_dropdown_options
 
 
-dff = pd.read_excel("Test-caracterization.xlsx")
+dff = pd.read_excel("excels/Test-caracterization.xlsx")
 df = dff.copy()
 columns = get_columns_carac(df)
 

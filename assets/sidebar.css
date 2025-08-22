@@ -38,6 +38,12 @@
   white-space: nowrap;
 }
 
+.sidebar-icon {
+  height: 22px;
+  margin-right: 8px;
+  filter: brightness(0) invert(1); /* makes black → white */
+}
+
 /* On sidebar hover, hide icon and show text */
 .sidebar:hover .icon-logo {
   display: none;
