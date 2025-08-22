@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import os
-from config_path import EXCEL_FOLDER, COLUMN_COLORS
+from config_path import EXCEL_FOLDER
 from domain_storage import (
     DomainStorage,
     load_experiments_from_excel_file,
@@ -15,6 +15,63 @@ from domain_storage import (
 from utils.BoFire import optimization
 from components.layout_opti_run import get_bo_tab_content, get_visualization_tab_content
 from components.Figures_BO import create_parallel_coordinates, create_enhanced_objectives_scatter, create_iteration_plot
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def safe_load_excel_and_metadata(excel_filename, sheet_name=None):
+    """Safely load Excel file and metadata with proper error handling"""
+    try:
+        if not excel_filename:
+            return None, None, "No Excel file specified"
+        
+        # Ensure filename has extension
+        if not excel_filename.endswith('.xlsx'):
+            excel_filename += '.xlsx'
+        
+        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
+        
+        if not os.path.exists(file_path):
+            return None, None, f"File '{excel_filename}' not found"
+        
+        # Load Excel file
+        df = pd.read_excel(file_path, sheet_name=sheet_name or 0, engine="openpyxl")
+        
+        # Load domain metadata
+        metadata = {}
+        if DomainStorage.domain_exists(excel_filename):
+            success, domain, domain_metadata = DomainStorage.load_domain(excel_filename)
+            if success:
+                metadata = {
+                    "parameter_names": domain_metadata.get("parameter_names", []),
+                    "objective_names": domain_metadata.get("objective_names", []),
+                    "extra_column_names": domain_metadata.get("extra_column_names", []),
+                    "parameters": domain_metadata.get("parameters", [])
+                }
+        
+        return df, metadata, None
+        
+    except Exception as e:
+        return None, None, f"Error loading data: {str(e)}"
+
+def create_error_figure(message, height=600, title="Error"):
+    """Create a standardized error figure"""
+    fig = go.Figure()
+    fig.add_annotation(
+        text=f"❌ {message}",
+        xref="paper", yref="paper",
+        x=0.5, y=0.5,
+        showarrow=False,
+        font=dict(size=16, color="red")
+    )
+    fig.update_layout(
+        title=title,
+        height=height,
+        plot_bgcolor="rgba(240,240,240,0.95)",
+        paper_bgcolor="white"
+    )
+    return fig
 
 # ============================================
 # VISUALIZATION UPDATE CALLBACK
@@ -46,66 +103,21 @@ def update_parallel_coordinates(pathname, current_excel_data, selected_file_data
         sheet_name = selected_file_data.get('selected_sheet', 'Experiments')
     
     if not excel_filename:
-        empty_fig = go.Figure()
-        empty_fig.add_annotation(
-            text="⚠️ No Excel file selected",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            showarrow=False,
-            font=dict(size=16, color="gray")
-        )
-        empty_fig.update_layout(height=600)
-        return empty_fig
+        return create_error_figure("No Excel file selected", 600, "Parallel Coordinates")
     
+    # Load data and metadata
+    df, metadata, error_msg = safe_load_excel_and_metadata(excel_filename, sheet_name)
+    
+    if error_msg:
+        return create_error_figure(error_msg, 600, "Parallel Coordinates")
+    
+    # Create the plot
     try:
-        # Ensure filename has extension
-        if not excel_filename.endswith('.xlsx'):
-            excel_filename += '.xlsx'
-        
-        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
-        
-        if not os.path.exists(file_path):
-            return html.Div([
-                html.H4("❌ File not found", className="text-center text-danger mt-5"),
-                html.P(f"The file '{excel_filename}' could not be found.", className="text-center")
-            ])
-        
-        # Load Excel file
-        df = pd.read_excel(file_path, sheet_name=sheet_name or 0, engine="openpyxl")
-        
-        # Load domain metadata
-        metadata = {}
-        if DomainStorage.domain_exists(excel_filename):
-            success, domain, domain_metadata = DomainStorage.load_domain(excel_filename)
-            if success:
-                metadata = {
-                    "parameter_names": domain_metadata.get("parameter_names", []),
-                    "objective_names": domain_metadata.get("objective_names", []),
-                    "parameters": domain_metadata.get("parameters", [])
-                }
-        
-        # Create the plot
         fig = create_parallel_coordinates(df, metadata)
-        
         return fig
-        
     except Exception as e:
-        # Return error figure and message
-        error_fig = go.Figure()
-        error_fig.add_annotation(
-            text=f"Error creating visualization: {str(e)}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            showarrow=False,
-            font=dict(size=16, color="red")
-        )
-        error_fig.update_layout(
-            title="Visualization Error",
-            height=600
-        )
-        
-        return error_fig
-    
+        print(f"Error creating parallel coordinates: {e}")
+        return create_error_figure(f"Error creating visualization: {str(e)}", 600, "Parallel Coordinates")
 
 # ============================================
 # POPULATE SCATTER DROPDOWNS WITH AVAILABLE COLUMNS
@@ -116,7 +128,6 @@ def update_parallel_coordinates(pathname, current_excel_data, selected_file_data
      Output("scatter-y-dropdown", "options"),
      Output("scatter-z-dropdown", "options"),
      Output("scatter-color-dropdown", "options"),
-     Output("scatter-size-dropdown", "options"),
      Output("scatter-x-dropdown", "value"),
      Output("scatter-y-dropdown", "value"),
      Output("scatter-z-dropdown", "value")],
@@ -128,7 +139,7 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
     """Populate the scatter plot dropdowns with available columns"""
     # Only trigger on navigation to /Opt-run page
     if pathname != "/Opt-run":
-        return [[] for _ in range(5)] + [None, None, None]
+        return [[] for _ in range(4)] + [None, None, None]
     
     # Determine which Excel file to load
     excel_filename = None
@@ -142,32 +153,15 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
         sheet_name = selected_file_data.get('selected_sheet', 'Experiments')
     
     if not excel_filename:
-        return [[] for _ in range(5)] + [None, None, None]
+        return [[] for _ in range(4)] + [None, None, None]
+    
+    # Load data and metadata
+    df, metadata, error_msg = safe_load_excel_and_metadata(excel_filename, sheet_name)
+    
+    if error_msg or df is None:
+        return [[] for _ in range(4)] + [None, None, None]
     
     try:
-        # Ensure filename has extension
-        if not excel_filename.endswith('.xlsx'):
-            excel_filename += '.xlsx'
-        
-        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
-        
-        if not os.path.exists(file_path):
-            return [[] for _ in range(5)] + [None, None, None]
-        
-        # Load Excel file
-        df = pd.read_excel(file_path, sheet_name=sheet_name or 0, engine="openpyxl")
-        
-        # Load domain metadata to get column types
-        metadata = {}
-        if DomainStorage.domain_exists(excel_filename):
-            success, domain, domain_metadata = DomainStorage.load_domain(excel_filename)
-            if success:
-                metadata = {
-                    "parameter_names": domain_metadata.get("parameter_names", []),
-                    "objective_names": domain_metadata.get("objective_names", []),
-                    "extra_column_names": domain_metadata.get("extra_column_names", [])
-                }
-        
         # Get all numeric columns, categorized by type
         numeric_options = []
         all_options = []
@@ -177,7 +171,7 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
         for col in objective_names:
             if col in df.columns:
                 try:
-                    pd.to_numeric(df[col], errors='coerce')
+                    pd.to_numeric(df[col], errors='raise')
                     option = {"label": f"🎯 {col} (Objective)", "value": col}
                     numeric_options.append(option)
                     all_options.append(option)
@@ -190,7 +184,7 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
         for col in parameter_names:
             if col in df.columns and col not in [opt["value"] for opt in all_options]:
                 try:
-                    pd.to_numeric(df[col], errors='coerce')
+                    pd.to_numeric(df[col], errors='raise')
                     option = {"label": f"⚙️ {col} (Parameter)", "value": col}
                     numeric_options.append(option)
                     all_options.append(option)
@@ -207,7 +201,7 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
                     all_options.append(option)
                 else:
                     try:
-                        pd.to_numeric(df[col], errors='coerce')
+                        pd.to_numeric(df[col], errors='raise')
                         option = {"label": f"📊 {col} (Extra)", "value": col}
                         numeric_options.append(option)
                         all_options.append(option)
@@ -219,7 +213,7 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
         for col in df.columns:
             if col not in [opt["value"] for opt in all_options]:
                 try:
-                    pd.to_numeric(df[col], errors='coerce')
+                    pd.to_numeric(df[col], errors='raise')
                     option = {"label": f"📈 {col} (Numeric)", "value": col}
                     numeric_options.append(option)
                     all_options.append(option)
@@ -253,7 +247,6 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
             numeric_options,  # Y options (numeric only)
             [{"label": "None (2D Plot)", "value": ""}] + numeric_options,  # Z options (optional)
             all_options,      # Color options (all columns - supports categorical)
-            all_options,      # Size options (all columns - now supports categorical)
             default_x,        # Default X
             default_y,        # Default Y
             default_z         # Default Z
@@ -261,8 +254,7 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
         
     except Exception as e:
         print(f"Error populating scatter dropdowns: {e}")
-        return [[] for _ in range(5)] + [None, None, None]
-
+        return [[] for _ in range(4)] + [None, None, None]
 
 # ============================================
 # UPDATE ENHANCED SCATTER PLOT CALLBACK
@@ -276,11 +268,10 @@ def populate_scatter_dropdowns(pathname, current_excel_data, selected_file_data)
      State("scatter-y-dropdown", "value"),
      State("scatter-z-dropdown", "value"),
      State("scatter-color-dropdown", "value"),
-     State("scatter-size-dropdown", "value"),
      State("current-excel-file", "data"),
      State("selected-file-store", "data")]
 )
-def update_enhanced_scatter_plot(n_clicks, pathname, x_col, y_col, z_col, color_col, size_col, 
+def update_enhanced_scatter_plot(n_clicks, pathname, x_col, y_col, z_col, color_col, 
                                current_excel_data, selected_file_data):
     """Update enhanced scatter plot when button is clicked or page loads"""
     # Only trigger on navigation to /Opt-run page or button click
@@ -299,50 +290,15 @@ def update_enhanced_scatter_plot(n_clicks, pathname, x_col, y_col, z_col, color_
         sheet_name = selected_file_data.get('selected_sheet', 'Experiments')
     
     if not excel_filename:
-        empty_fig = go.Figure()
-        empty_fig.add_annotation(
-            text="⚠️ No Excel file selected",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            showarrow=False,
-            font=dict(size=16, color="gray")
-        )
-        empty_fig.update_layout(height=600, title="Enhanced Scatter Plot")
-        return empty_fig
+        return create_error_figure("No Excel file selected", 600, "Enhanced Scatter Plot")
+    
+    # Load data and metadata
+    df, metadata, error_msg = safe_load_excel_and_metadata(excel_filename, sheet_name)
+    
+    if error_msg:
+        return create_error_figure(error_msg, 600, "Enhanced Scatter Plot")
     
     try:
-        # Ensure filename has extension
-        if not excel_filename.endswith('.xlsx'):
-            excel_filename += '.xlsx'
-        
-        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
-        
-        if not os.path.exists(file_path):
-            error_fig = go.Figure()
-            error_fig.add_annotation(
-                text="❌ File not found",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5,
-                showarrow=False,
-                font=dict(size=16, color="red")
-            )
-            error_fig.update_layout(height=600, title="Enhanced Scatter Plot - File Not Found")
-            return error_fig
-        
-        # Load Excel file
-        df = pd.read_excel(file_path, sheet_name=sheet_name or 0, engine="openpyxl")
-        
-        # Load domain metadata
-        metadata = {}
-        if DomainStorage.domain_exists(excel_filename):
-            success, domain, domain_metadata = DomainStorage.load_domain(excel_filename)
-            if success:
-                metadata = {
-                    "parameter_names": domain_metadata.get("parameter_names", []),
-                    "objective_names": domain_metadata.get("objective_names", []),
-                    "parameters": domain_metadata.get("parameters", [])
-                }
-        
         # Handle empty Z column (for 2D plots)
         if z_col == "":
             z_col = None
@@ -354,37 +310,22 @@ def update_enhanced_scatter_plot(n_clicks, pathname, x_col, y_col, z_col, color_
             x_col=x_col, 
             y_col=y_col, 
             z_col=z_col,
-            color_col=color_col, 
-            size_col=size_col
+            color_col=color_col
         )
         
         return fig
         
     except Exception as e:
-        # Return error figure
-        error_fig = go.Figure()
-        error_fig.add_annotation(
-            text=f"Error creating enhanced scatter plot: {str(e)}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            showarrow=False,
-            font=dict(size=16, color="red")
-        )
-        error_fig.update_layout(
-            title="Enhanced Scatter Plot - Error",
-            height=600
-        )
-        
-        return error_fig
-
+        print(f"Error creating enhanced scatter plot: {e}")
+        return create_error_figure(f"Error creating enhanced scatter plot: {str(e)}", 600, "Enhanced Scatter Plot")
 
 # ============================================
-# POPULATE DROPDOWN WITH AVAILABLE COLUMNS
+# POPULATE ITERATION DROPDOWN WITH AVAILABLE COLUMNS
 # ============================================
 
 @callback(
-    Output("iteration-y-dropdown", "options"),
-    Output("iteration-y-dropdown", "value"),
+    [Output("iteration-y-dropdown", "options"),
+     Output("iteration-y-dropdown", "value")],
     [Input("url", "pathname")],
     [State("current-excel-file", "data"),
      State("selected-file-store", "data")]
@@ -409,30 +350,13 @@ def populate_iteration_dropdown(pathname, current_excel_data, selected_file_data
     if not excel_filename:
         return [], None
     
+    # Load data and metadata
+    df, metadata, error_msg = safe_load_excel_and_metadata(excel_filename, sheet_name)
+    
+    if error_msg or df is None:
+        return [], None
+    
     try:
-        # Ensure filename has extension
-        if not excel_filename.endswith('.xlsx'):
-            excel_filename += '.xlsx'
-        
-        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
-        
-        if not os.path.exists(file_path):
-            return [], None
-        
-        # Load Excel file
-        df = pd.read_excel(file_path, sheet_name=sheet_name or 0, engine="openpyxl")
-        
-        # Load domain metadata to get objective columns
-        metadata = {}
-        if DomainStorage.domain_exists(excel_filename):
-            success, domain, domain_metadata = DomainStorage.load_domain(excel_filename)
-            if success:
-                metadata = {
-                    "parameter_names": domain_metadata.get("parameter_names", []),
-                    "objective_names": domain_metadata.get("objective_names", []),
-                    "extra_column_names": domain_metadata.get("extra_column_names", [])
-                }
-        
         # Get all numeric columns, prioritizing objectives
         numeric_columns = []
         
@@ -441,7 +365,7 @@ def populate_iteration_dropdown(pathname, current_excel_data, selected_file_data
         for col in objective_names:
             if col in df.columns:
                 try:
-                    pd.to_numeric(df[col], errors='coerce')
+                    pd.to_numeric(df[col], errors='raise')
                     numeric_columns.append({"label": f"🎯 {col} (Objective)", "value": col})
                 except:
                     pass
@@ -451,7 +375,7 @@ def populate_iteration_dropdown(pathname, current_excel_data, selected_file_data
         for col in parameter_names:
             if col in df.columns and col not in [opt["value"] for opt in numeric_columns]:
                 try:
-                    pd.to_numeric(df[col], errors='coerce')
+                    pd.to_numeric(df[col], errors='raise')
                     numeric_columns.append({"label": f"⚙️ {col} (Parameter)", "value": col})
                 except:
                     pass
@@ -460,16 +384,24 @@ def populate_iteration_dropdown(pathname, current_excel_data, selected_file_data
         for col in df.columns:
             if col not in [opt["value"] for opt in numeric_columns] and col != "Point type":
                 try:
-                    pd.to_numeric(df[col], errors='coerce')
+                    pd.to_numeric(df[col], errors='raise')
                     numeric_columns.append({"label": f"📊 {col}", "value": col})
                 except:
                     pass
         
         # Set default value to first objective if available
         default_value = None
-        if objective_names and any(obj in df.columns for obj in objective_names):
-            default_value = next(obj for obj in objective_names if obj in df.columns)
-        elif numeric_columns:
+        if objective_names:
+            for obj in objective_names:
+                if obj in df.columns:
+                    try:
+                        pd.to_numeric(df[obj], errors='raise')
+                        default_value = obj
+                        break
+                    except:
+                        continue
+        
+        if not default_value and numeric_columns:
             default_value = numeric_columns[0]["value"]
         
         return numeric_columns, default_value
@@ -477,7 +409,6 @@ def populate_iteration_dropdown(pathname, current_excel_data, selected_file_data
     except Exception as e:
         print(f"Error populating iteration dropdown: {e}")
         return [], None
-
 
 # ============================================
 # UPDATE ITERATION PLOT CALLBACK
@@ -508,68 +439,19 @@ def update_iteration_plot(y_column, pathname, current_excel_data, selected_file_
         sheet_name = selected_file_data.get('selected_sheet', 'Experiments')
     
     if not excel_filename:
-        empty_fig = go.Figure()
-        empty_fig.add_annotation(
-            text="⚠️ No Excel file selected",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            showarrow=False,
-            font=dict(size=16, color="gray")
-        )
-        empty_fig.update_layout(height=500, title="Iteration Plot")
-        return empty_fig
+        return create_error_figure("No Excel file selected", 500, "Iteration Plot")
+    
+    # Load data and metadata
+    df, metadata, error_msg = safe_load_excel_and_metadata(excel_filename, sheet_name)
+    
+    if error_msg:
+        return create_error_figure(error_msg, 500, "Iteration Plot")
     
     try:
-        # Ensure filename has extension
-        if not excel_filename.endswith('.xlsx'):
-            excel_filename += '.xlsx'
-        
-        file_path = os.path.join(EXCEL_FOLDER, excel_filename)
-        
-        if not os.path.exists(file_path):
-            error_fig = go.Figure()
-            error_fig.add_annotation(
-                text="❌ File not found",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5,
-                showarrow=False,
-                font=dict(size=16, color="red")
-            )
-            error_fig.update_layout(height=500, title="Iteration Plot - File Not Found")
-            return error_fig
-        
-        # Load Excel file
-        df = pd.read_excel(file_path, sheet_name=sheet_name or 0, engine="openpyxl")
-        
-        # Load domain metadata
-        metadata = {}
-        if DomainStorage.domain_exists(excel_filename):
-            success, domain, domain_metadata = DomainStorage.load_domain(excel_filename)
-            if success:
-                metadata = {
-                    "parameter_names": domain_metadata.get("parameter_names", []),
-                    "objective_names": domain_metadata.get("objective_names", []),
-                    "parameters": domain_metadata.get("parameters", [])
-                }
-        
         # Create the plot
         fig = create_iteration_plot(df, metadata, y_column)
-        
         return fig
         
     except Exception as e:
-        # Return error figure
-        error_fig = go.Figure()
-        error_fig.add_annotation(
-            text=f"Error creating iteration plot: {str(e)}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            showarrow=False,
-            font=dict(size=16, color="red")
-        )
-        error_fig.update_layout(
-            title="Iteration Plot - Error",
-            height=500
-        )
-        
-        return error_fig
+        print(f"Error creating iteration plot: {e}")
+        return create_error_figure(f"Error creating iteration plot: {str(e)}", 500, "Iteration Plot")

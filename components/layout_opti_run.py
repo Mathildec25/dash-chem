@@ -194,15 +194,7 @@ def get_visualization_tab_content():
                                     placeholder="Select color column (optional)...",
                                     className="mb-2"
                                 )
-                            ], width=4),
-                            dbc.Col([
-                                html.Label("Size By:", className="form-label"),
-                                dcc.Dropdown(
-                                    id="scatter-size-dropdown",
-                                    placeholder="Select size column (optional)...",
-                                    className="mb-2"
-                                )
-                            ], width=4),
+                            ], width=6),
                             dbc.Col([
                                 dbc.Button(
                                     "Generate Scatter Plot",
@@ -211,7 +203,7 @@ def get_visualization_tab_content():
                                     size="lg",
                                     className="mt-4"
                                 )
-                            ], width=4),
+                            ], width=6),
                         ], className="mb-3"),
                         
                         # Plot container for objectives scatter
