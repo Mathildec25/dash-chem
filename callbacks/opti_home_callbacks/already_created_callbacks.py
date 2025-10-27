@@ -62,38 +62,31 @@ def update_excel_dropdown_with_domain_status(selected_excel, pathname):
 
 
 @callback(
-        [Output('sheets-DD-opti', 'children'),
-         Output('text-DD-2-opti', 'style'),
-         Output('restart-opti-button', 'style', allow_duplicate=True),
-         Output('delete-excel-button-opti', 'style')],
-        Input('excels-DD-opti', 'value'),
-        prevent_initial_call=True
-    )
+    [Output('sheets-DD-opti', 'children'),
+     Output('restart-opti-button', 'style', allow_duplicate=True),
+     Output('delete-excel-button-opti', 'style')],
+    Input('excels-DD-opti', 'value'),
+    prevent_initial_call=True
+)
 def update_sheet_dropdown_and_buttons(selected_excel):
-    """Update sheet dropdown and show/hide buttons based on Excel selection"""
-    
-    # Default hidden states
-    text_style = {"display": "none"}
-    restart_button_style = {"display": "none"}
-    delete_button_style = {"display": "none"}
+    restart_button_style = {"display": "none", "marginTop": "12px"}
+    delete_button_style = {"display": "none", "marginTop": "12px"}
     sheet_dropdown = html.Div()
-    
+
     if not selected_excel:
-        return sheet_dropdown, text_style, restart_button_style, delete_button_style
-    
+        return sheet_dropdown, restart_button_style, delete_button_style
+
     try:
-        # Check if domain exists for this Excel
         if not DomainStorage.domain_exists(selected_excel):
             return html.Div([
                 dbc.Alert(
                     "This Excel file doesn't have a domain configuration. Create a new project instead.",
                     color="warning"
                 )
-            ]), text_style, restart_button_style, delete_button_style
-        
+            ]), restart_button_style, delete_button_style
+
         excel_path = os.path.join(EXCEL_FOLDER, selected_excel)
-        
-        # Read sheet names
+
         if selected_excel.endswith(('.xls', '.xlsx')):
             with pd.ExcelFile(excel_path) as xls:
                 sheet_names = xls.sheet_names
@@ -103,9 +96,8 @@ def update_sheet_dropdown_and_buttons(selected_excel):
             return dbc.Alert(
                 f"Unsupported file type: {selected_excel}",
                 color="danger"
-            ), text_style, restart_button_style, delete_button_style
-        
-        # Create sheet dropdown
+            ), restart_button_style, delete_button_style
+
         sheet_dropdown = dcc.Dropdown(
             id={'type': 'sheet-dropdown', 'index': selected_excel},
             options=[{"label": name, "value": name} for name in sheet_names],
@@ -113,19 +105,18 @@ def update_sheet_dropdown_and_buttons(selected_excel):
             placeholder="Select a sheet..." if len(sheet_names) > 1 else None,
             className="mb-2"
         )
-        
-        # Show text and buttons
-        text_style = {"fontSize":"20px", "textAlign":"left", "marginTop": "12px"}
+
         restart_button_style = {"marginTop": "12px", "display": "inline-block"}
         delete_button_style = {"marginTop": "12px", "display": "inline-block", "marginLeft": "10px"}
-        
-        return sheet_dropdown, text_style, restart_button_style, delete_button_style
-        
+
+        return sheet_dropdown, restart_button_style, delete_button_style
+
     except Exception as e:
         return dbc.Alert(
             f"Error reading file: {e}",
             color="danger"
-        ), text_style, restart_button_style, delete_button_style
+        ), restart_button_style, delete_button_style
+
     
 @callback(
         Output('restart-opti-button', 'style'),
