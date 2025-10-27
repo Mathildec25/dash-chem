@@ -95,7 +95,7 @@ def create_home_layout():
                     dbc.Col([
                         html.H3([
                             html.I(className="bi bi-rocket-takeoff me-2"),
-                            "Getting Started"
+                            "Getting Startedddddd"
                         ], className="mb-4", style={"color": "#34495e"}),
                     ], width=12)
                 ]),
@@ -107,7 +107,7 @@ def create_home_layout():
                             dbc.CardHeader([
                                 html.H5([
                                     html.Span("Step 1: ", className="text-primary"),
-                                    "Load or Create Data"
+                                    "Load or Select Data"
                                 ], className="mb-0")
                             ], style={"backgroundColor": "#f8f9fa"}),
                             dbc.CardBody([

@@ -42,8 +42,9 @@ def render_tab_content(active_tab):
                     html.Div([
                         html.I(className="bi bi-cloud-upload", 
                               style={"fontSize": "48px", "color": "#3498db"}),
-                        html.H5("Drop files here or click", className="mt-3 mb-2"),
-                        html.P("Excel (.xlsx, .xls)",
+                        html.H5("Drop files here or click to browse", 
+                               className="mt-3 mb-2"),
+                        html.P("Supported formats: Excel (.xlsx, .xls)",
                               className="text-muted")
                     ], className="text-center p-4")
                 ]),
@@ -580,3 +581,17 @@ def update_dropdown_and_buttons(selected_excel, sheet_values):
         delete_button_style,
     )
 
+
+# ============================================
+# REFRESH DROPDOWN AFTER UPLOAD
+# ============================================
+
+@callback(
+    Output('excels-DD', 'options', allow_duplicate=True),
+    Input('output-data-upload', 'children'),
+    prevent_initial_call=True
+)
+def refresh_excel_dropdown(upload_children):
+    """Refresh the hidden dropdown options after upload"""
+    files = get_uploaded_excel_files()
+    return [{"label": f, "value": f} for f in files]
