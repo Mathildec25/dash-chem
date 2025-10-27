@@ -103,5 +103,5 @@ app.layout = html.Div([
 
 # Launch the app
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8080, debug=True) # Allow to update the app without restarting it (debug mode)
+    app.run(host="0.0.0.0", port=8088, debug=True) # Allow to update the app without restarting it (debug mode)
   

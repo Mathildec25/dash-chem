@@ -40,8 +40,8 @@ def render_tab_content(active_tab):
                 children=html.Div([
                     html.Div([
                         html.I(className="bi bi-cloud-upload", 
-                              style={"fontSize": "48px", "color": "#3498db"}),
-                        html.H5("Drop files here or click to browse", 
+                              style={"fontSize": "48px", "color": "#103c5a"}),
+                        html.H5("Drop files here or click to browseeeee", 
                                className="mt-3 mb-2"),
                         html.P("Supported formats: Excel (.xlsx, .xls)",
                               className="text-muted")
@@ -408,7 +408,7 @@ def refresh_excel_dropdown(upload_children):
     return [{"label": f, "value": f} for f in files]
 
 
-============================================
+#============================================
 # TAB CONTENT CALLBACK
 # ============================================
 
