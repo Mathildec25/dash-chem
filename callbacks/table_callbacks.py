@@ -106,30 +106,125 @@ def update_columns(selected_columns, selected_excel, selected_sheet):
         raise PreventUpdate
 
 
-# Add a new row to the table when the button is clicked
 @callback(
-    Output({"type": "editable-table", "sheet": MATCH}, "data"),
+    Output({"type": "editable-table", "sheet": MATCH}, "data", allow_duplicate=True),
     Input("editing-rows-button", "n_clicks"),
     State({"type": "editable-table", "sheet": MATCH}, "data"),
     State({"type": "editable-table", "sheet": MATCH}, "columns"),
     prevent_initial_call=True,
     suppress_callback_exceptions=True
 )
-def add_row(n_clicks, rows, columns):
-    if not n_clicks or n_clicks == 0:
+def add_row_to_table(n_clicks, rows, columns):
+    if not n_clicks or not columns:
         raise PreventUpdate
-        
-    if not rows or not columns:
+    new_row = {c['id']: '' for c in columns}
+    rows.insert(0, new_row)
+    return rows
+
+
+# FIXED: Callback pour ajouter une colonne via modal
+@callback(
+    Output("add-column-modal", "is_open"),
+    [Input("quick-add-column-btn", "n_clicks"),
+     Input("cancel-add-column", "n_clicks"),
+     Input("confirm-add-column", "n_clicks")],
+    State("add-column-modal", "is_open"),
+    prevent_initial_call=True
+)
+def toggle_add_column_modal(open_clicks, cancel_clicks, confirm_clicks, is_open):
+    """Toggle modal pour ajouter une colonne"""
+    return not is_open
+
+@callback(
+    [Output("new-column-name-modal", "value"),
+     Output("column-dropdown", "options", allow_duplicate=True),
+     Output("column-dropdown", "value", allow_duplicate=True),
+     Output("save-status-inline", "children", allow_duplicate=True)],
+    Input("confirm-add-column", "n_clicks"),
+    [State("new-column-name-modal", "value"),
+     State("column-dropdown", "options"),
+     State("selected-excel-store", "data"),
+     State("selected-sheet-store", "data")],
+    prevent_initial_call=True,
+    suppress_callback_exceptions=True
+)
+def update_dropdown_and_status(n_clicks, new_col_name, current_options, excel, sheet):
+    if not n_clicks or not new_col_name or not new_col_name.strip():
         raise PreventUpdate
-        
+
+    new_col_name = new_col_name.strip()
+
+    if not excel.endswith(".xlsx"):
+        excel += ".xlsx"
+
+    file_path = os.path.join(EXCEL_FOLDER, excel)
+
     try:
-        # Create a new row with empty values
-        new_row = {c['id']: '' for c in columns}
-        # Add the new row at the top
-        rows.insert(0, new_row)
-        return rows
+        new_options = current_options + [{"label": new_col_name, "value": new_col_name}]
+        new_values = [opt["value"] for opt in new_options]
+
+        # Save updated structure to Excel
+        df = pd.read_excel(file_path, sheet_name=sheet, engine="openpyxl")
+        if new_col_name not in df.columns:
+            df[new_col_name] = ''
+            with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+                df.to_excel(writer, sheet_name=sheet, index=False)
+
+        return "", new_options, new_values, html.Small(f"✅ Column '{new_col_name}' added", className="text-success")
     except Exception as e:
+        return "", no_update, no_update, html.Small(f"❌ Error: {str(e)}", className="text-danger")
+
+def add_column_via_modal(n_clicks, new_col_name, current_columns, current_data, excel, sheet, current_options):
+    """Add a new column to the table"""
+    if not n_clicks or not new_col_name or not new_col_name.strip():
         raise PreventUpdate
+    
+    if not excel or not sheet:
+        raise PreventUpdate
+    
+    try:
+        new_col_name = new_col_name.strip()
+        
+        # Ensure extension
+        if not excel.endswith(".xlsx"):
+            excel += ".xlsx"
+        
+        file_path = os.path.join(EXCEL_FOLDER, excel)
+        
+        # Check if column name already exists
+        if any(col['id'] == new_col_name for col in current_columns):
+            return (no_update, no_update, "", no_update, no_update, 
+                    html.Small(f"❌ Column '{new_col_name}' already exists", className="text-danger"))
+        
+        # Add new column to columns definition
+        new_columns = current_columns + [{
+            'name': new_col_name,
+            'id': new_col_name,
+            'editable': True
+        }]
+        
+        # Add new column to data with empty values
+        updated_data = []
+        for row in current_data:
+            row[new_col_name] = ''
+            updated_data.append(row)
+        
+        # Save to Excel
+        df = pd.DataFrame(updated_data)
+        with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+            df.to_excel(writer, sheet_name=sheet, index=False)
+        
+        # Update dropdown options
+        new_options = current_options + [{"label": new_col_name, "value": new_col_name}]
+        new_values = [opt["value"] for opt in new_options]
+        
+        return (new_columns, updated_data, "", new_options, new_values,
+                html.Small(f"✅ Column '{new_col_name}' added", className="text-success"))
+        
+    except Exception as e:
+        print(f"Error adding column: {e}")
+        return (no_update, no_update, "", no_update, no_update,
+                html.Small(f"❌ Error: {str(e)}", className="text-danger"))
 
 
 # NOUVEAU: Callback pour renommer les colonnes
@@ -196,66 +291,10 @@ def rename_column(n_clicks, old_name, new_name, current_columns, excel, sheet):
         raise PreventUpdate
 
 
-# NOUVEAU: Callback pour ajouter une colonne
-@callback(
-    [Output({"type": "editable-table", "sheet": MATCH}, "columns", allow_duplicate=True),
-     Output({"type": "editable-table", "sheet": MATCH}, "data", allow_duplicate=True)],
-    Input("add-column-btn", "n_clicks"),
-    [State("new-column-name-input", "value"),
-     State({"type": "editable-table", "sheet": MATCH}, "columns"),
-     State({"type": "editable-table", "sheet": MATCH}, "data"),
-     State("selected-excel-store", "data"),
-     State("selected-sheet-store", "data")],
-    prevent_initial_call=True,
-    suppress_callback_exceptions=True
-)
-def add_column(n_clicks, new_col_name, current_columns, current_data, excel, sheet):
-    """Add a new column to the table"""
-    if not n_clicks or not new_col_name:
-        raise PreventUpdate
-    
-    if not excel or not sheet:
-        raise PreventUpdate
-    
-    try:
-        # Ensure extension
-        if not excel.endswith(".xlsx"):
-            excel += ".xlsx"
-        
-        file_path = os.path.join(EXCEL_FOLDER, excel)
-        
-        # Check if column name already exists
-        if any(col['id'] == new_col_name for col in current_columns):
-            raise PreventUpdate
-        
-        # Add new column to columns definition
-        new_columns = current_columns + [{
-            'name': new_col_name,
-            'id': new_col_name,
-            'editable': True
-        }]
-        
-        # Add new column to data with empty values
-        updated_data = []
-        for row in current_data:
-            row[new_col_name] = ''
-            updated_data.append(row)
-        
-        # Save to Excel
-        df = pd.DataFrame(updated_data)
-        with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
-            df.to_excel(writer, sheet_name=sheet, index=False)
-        
-        return new_columns, updated_data
-        
-    except Exception as e:
-        print(f"Error adding column: {e}")
-        raise PreventUpdate
-
-
 # Save changes to the Excel file when the button is clicked
 @callback(
-    Output("save-button", "children"),
+    [Output("save-button", "children"),
+     Output("save-status-inline", "children")],
     Input("save-button", "n_clicks"),
     State({"type": "editable-table", "sheet": ALL}, "data"),
     State({"type": "editable-table", "sheet": ALL}, "columns"),
@@ -269,7 +308,7 @@ def save_changes(n_clicks, all_tables_data, all_tables_columns, excel, sheet):
         raise PreventUpdate
         
     if not all_tables_data or not all_tables_columns or not sheet or not excel:
-        return "Save Changes"
+        return "Save Changes", html.Small("❌ No data to save", className="text-danger")
     
     try:
         if not excel.endswith(".xlsx"):
@@ -279,6 +318,6 @@ def save_changes(n_clicks, all_tables_data, all_tables_columns, excel, sheet):
         df = pd.DataFrame(all_tables_data[0], columns=[c["id"] for c in all_tables_columns[0]])
         with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
             df.to_excel(writer, sheet_name=sheet, index=False)
-        return "Changes saved ✅"
+        return "Save Changes", html.Small("✅ Saved successfully", className="text-success")
     except Exception as e:
-        return f"Error saving: {str(e)}"
+        return "Save Changes", html.Small(f"❌ Error: {str(e)}", className="text-danger")

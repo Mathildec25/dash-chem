@@ -38,7 +38,7 @@ def create_home_layout():
                                   style={"fontSize": "16px"})
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm hover-card")
+                ], className="h-100 shadow hover-card")
             ], md=3, className="mb-3"),
             
             dbc.Col([
@@ -53,7 +53,7 @@ def create_home_layout():
                                   style={"fontSize": "16px"})
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm hover-card")
+                ], className="h-100 shadow hover-card")
             ], md=3, className="mb-3"),
             
             dbc.Col([
@@ -68,7 +68,7 @@ def create_home_layout():
                                   style={"fontSize": "16px"})
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm hover-card")
+                ], className="h-100 shadow hover-card")
             ], md=3, className="mb-3"),
             
             dbc.Col([
@@ -83,7 +83,7 @@ def create_home_layout():
                                   style={"fontSize": "16px"})
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm hover-card")
+                ], className="h-100 shadow hover-card")
             ], md=3, className="mb-3"),
         ], className="mb-4"),
         

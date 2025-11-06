@@ -45,7 +45,7 @@ def create_opti_home_layout():
                                       className="text-muted")
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm border-0")
+                ], className="h-100 shadow border-0")
             ], md=3, className="mb-3"),
             
             dbc.Col([
@@ -59,7 +59,7 @@ def create_opti_home_layout():
                                       className="text-muted")
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm border-0")
+                ], className="h-100 shadow border-0")
             ], md=3, className="mb-3"),
             
             dbc.Col([
@@ -73,7 +73,7 @@ def create_opti_home_layout():
                                       className="text-muted")
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm border-0")
+                ], className="h-100 shadow border-0")
             ], md=3, className="mb-3"),
             
             dbc.Col([
@@ -87,7 +87,7 @@ def create_opti_home_layout():
                                       className="text-muted")
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm border-0")
+                ], className="h-100 shadow border-0")
             ], md=3, className="mb-3"),
         ], className="mb-4"),
         
@@ -143,7 +143,7 @@ def create_opti_home_layout():
 #                            "Parameter Definition → Objective Setting → Initial Sampling → Domain Creation"
 #                        ], color="light", className="mt-3 mb-0", style={"border": "1px solid #28a745"})
                     ])
-                ], className="h-100 shadow-sm")
+                ], className="h-100 shadow")
             ], md=6, className="mb-4"),
             
             # Existing Project Card
@@ -219,7 +219,7 @@ def create_opti_home_layout():
  #                           "Review Results → Add New Experiments → Get AI Recommendations → Analyze Performance"
  #                       ], color="light", className="mt-3 mb-0", style={"border": "1px solid #007bff"})
                     ])
-                ], className="h-100 shadow-sm")
+                ], className="h-100 shadow")
             ], md=6, className="mb-4"),
         ]),
         
