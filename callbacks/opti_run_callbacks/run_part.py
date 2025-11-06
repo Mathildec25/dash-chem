@@ -258,7 +258,7 @@ def display_excel_table(current_excel_data, selected_file_data, pathname):
         # Build the complete layout
         return html.Div([
             metadata_store,  # Hidden metadata storage
-            html.H4(f"📊 Working with: {excel_filename}", className="mb-3"),
+            html.H4(f" {excel_filename}", className="mb-3"),
             domain_info_card,
             table,
             html.Div(id="save-status", className="mt-2"),

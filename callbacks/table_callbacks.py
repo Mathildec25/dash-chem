@@ -17,13 +17,12 @@ from config_path import EXCEL_FOLDER
     Input("url", "pathname"),
     State("selected-sheet-store", "data"),
     State("selected-excel-store", "data"),
-    suppress_callback_exceptions=True  # Add this to handle missing components gracefully
+    suppress_callback_exceptions=True
 )
 def load_table_for_sheet(pathname, sheet, excel):
-    # Only trigger when on /table page (or whatever your table page path is)
-    # You may need to adjust this path to match your actual route
+    # Only trigger when on /table page
     if pathname != "/table": 
-        raise PreventUpdate  # Use PreventUpdate instead of no_update for better control
+        raise PreventUpdate
     
     # Basic validation
     if not sheet or not excel:
@@ -47,7 +46,7 @@ def load_table_for_sheet(pathname, sheet, excel):
     options = get_column_dropdown_options(df)
     
     try:
-        # Create the DataTable
+        # MODIFICATION: Rendre les colonnes éditables
         table = dash_table.DataTable(
             id={"type": "editable-table", "sheet": sheet},
             data=df.to_dict('records'),
@@ -64,6 +63,7 @@ def load_table_for_sheet(pathname, sheet, excel):
             tooltip_delay=0,
             tooltip_duration=None,
             editable=True,
+            row_deletable=True,  # Permettre suppression de lignes
             style_header={
                 'backgroundColor': 'white', 'textAlign': 'center', 'fontSize': '14px',
                 'whiteSpace': 'normal', 'maxWidth': '200px', 'fontWeight': 'bold', 'border': '1px solid black'
@@ -92,11 +92,11 @@ def load_table_for_sheet(pathname, sheet, excel):
     State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
-    suppress_callback_exceptions=True  # Add this to handle missing components gracefully
+    suppress_callback_exceptions=True
 )
 def update_columns(selected_columns, selected_excel, selected_sheet):
     if not selected_sheet or not selected_columns:
-        raise PreventUpdate  # Use PreventUpdate instead of no_update
+        raise PreventUpdate
     
     try:
         df = load_filtered_df(selected_excel, selected_sheet)
@@ -113,7 +113,7 @@ def update_columns(selected_columns, selected_excel, selected_sheet):
     State({"type": "editable-table", "sheet": MATCH}, "data"),
     State({"type": "editable-table", "sheet": MATCH}, "columns"),
     prevent_initial_call=True,
-    suppress_callback_exceptions=True  # Add this to handle missing components gracefully
+    suppress_callback_exceptions=True
 )
 def add_row(n_clicks, rows, columns):
     if not n_clicks or n_clicks == 0:
@@ -132,7 +132,128 @@ def add_row(n_clicks, rows, columns):
         raise PreventUpdate
 
 
-# Save changes to the Excel file when the button is clicked (BE CAREFUL !!!)
+# NOUVEAU: Callback pour renommer les colonnes
+@callback(
+    Output({"type": "editable-table", "sheet": MATCH}, "columns", allow_duplicate=True),
+    Input("rename-column-btn", "n_clicks"),
+    [State("old-column-name", "value"),
+     State("new-column-name", "value"),
+     State({"type": "editable-table", "sheet": MATCH}, "columns"),
+     State("selected-excel-store", "data"),
+     State("selected-sheet-store", "data")],
+    prevent_initial_call=True,
+    suppress_callback_exceptions=True
+)
+def rename_column(n_clicks, old_name, new_name, current_columns, excel, sheet):
+    """Rename a column in the table"""
+    if not n_clicks or not old_name or not new_name:
+        raise PreventUpdate
+    
+    if not excel or not sheet:
+        raise PreventUpdate
+    
+    try:
+        # Ensure extension
+        if not excel.endswith(".xlsx"):
+            excel += ".xlsx"
+        
+        file_path = os.path.join(EXCEL_FOLDER, excel)
+        
+        # Load the Excel file
+        df = pd.read_excel(file_path, sheet_name=sheet, engine="openpyxl")
+        
+        # Check if old column exists
+        if old_name not in df.columns:
+            raise PreventUpdate
+        
+        # Check if new name already exists
+        if new_name in df.columns and new_name != old_name:
+            raise PreventUpdate
+        
+        # Rename the column
+        df = df.rename(columns={old_name: new_name})
+        
+        # Save back to Excel
+        with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+            df.to_excel(writer, sheet_name=sheet, index=False)
+        
+        # Update column definitions
+        updated_columns = []
+        for col in current_columns:
+            if col['id'] == old_name:
+                updated_columns.append({
+                    'name': new_name,
+                    'id': new_name,
+                    'editable': True
+                })
+            else:
+                updated_columns.append(col)
+        
+        return updated_columns
+        
+    except Exception as e:
+        print(f"Error renaming column: {e}")
+        raise PreventUpdate
+
+
+# NOUVEAU: Callback pour ajouter une colonne
+@callback(
+    [Output({"type": "editable-table", "sheet": MATCH}, "columns", allow_duplicate=True),
+     Output({"type": "editable-table", "sheet": MATCH}, "data", allow_duplicate=True)],
+    Input("add-column-btn", "n_clicks"),
+    [State("new-column-name-input", "value"),
+     State({"type": "editable-table", "sheet": MATCH}, "columns"),
+     State({"type": "editable-table", "sheet": MATCH}, "data"),
+     State("selected-excel-store", "data"),
+     State("selected-sheet-store", "data")],
+    prevent_initial_call=True,
+    suppress_callback_exceptions=True
+)
+def add_column(n_clicks, new_col_name, current_columns, current_data, excel, sheet):
+    """Add a new column to the table"""
+    if not n_clicks or not new_col_name:
+        raise PreventUpdate
+    
+    if not excel or not sheet:
+        raise PreventUpdate
+    
+    try:
+        # Ensure extension
+        if not excel.endswith(".xlsx"):
+            excel += ".xlsx"
+        
+        file_path = os.path.join(EXCEL_FOLDER, excel)
+        
+        # Check if column name already exists
+        if any(col['id'] == new_col_name for col in current_columns):
+            raise PreventUpdate
+        
+        # Add new column to columns definition
+        new_columns = current_columns + [{
+            'name': new_col_name,
+            'id': new_col_name,
+            'editable': True
+        }]
+        
+        # Add new column to data with empty values
+        updated_data = []
+        for row in current_data:
+            row[new_col_name] = ''
+            updated_data.append(row)
+        
+        # Save to Excel
+        df = pd.DataFrame(updated_data)
+        with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+            df.to_excel(writer, sheet_name=sheet, index=False)
+        
+        return new_columns, updated_data
+        
+    except Exception as e:
+        print(f"Error adding column: {e}")
+        raise PreventUpdate
+
+
+# Save changes to the Excel file when the button is clicked
 @callback(
     Output("save-button", "children"),
     Input("save-button", "n_clicks"),
@@ -141,7 +262,7 @@ def add_row(n_clicks, rows, columns):
     State("selected-excel-store", "data"),
     State("selected-sheet-store", "data"),
     prevent_initial_call=True,
-    suppress_callback_exceptions=True  # Add this to handle missing components gracefully
+    suppress_callback_exceptions=True
 )
 def save_changes(n_clicks, all_tables_data, all_tables_columns, excel, sheet):
     if not n_clicks or n_clicks == 0:
@@ -161,22 +282,3 @@ def save_changes(n_clicks, all_tables_data, all_tables_columns, excel, sheet):
         return "Changes saved ✅"
     except Exception as e:
         return f"Error saving: {str(e)}"
-
-
-# @callback(
-#     Output("DD-filtre-val-contour", "options"),
-#     Input("DD-filtre-col-contour", "value"),
-#     State("selected-sheet-store", "data"),
-#     prevent_initial_call=True
-# )
-# def update_dropdown(selected_col, sheet):
-#     if not sheet or not selected_col:
-#         return []
-#     df = load_filtered_df(sheet)
-#     if selected_col == "System":
-#         unique_values = ["flow", "batch"]
-#         options = [{"label": str(value), "value": value} for value in unique_values if pd.notna(value)]
-#         return options
-#     unique_values = df[selected_col].unique()
-#     options = [{"label": str(value), "value": value} for value in unique_values if pd.notna(value)]
-#     return options

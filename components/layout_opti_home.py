@@ -25,12 +25,12 @@ def create_opti_home_layout():
         ], className="mt-4"),
         
         # Info Alert
-        dbc.Alert([
-            html.I(className="bi bi-robot me-2"),
-            html.Strong("What is Bayesian Optimization? "),
-            "An intelligent approach to experimental design that uses machine learning to suggest the most promising "
-            "experiments, with aim to reduce the number of trials needed to find optimal conditions.",
-        ], color="info", className="mb-4"),
+ #       dbc.Alert([
+ #           html.I(className="bi bi-robot me-2"),
+ #           html.Strong("What is Bayesian Optimization? "),
+ #           "An intelligent approach to experimental design that uses machine learning to suggest the most promising "
+ #           "experiments, with aim to reduce the number of trials needed to find optimal conditions.",
+ #       ], color="info", className="mb-4"),
         
         # Process Overview
         dbc.Row([
@@ -138,10 +138,10 @@ def create_opti_home_layout():
                         ], id="start-opti-button-container"),
                         
                         # Process Flow
-                        dbc.Alert([
-                            html.Strong("Next Steps: "),
-                            "Parameter Definition → Objective Setting → Initial Sampling → Domain Creation"
-                        ], color="light", className="mt-3 mb-0", style={"border": "1px solid #28a745"})
+#                        dbc.Alert([
+#                            html.Strong("Next Steps: "),
+#                            "Parameter Definition → Objective Setting → Initial Sampling → Domain Creation"
+#                        ], color="light", className="mt-3 mb-0", style={"border": "1px solid #28a745"})
                     ])
                 ], className="h-100 shadow-sm")
             ], md=6, className="mb-4"),
@@ -214,53 +214,42 @@ def create_opti_home_layout():
                         ]),
                         
                         # Process Flow
-                        dbc.Alert([
-                            html.Strong("Next Steps: "),
-                            "Review Results → Add New Experiments → Get AI Recommendations → Analyze Performance"
-                        ], color="light", className="mt-3 mb-0", style={"border": "1px solid #007bff"})
+ #                       dbc.Alert([
+ #                           html.Strong("Next Steps: "),
+ #                           "Review Results → Add New Experiments → Get AI Recommendations → Analyze Performance"
+ #                       ], color="light", className="mt-3 mb-0", style={"border": "1px solid #007bff"})
                     ])
                 ], className="h-100 shadow-sm")
             ], md=6, className="mb-4"),
         ]),
         
-        # Help and Information Section
-        dbc.Row([
-            dbc.Col([
-                dbc.Alert([
-                    html.H6([
-                        html.I(className="bi bi-question-circle me-2"),
-                        "Understanding Bayesian Optimization"
-                    ], className="alert-heading"),
-                    html.Hr(),
-                    html.P([
-                        html.Strong("Why use BO? "),
-                        "Traditional experimental approaches often require many trials. Bayesian Optimization uses "
-                        "machine learning to intelligently suggest which experiments to run next, "
-                        "reducing the time and resources needed to find optimal conditions."
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Key Benefits: "),
-                        "• Fewer experiments needed • Handles complex parameter interactions • "
-                        "Provides uncertainty estimates • Works with expensive/time-consuming experiments"
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Best For: "),
-                        "Process optimization, material discovery, reaction condition screening, "
-                        "and any scenario where experiments are costly or time-consuming."
-                    ], className="mb-0"),
-                ], color="light", className="border")
-            ], width=12)
-        ], className="mt-4"),
+# Help and Information Section
+        # dbc.Row([
+        #     dbc.Col([
+        #         dbc.Alert([
+        #             html.H6([
+        #                 html.I(className="bi bi-question-circle me-2"),
+        #                 "Understanding Bayesian Optimization"
+        #             ], className="alert-heading"),
+        #             html.Hr(),
+        #             html.P([
+        #                 html.Strong("Why use BO? "),
+        #                 "Traditional experimental approaches often require many trials. Bayesian Optimization uses "
+        #                 "machine learning to intelligently suggest which experiments to run next, "
+        #                 "reducing the time and resources needed to find optimal conditions."
+        #             ], className="mb-2"),
+        #             html.P([
+        #                 html.Strong("Key Benefits: "),
+        #                 "• Fewer experiments needed • Handles complex parameter interactions • "
+        #                 "Provides uncertainty estimates • Works with expensive/time-consuming experiments"
+        #             ], className="mb-2"),
+        #             html.P([
+        #                 html.Strong("Best For: "),
+        #                 "Process optimization, material discovery, reaction condition screening, "
+        #                 "and any scenario where experiments are costly or time-consuming."
+        #             ], className="mb-0"),
+        #         ], color="light", className="border")
+        #     ], width=12)
+        # ], className="mt-4"),
         
-        # Technical Info
-        dbc.Row([
-            dbc.Col([
-                dbc.Alert([
-                    html.I(className="bi bi-gear-fill me-2"),
-                    html.Strong("Powered by BoFire: "),
-                    "This platform uses BoFire, a Bayesian Optimization framework developed specifically for "
-                    "experimental design and optimization in research and industry applications.",
-                ], color="secondary", className="mt-3")
-            ], width=12)
-        ])
     ], fluid=True, style={"maxWidth": "1400px"})

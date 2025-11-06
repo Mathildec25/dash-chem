@@ -95,7 +95,7 @@ def create_home_layout():
                     dbc.Col([
                         html.H3([
                             html.I(className="bi bi-rocket-takeoff me-2"),
-                            "Getting Startedddddd"
+                            "Getting Started"
                         ], className="mb-4", style={"color": "#34495e"}),
                     ], width=12)
                 ]),

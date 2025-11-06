@@ -1,4 +1,3 @@
-
 import dash
 from dash import dcc, html, Input, Output, State, callback, ALL
 import dash_bootstrap_components as dbc
@@ -42,9 +41,8 @@ def render_tab_content(active_tab):
                     html.Div([
                         html.I(className="bi bi-cloud-upload", 
                               style={"fontSize": "48px", "color": "#3498db"}),
-                        html.H5("Drop files here or click to browse", 
-                               className="mt-3 mb-2"),
-                        html.P("Supported formats: Excel (.xlsx, .xls)",
+                        html.H5("Drop files here or click", className="mt-3 mb-2"),
+                        html.P("Excel (.xlsx, .xls)",
                               className="text-muted")
                     ], className="text-center p-4")
                 ]),
@@ -91,54 +89,46 @@ def render_tab_content(active_tab):
                         "Create New Excel File"
                     ], className="mb-3"),
                     
+                    html.P("Create a blank Excel file and customize it in the Dashboard", 
+                           className="text-muted mb-3"),
+                    
                     dbc.Row([
                         dbc.Col([
                             dbc.Label("File Name", className="fw-bold"),
                             dbc.Input(
                                 id="new-excel-name",
-                                placeholder="Enter file name...",
+                                placeholder="e.g., My_Experiments",
                                 type="text",
                                 className="mb-2"
                             ),
-                            html.Small("(Extension .xlsx will be added automatically)", 
+                            html.Small("Extension .xlsx will be added automatically", 
                                       className="text-muted d-block mb-3")
                         ], width=12),
                     ]),
                     
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Label("Number of Columns", className="fw-bold"),
-                            dbc.Input(
-                                id="new-excel-cols",
-                                type="number",
-                                value=5,
-                                min=1,
-                                max=50,
-                                className="mb-2"
-                            ),
-                        ], width=6),
-                        dbc.Col([
-                            dbc.Label("Number of Rows", className="fw-bold"),
-                            dbc.Input(
-                                id="new-excel-rows",
-                                type="number",
-                                value=10,
-                                min=1,
-                                max=1000,
-                                className="mb-2"
-                            ),
-                        ], width=6),
-                    ], className="mb-3"),
-                    
                     dbc.Button([
-                        html.I(className="bi bi-plus-circle me-2"),
-                        "Create Excel File"
+                        html.I(className="bi bi-arrow-right-circle me-2"),
+                        "Create & Open in Dashboard"
                     ],
                     id="create-excel-btn",
                     color="success",
                     size="lg",
                     className="w-100"
                     ),
+                    
+                    html.Hr(className="my-3"),
+                    
+                    dbc.Alert([
+                        html.I(className="bi bi-info-circle me-2"),
+                        html.Strong("In Dashboard you can:"),
+                        html.Ul([
+                            html.Li("Rename columns by clicking on headers"),
+                            html.Li("Add/delete rows and columns"),
+                            html.Li("Edit all cell values"),
+                            html.Li("Filter and sort data"),
+                            html.Li("Save changes anytime")
+                        ], className="mb-0 mt-2")
+                    ], color="light", className="border border-success")
                 ])
             ], className="shadow-sm")
         ])
@@ -331,7 +321,7 @@ def handle_file_upload(list_of_contents, list_of_names):
 
 
 # ============================================
-# CREATE EXCEL FROM SCRATCH
+# CREATE EXCEL FROM SCRATCH - REDIRECT TO DASHBOARD
 # ============================================
 
 @callback(
@@ -340,15 +330,13 @@ def handle_file_upload(list_of_contents, list_of_names):
      Output('excels-DD', 'value', allow_duplicate=True),
      Output('selected-excel-store', 'data', allow_duplicate=True),
      Output('selected-sheet-store', 'data', allow_duplicate=True),
-     Output('step-2-container', 'style', allow_duplicate=True)],
+     Output('url', 'pathname', allow_duplicate=True)],  # CHANGEMENT: Redirect vers Dashboard
     Input('create-excel-btn', 'n_clicks'),
-    [State('new-excel-name', 'value'),
-     State('new-excel-cols', 'value'),
-     State('new-excel-rows', 'value')],
+    [State('new-excel-name', 'value')],  # CHANGEMENT: Plus besoin de cols/rows
     prevent_initial_call=True
 )
-def create_excel_from_scratch(n_clicks, filename, num_cols, num_rows):
-    """Create a new Excel file with specified dimensions"""
+def create_excel_from_scratch(n_clicks, filename):
+    """Create a minimal Excel file and redirect to Dashboard for editing"""
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
@@ -374,24 +362,11 @@ def create_excel_from_scratch(n_clicks, filename, num_cols, num_rows):
             )
             return error_alert, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
         
-        # Validate dimensions
-        num_cols = int(num_cols) if num_cols else 5
-        num_rows = int(num_rows) if num_rows else 10
-        
-        if num_cols < 1 or num_cols > 50:
-            error_alert = dbc.Alert("Number of columns must be between 1 and 50", 
-                                   color="danger", dismissable=True)
-            return error_alert, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-        
-        if num_rows < 1 or num_rows > 1000:
-            error_alert = dbc.Alert("Number of rows must be between 1 and 1000", 
-                                   color="danger", dismissable=True)
-            return error_alert, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-        
-        # Create DataFrame with generic column names
-        columns = [f"Column_{i+1}" for i in range(num_cols)]
-        df = pd.DataFrame(index=range(num_rows), columns=columns)
-        df = df.fillna("")  # Fill with empty strings
+        # NOUVEAU: Créer un fichier minimal (3 colonnes, 10 lignes)
+        # L'utilisateur pourra tout modifier dans Dashboard
+        columns = ["Column_1", "Column_2", "Column_3"]
+        df = pd.DataFrame(index=range(10), columns=columns)
+        df = df.fillna("")
         
         # Save to Excel with formatting
         with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
@@ -417,7 +392,7 @@ def create_excel_from_scratch(n_clicks, filename, num_cols, num_rows):
                             max_length = len(str(cell.value))
                     except:
                         pass
-                adjusted_width = min(max(max_length + 2, 12), 50)
+                adjusted_width = min(max(max_length + 2, 15), 50)
                 worksheet.column_dimensions[column_letter].width = adjusted_width
         
         # Update tracking file
@@ -435,20 +410,20 @@ def create_excel_from_scratch(n_clicks, filename, num_cols, num_rows):
         files = get_uploaded_excel_files()
         options = [{"label": f, "value": f} for f in files]
         
-        # Create success alert
+        # Create success message (will be shown briefly before redirect)
         success_alert = dbc.Alert([
             html.I(className="bi bi-check-circle-fill me-2"),
-            f"Successfully created '{filename}' with {num_cols} columns and {num_rows} rows!",
-        ], color="success", dismissable=True)
+            f"Successfully created '{filename}'! Redirecting to Dashboard...",
+        ], color="success")
         
-        # Update stores and show step 2
+        # NOUVEAU: Redirect to Dashboard au lieu de rester sur Home
         return (
             success_alert,
             options,
             filename,              # Update excels-DD value
             filename,              # Update selected-excel-store
             "Sheet1",             # Update selected-sheet-store
-            {"display": "block"}  # Show step 2
+            "/table"              # REDIRECT TO DASHBOARD
         )
         
     except Exception as e:
