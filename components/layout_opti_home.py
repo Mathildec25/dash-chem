@@ -99,7 +99,7 @@ def create_opti_home_layout():
                                 ],
                                 id="start-opti-button",
                                 style={
-                                    "backgroundColor": "#a8a8a8",
+                                    "backgroundColor": "#fb8500",
                                     "border": "none",
                                     "padding": "0.75rem 2rem",
                                     "fontSize": "1rem",
@@ -195,7 +195,7 @@ def create_opti_home_layout():
                                         ],
                                         id="restart-opti-button",
                                         style={
-                                            "backgroundColor": "#10b981",
+                                            "backgroundColor": "#fb8500",
                                             "border": "none",
                                             "padding": "0.75rem 2rem",
                                             "fontSize": "1rem",
