@@ -27,3 +27,29 @@
 .Select-control:hover {
     border-color: #6366f1 !important;
 }
+
+/* Focus inputs (dbc.Input = .form-control) */
+.form-control:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* dcc.Dropdown focus — compat v1 et v5 de react-select */
+.Select-control:focus,
+.Select-control:hover {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08) !important;
+}
+
+/* Nouveaux sélecteurs (certaines versions) */
+.Select__control--is-focused,
+.Select__control:hover {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08) !important;
+}
+
+/* Hover sur les boutons */
+.btn:hover {
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+}
