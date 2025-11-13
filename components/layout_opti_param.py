@@ -35,62 +35,37 @@ def create_opti_param_layout():
             ], width=True)
         ], className="mb-4 align-items-center"),
         
-        # Main card
-        dbc.Card([
-            dbc.CardBody([
-                dbc.Row([
-                    # Parameters Section
-                    dbc.Col([
-                        html.H5("Parameters", className="mb-3", style={"fontWeight": "600"}),
-                        
-                        # Parameter counter (read-only display)
+        dbc.Row([
+            # Parameters Card
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
                         html.Div([
-                            html.Label("Number of Parameters", className="form-label text-muted small"),
-                            html.Div(
-                                id="param-count-display",
-                                children="1",
-                                style={
-                                    "padding": "0.5rem 1rem",
-                                    "backgroundColor": "#f8f9fa",
-                                    "borderRadius": "8px",
-                                    "fontWeight": "500",
-                                    "marginBottom": "1rem"
-                                }
-                            )
-                        ]),
+                            html.H5("Parameters", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
+                            dbc.Button([
+                                html.I(className="bi bi-plus-lg")
+                            ],
+                            id="add-para-button",
+                            color="primary",
+                            size="sm",
+                            className="float-end",
+                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                            ),
+                        ], className="mb-3"),
                         
                         # Parameters container
                         html.Div(id="parameter-container", children=[
-                            # Initial parameter
-                            html.Div([
-                                dbc.Input(
-                                    id={'type': 'parameter-name', 'index': initial_id},
-                                    placeholder="Parameter 1",
-                                    className="mb-2",
-                                    style={"borderRadius": "8px", "fontSize": "1rem"}
-                                ),
-                                dbc.Row([
-                                    dbc.Col([
-                                        dbc.Input(
-                                            id={'type': 'parameter-type-specific-lower', 'index': initial_id},
-                                            placeholder="Min",
-                                            type="number",
-                                            step="any",
-                                            style={"borderRadius": "8px"}
-                                        )
-                                    ], width=6),
-                                    dbc.Col([
-                                        dbc.Input(
-                                            id={'type': 'parameter-type-specific-upper', 'index': initial_id},
-                                            placeholder="Max",
-                                            type="number",
-                                            step="any",
-                                            style={"borderRadius": "8px"}
-                                        )
-                                    ], width=6)
-                                ], className="mb-2"),
-                                # Hidden type selector set to float by default
-                                html.Div([
+                            # Initial parameter row - COMPACT
+                            dbc.Row([
+                                dbc.Col([
+                                    dbc.Input(
+                                        id={'type': 'parameter-name', 'index': initial_id},
+                                        placeholder="Parameter name",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    )
+                                ], width=4),
+                                dbc.Col([
                                     dcc.Dropdown(
                                         id={'type': 'parameter-type', 'index': initial_id},
                                         options=[
@@ -99,198 +74,263 @@ def create_opti_param_layout():
                                             {"label": "Categorical", "value": "cat"},
                                         ],
                                         value="float",
-                                        style={"display": "none"}
+                                        placeholder="Type",
+                                        clearable=False,
+                                        style={"fontSize": "0.875rem"}
                                     )
-                                ], id={'type': 'parameter-type-container', 'index': initial_id}),
-                                html.Div(id={'type': 'parameter-type-specific-container', 'index': initial_id}),
-                                html.Div(id={'type': 'parameter-block', 'index': initial_id}, style={"display": "none"})
-                            ], className="mb-3", style={
-                                "padding": "1rem",
-                                "backgroundColor": "#f8f9fa",
-                                "borderRadius": "8px"
-                            })
+                                ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+                                dbc.Col([
+                                    dbc.Input(
+                                        id={'type': 'parameter-type-specific-lower', 'index': initial_id},
+                                        placeholder="Min",
+                                        type="number",
+                                        step="any",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    )
+                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+                                dbc.Col([
+                                    dbc.Input(
+                                        id={'type': 'parameter-type-specific-upper', 'index': initial_id},
+                                        placeholder="Max",
+                                        type="number",
+                                        step="any",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    )
+                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+                                dbc.Col([
+                                    dbc.Button(
+                                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                                        id={'type': 'delete-parameter', 'index': initial_id},
+                                        color="danger",
+                                        outline=True,
+                                        size="sm",
+                                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                                    )
+                                ], width=1, style={"paddingLeft": "0.25rem"}),
+                            ], className="mb-2 align-items-center"),
+                            # Hidden divs for compatibility
+                            html.Div(id={'type': 'parameter-type-container', 'index': initial_id}, style={"display": "none"}),
+                            html.Div(id={'type': 'parameter-type-specific-container', 'index': initial_id}, style={"display": "none"}),
+                            html.Div(id={'type': 'parameter-block', 'index': initial_id}, style={"display": "none"}),
                         ]),
-                        
-                        # Add parameter button
-                        dbc.Button([
-                            html.I(className="bi bi-plus me-2"),
-                            "Add Parameter"
-                        ],
-                        id="add-para-button",
-                        outline=True,
-                        color="primary",
-                        size="sm",
-                        className="mb-3",
-                        style={"borderRadius": "8px"}
-                        ),
-                    ], md=6, className="border-end pe-4"),
-                    
-                    # Objectives Section
-                    dbc.Col([
-                        html.H5("Objectives", className="mb-3", style={"fontWeight": "600"}),
-                        
-                        # Objective counter (read-only display)
+                    ], style={"padding": "1.25rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white",
+                    "height": "100%"
+                })
+            ], md=6, className="mb-3"),
+            
+            # Objectives Card
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
                         html.Div([
-                            html.Label("Number of Objectives", className="form-label text-muted small"),
-                            html.Div(
-                                id="objective-count-display",
-                                children="1",
-                                style={
-                                    "padding": "0.5rem 1rem",
-                                    "backgroundColor": "#f8f9fa",
-                                    "borderRadius": "8px",
-                                    "fontWeight": "500",
-                                    "marginBottom": "1rem"
-                                }
-                            )
-                        ]),
+                            html.H5("Objectives", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
+                            dbc.Button([
+                                html.I(className="bi bi-plus-lg")
+                            ],
+                            id="add-objective-button",
+                            color="success",
+                            size="sm",
+                            className="float-end",
+                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                            ),
+                        ], className="mb-3"),
                         
                         # Objectives container
                         html.Div(id="objective-container", children=[
-                            # Initial objective
-                            html.Div([
-                                dbc.Input(
-                                    id={'type': 'objective-name', 'index': initial_objective_id},
-                                    placeholder="Objective 1",
-                                    className="mb-2",
-                                    style={"borderRadius": "8px", "fontSize": "1rem"}
-                                ),
-                                dcc.Dropdown(
-                                    id={'type': 'objective-direction', 'index': initial_objective_id},
-                                    options=[
-                                        {"label": "Minimize", "value": "min"},
-                                        {"label": "Maximize", "value": "max"}
-                                    ],
-                                    placeholder="Select direction...",
-                                    className="mb-2",
-                                    style={"borderRadius": "8px"}
-                                ),
-                                html.Div(id={'type': 'objective-direction-container', 'index': initial_objective_id}, style={"display": "none"}),
-                                html.Div(id={'type': 'objective-bounds-container', 'index': initial_objective_id}),
-                                html.Div(id={'type': 'objective-block', 'index': initial_objective_id}, style={"display": "none"})
-                            ], className="mb-3", style={
-                                "padding": "1rem",
-                                "backgroundColor": "#f8f9fa",
-                                "borderRadius": "8px"
-                            })
+                            # Initial objective row - COMPACT
+                            dbc.Row([
+                                dbc.Col([
+                                    dbc.Input(
+                                        id={'type': 'objective-name', 'index': initial_objective_id},
+                                        placeholder="Objective name",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    )
+                                ], width=4),
+                                dbc.Col([
+                                    dcc.Dropdown(
+                                        id={'type': 'objective-direction', 'index': initial_objective_id},
+                                        options=[
+                                            {"label": "Minimize", "value": "min"},
+                                            {"label": "Maximize", "value": "max"}
+                                        ],
+                                        placeholder="Direction",
+                                        clearable=False,
+                                        style={"fontSize": "0.875rem"}
+                                    )
+                                ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+                                dbc.Col([
+                                    dbc.Input(
+                                        id={'type': 'objective-lower-bound', 'index': initial_objective_id},
+                                        placeholder="Min",
+                                        type="number",
+                                        step="any",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    )
+                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+                                dbc.Col([
+                                    dbc.Input(
+                                        id={'type': 'objective-upper-bound', 'index': initial_objective_id},
+                                        placeholder="Max",
+                                        type="number",
+                                        step="any",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    )
+                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+                                dbc.Col([
+                                    dbc.Button(
+                                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                                        id={'type': 'delete-objective-btn', 'index': initial_objective_id},
+                                        color="danger",
+                                        outline=True,
+                                        size="sm",
+                                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                                    )
+                                ], width=1, style={"paddingLeft": "0.25rem"}),
+                            ], className="mb-2 align-items-center"),
+                            # Hidden divs for compatibility
+                            html.Div(id={'type': 'objective-direction-container', 'index': initial_objective_id}, style={"display": "none"}),
+                            html.Div(id={'type': 'objective-bounds-container', 'index': initial_objective_id}, style={"display": "none"}),
+                            html.Div(id={'type': 'objective-block', 'index': initial_objective_id}, style={"display": "none"}),
                         ]),
-                        
-                        # Add objective button
-                        dbc.Button([
-                            html.I(className="bi bi-plus me-2"),
-                            "Add Objective"
-                        ],
-                        id="add-objective-button",
-                        outline=True,
-                        color="success",
-                        size="sm",
-                        className="mb-3",
-                        style={"borderRadius": "8px"}
-                        ),
-                    ], md=6, className="ps-4"),
-                ]),
-                
-                # Extra columns section (collapsible)
-                html.Hr(className="my-4"),
-                
-                dbc.Collapse([
-                    html.H5("Additional Columns (Optional)", className="mb-3", style={"fontWeight": "600"}),
-                    html.Div(id="extra-column-container", children=[]),
-                    dbc.Button([
-                        html.I(className="bi bi-plus me-2"),
-                        "Add Extra Column"
-                    ],
-                    id="add-extra-column-button",
-                    outline=True,
-                    color="secondary",
-                    size="sm",
-                    className="mb-3",
-                    style={"borderRadius": "8px"}
-                    ),
-                ], id="extra-columns-collapse", is_open=False),
-                
+                    ], style={"padding": "1.25rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white",
+                    "height": "100%"
+                })
+            ], md=6, className="mb-3"),
+        ]),
+        
+        # Extra Columns Card (Collapsible)
+        dbc.Row([
+            dbc.Col([
                 dbc.Button([
-                    html.I(className="bi bi-gear me-2"),
-                    "Show Extra Columns"
+                    html.I(className="bi bi-plus-square me-2"),
+                    "Add Extra Columns (Optional)"
                 ],
                 id="toggle-extra-columns",
                 outline=True,
                 color="secondary",
                 size="sm",
                 className="mb-3",
-                style={"borderRadius": "8px"}
+                style={"borderRadius": "6px"}
                 ),
                 
-                # Sampling configuration
-                html.Hr(className="my-4"),
-                html.H5("Initial Sampling", className="mb-3", style={"fontWeight": "600"}),
-                
-                dbc.Row([
-                    dbc.Col([
-                        html.Label("Sampling Method", className="form-label"),
-                        dcc.Dropdown(
-                            id="starting-sampling-DD",
-                            options=[
-                                {"label": "None", "value": "none"},
-                                {"label": "Random", "value": "random"},
-                                {"label": "Latin Hypercube", "value": "latin_hypercube"},
-                                {"label": "Sobol", "value": "sobol"},
-                            ],
-                            value="latin_hypercube",
-                            style={"borderRadius": "8px"}
-                        ),
-                    ], md=6),
-                    dbc.Col([
-                        html.Label("Number of Points", className="form-label"),
-                        dbc.Input(
-                            id="nb-sampling-points",
-                            type="number",
-                            value=10,
-                            min=1,
-                            style={"borderRadius": "8px"}
-                        ),
-                    ], md=6)
-                ], className="mb-4"),
-                
-                # Continue button
-                dbc.Row([
-                    dbc.Col([
-                        dcc.Link(
+                dbc.Collapse([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6("Extra Columns", className="mb-3", style={"fontWeight": "600"}),
+                            html.Div(id="extra-column-container", children=[]),
                             dbc.Button([
-                                "Continue to Experiments"
+                                html.I(className="bi bi-plus me-2"),
+                                "Add Column"
                             ],
-                            id="create-domain-btn",
-                            color="primary",
-                            size="lg",
-                            className="w-100",
-                            style={
-                                "backgroundColor": "#6366f1",
-                                "border": "none",
-                                "borderRadius": "8px",
-                                "padding": "0.75rem",
-                                "fontSize": "1rem",
-                                "fontWeight": "500",
-                                "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.2)"
-                            }
-                            ), 
-                            href="/Opt-run"
-                        )
-                    ], md=6, className="mx-auto")
-                ])
-            ], style={"padding": "2rem"})
-        ], style={
-            "borderRadius": "16px",
-            "border": "1px solid #e0e0e0",
-            "boxShadow": "0 4px 12px rgba(0,0,0,0.08)",
-            "backgroundColor": "white"
-        }),
+                            id="add-extra-column-button",
+                            outline=True,
+                            color="secondary",
+                            size="sm",
+                            style={"borderRadius": "6px"}
+                            ),
+                        ], style={"padding": "1rem"})
+                    ], style={
+                        "borderRadius": "12px",
+                        "border": "1px solid #e0e0e0",
+                        "backgroundColor": "white"
+                    })
+                ], id="extra-columns-collapse", is_open=False),
+            ], md=12)
+        ]),
+        
+        # Sampling Configuration Card
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Initial Sampling", className="mb-3", style={"fontWeight": "600"}),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label("Method", className="form-label small text-muted"),
+                                dcc.Dropdown(
+                                    id="starting-sampling-DD",
+                                    options=[
+                                        {"label": "None", "value": "none"},
+                                        {"label": "Random", "value": "random"},
+                                        {"label": "Latin Hypercube", "value": "latin_hypercube"},
+                                        {"label": "Sobol", "value": "sobol"},
+                                    ],
+                                    value="latin_hypercube",
+                                    clearable=False,
+                                    style={"fontSize": "0.875rem"}
+                                ),
+                            ], md=6),
+                            dbc.Col([
+                                html.Label("Points", className="form-label small text-muted"),
+                                dbc.Input(
+                                    id="nb-sampling-points",
+                                    type="number",
+                                    value=10,
+                                    min=1,
+                                    size="sm",
+                                    style={"borderRadius": "6px"}
+                                ),
+                            ], md=6)
+                        ])
+                    ], style={"padding": "1.25rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white"
+                })
+            ], md=12, className="mb-3")
+        ]),
+        
+        # Continue Button
+        dbc.Row([
+            dbc.Col([
+                dcc.Link(
+                    dbc.Button([
+                        html.I(className="bi bi-arrow-right-circle me-2"),
+                        "Continue to Experiments"
+                    ],
+                    id="create-domain-btn",
+                    color="primary",
+                    size="lg",
+                    className="w-100",
+                    style={
+                        "backgroundColor": "#6366f1",
+                        "border": "none",
+                        "borderRadius": "8px",
+                        "padding": "0.75rem",
+                        "fontSize": "1rem",
+                        "fontWeight": "500",
+                        "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.2)"
+                    }
+                    ), 
+                    href="/Opt-run"
+                )
+            ], md=6, className="mx-auto")
+        ]),
         
         # Hidden stores
         dcc.Store(id='parameter-store', data=[], storage_type="session"),
         dcc.Store(id='objective-store', data=[], storage_type="session"),
         dcc.Store(id="extra-columns-store", data=[], storage_type="session"),
+        
     ], fluid=True, style={
-        "maxWidth": "1200px",
+        "maxWidth": "1400px",
         "backgroundColor": "#f8f9fa",
         "minHeight": "100vh",
         "paddingTop": "2rem",

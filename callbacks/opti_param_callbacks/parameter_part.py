@@ -1,292 +1,213 @@
+# Add these to callbacks/opti_param_callbacks/parameter_part.py
+
 import dash
-from dash import callback, Input, Output, State, MATCH, ALL, html, dcc, ctx
+from dash import callback, Input, Output, State, MATCH, ALL, html, dcc, ctx, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import uuid
-import json
 
-from utils.data_handling import find_component_id_in_structure
-
-## UPDATED PARAMETERS CALLBACKS WITH LABELS ##
-
-# Show type dropdown with label when name is entered
-@callback(
-    Output({'type': 'parameter-type-container', 'index': MATCH}, 'children'),
-    Input({'type': 'parameter-name', 'index': MATCH}, 'value'),
-    prevent_initial_call=True
-)
-def show_type_dropdown(name):
-    if not name:
-        return ""
-
-    return html.Div([
-        dbc.Label("Parameter Type", className="fw-bold"),  # ADDED: Label included with content
-        dcc.Dropdown(
-            id={'type': 'parameter-type', 'index': ctx.triggered_id['index']},
-            options=[
-                {"label": "Continuous", "value": "float"},
-                {"label": "Discrete", "value": "int"},
-                {"label": "Categorical", "value": "cat"},
-            ],
-            placeholder="Select parameter type...",
-            style={"fontSize": "16px"},
-        )
-    ])
-
-# Add a new parameter block within the same card structure
+# COMPACT: Add parameter callback
 @callback(
     Output("parameter-container", "children", allow_duplicate=True),
     Input("add-para-button", "n_clicks"),
     State("parameter-container", "children"),
-    prevent_initial_call="initial_duplicate"
+    prevent_initial_call=True
 )
-def add_new_parameter(n_clicks, current_children):
+def add_new_parameter_compact(n_clicks, current_children):
+    """Add new parameter row - compact version"""
     if not n_clicks:
         raise PreventUpdate
 
     new_id = str(uuid.uuid4())
 
-    # Create new parameter block that matches the layout structure
-    new_block = dbc.Card([
-        dbc.CardBody([
-            dbc.Row(
-                id={'type': 'parameter-block', 'index': new_id},
-                children=[
-                    dbc.Col([
-                        dbc.Label("Parameter Name", className="fw-bold"),
-                        dbc.Input(
-                            id={'type': 'parameter-name', 'index': new_id},
-                            placeholder="e.g., Temperature, Concentration...",
-                            type="text",
-                            size="md",
-                            style={"fontSize": "16px"}
-                        ),
-                    ], width=5),
-                    dbc.Col([
-                        html.Div(id={'type': 'parameter-type-container', 'index': new_id})  # No static label
-                    ], width=5),
-                    dbc.Col([
-                        dbc.Label("Delete", className="fw-bold"),
-                        dbc.Button(
-                            "✕",
-                            id={'type': 'delete-parameter', 'index': new_id},
-                            color="outline-danger",
-                            size="sm",
-                            className="w-100"
-                        ),
-                    ], width=2)
-                ],
-                className="align-items-end mb-3"
-            ),
-            # Type-specific configuration area
-            html.Div(id={'type': 'parameter-type-specific-container', 'index': new_id}),
-        ])
-    ], className="mb-3 shadow-sm")
+    new_row = html.Div([
+        dbc.Row([
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'parameter-name', 'index': new_id},
+                    placeholder="Parameter name",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=4),
+            dbc.Col([
+                dcc.Dropdown(
+                    id={'type': 'parameter-type', 'index': new_id},
+                    options=[
+                        {"label": "Continuous", "value": "float"},
+                        {"label": "Discrete", "value": "int"},
+                        {"label": "Categorical", "value": "cat"},
+                    ],
+                    value="float",
+                    placeholder="Type",
+                    clearable=False,
+                    style={"fontSize": "0.875rem"}
+                )
+            ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'parameter-type-specific-lower', 'index': new_id},
+                    placeholder="Min",
+                    type="number",
+                    step="any",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'parameter-type-specific-upper', 'index': new_id},
+                    placeholder="Max",
+                    type="number",
+                    step="any",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+            dbc.Col([
+                dbc.Button(
+                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                    id={'type': 'delete-parameter', 'index': new_id},
+                    color="danger",
+                    outline=True,
+                    size="sm",
+                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                )
+            ], width=1, style={"paddingLeft": "0.25rem"}),
+        ], className="mb-2 align-items-center"),
+        # Hidden divs for compatibility
+        html.Div(id={'type': 'parameter-type-container', 'index': new_id}, style={"display": "none"}),
+        html.Div(id={'type': 'parameter-type-specific-container', 'index': new_id}, style={"display": "none"}),
+        html.Div(id={'type': 'parameter-block', 'index': new_id}, style={"display": "none"}),
+    ])
 
-    return current_children + [new_block]
+    return current_children + [new_row]
 
-# Render type-specific component with better styling
+
+# COMPACT: Add objective callback
 @callback(
-    Output({'type': 'parameter-type-specific-container', 'index': MATCH}, 'children'),
-    Input({'type': 'parameter-type', 'index': MATCH}, 'value'),
+    Output("objective-container", "children", allow_duplicate=True),
+    Input("add-objective-button", "n_clicks"),
+    State("objective-container", "children"),
     prevent_initial_call=True
 )
-def render_type_specific_component(selected_type):
-    if not selected_type:
-        return ""
+def add_new_objective_compact(n_clicks, current_children):
+    """Add new objective row - compact version"""
+    if not n_clicks:
+        raise PreventUpdate
 
-    # Continuous: two numeric inputs for bounds
-    if selected_type == "float":
-        return dbc.Card([
-            dbc.CardBody([
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Label("Lower Bound", className="fw-bold"),
-                        dbc.Input(
-                            type="number",
-                            id={'type': 'parameter-type-specific-lower', 'index': ctx.triggered_id['index']},
-                            step="any",
-                        )
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Label("Upper Bound", className="fw-bold"),
-                        dbc.Input(
-                            type="number",
-                            id={'type': 'parameter-type-specific-upper', 'index': ctx.triggered_id['index']},
-                            step="any",
-                        )
-                    ], width=6),
-                ]),
-            ])
-        ], className="mt-2", style={"backgroundColor": "#f8f9fa"})
+    new_id = str(uuid.uuid4())
 
-    # Discrete & Categorical: textarea for values
-    elif selected_type in ["int", "cat"]:
-        example = "1 2 3" if selected_type == "int" else "red,blue,green,yellow"
-        help_text = "Enter specific numeric values" if selected_type == "int" else "Enter text options"
-        
-        return dbc.Card([
-            dbc.CardBody([
-                dbc.Label(f"{help_text} (comma or space separated)", className="fw-bold"),
-                dcc.Textarea(
-                    id={'type': 'parameter-type-specific', 'index': ctx.triggered_id['index']},
-                    placeholder=f"Example: {example}",
-                    style={"width": "100%", "height": "80px", "fontSize": "16px"},
-                    className="form-control"
-                ),
-                html.Small([
-                    html.I(className="bi bi-info-circle text-info me-1"),
-                    f"Each value will be a separate option for this parameter"
-                ], className="text-muted mt-2")
-            ])
-        ], className="mt-2", style={"backgroundColor": "#f8f9fa"})
+    new_row = html.Div([
+        dbc.Row([
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'objective-name', 'index': new_id},
+                    placeholder="Objective name",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=4),
+            dbc.Col([
+                dcc.Dropdown(
+                    id={'type': 'objective-direction', 'index': new_id},
+                    options=[
+                        {"label": "Minimize", "value": "min"},
+                        {"label": "Maximize", "value": "max"}
+                    ],
+                    placeholder="Direction",
+                    clearable=False,
+                    style={"fontSize": "0.875rem"}
+                )
+            ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'objective-lower-bound', 'index': new_id},
+                    placeholder="Min",
+                    type="number",
+                    step="any",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'objective-upper-bound', 'index': new_id},
+                    placeholder="Max",
+                    type="number",
+                    step="any",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+            dbc.Col([
+                dbc.Button(
+                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                    id={'type': 'delete-objective-btn', 'index': new_id},
+                    color="danger",
+                    outline=True,
+                    size="sm",
+                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                )
+            ], width=1, style={"paddingLeft": "0.25rem"}),
+        ], className="mb-2 align-items-center"),
+        # Hidden divs for compatibility
+        html.Div(id={'type': 'objective-direction-container', 'index': new_id}, style={"display": "none"}),
+        html.Div(id={'type': 'objective-bounds-container', 'index': new_id}, style={"display": "none"}),
+        html.Div(id={'type': 'objective-block', 'index': new_id}, style={"display": "none"}),
+    ])
 
-    return ""
+    return current_children + [new_row]
 
-# Enhanced parameter saving with better display
+
+# Toggle extra columns
 @callback(
-    Output("parameter-store", "data"),
-    Output("parameter-display", "children"),
-    Input("save-parameters-btn", "n_clicks"),
-    State({"type": "parameter-name", "index": ALL}, "id"),
-    State({"type": "parameter-name", "index": ALL}, "value"),
-    State({"type": "parameter-type", "index": ALL}, "id"),
-    State({"type": "parameter-type", "index": ALL}, "value"),
-    # Float-specific inputs
-    State({'type': 'parameter-type-specific-lower', 'index': ALL}, 'id'),
-    State({'type': 'parameter-type-specific-lower', 'index': ALL}, 'value'),
-    State({'type': 'parameter-type-specific-upper', 'index': ALL}, 'id'),
-    State({'type': 'parameter-type-specific-upper', 'index': ALL}, 'value'),
-    # Textarea for int and cat
-    State({"type": "parameter-type-specific", "index": ALL}, "id"),
-    State({"type": "parameter-type-specific", "index": ALL}, "value"),
-    prevent_initial_call=False
+    [Output("extra-columns-collapse", "is_open", allow_duplicate=True),
+     Output("toggle-extra-columns", "children", allow_duplicate=True)],
+    Input("toggle-extra-columns", "n_clicks"),
+    State("extra-columns-collapse", "is_open"),
+    prevent_initial_call=True
 )
-def update_parameters(n_clicks, name_ids, names, type_ids, types,
-                      lower_ids, lower_values, upper_ids, upper_values,
-                      text_ids, text_values):
-
-    # Map IDs to values
-    name_dict = {nid['index']: val for nid, val in zip(name_ids, names) if val}
-    type_dict = {tid['index']: val for tid, val in zip(type_ids, types) if val}
-    lower_dict = {d['index']: val for d, val in zip(lower_ids, lower_values) if val is not None}
-    upper_dict = {d['index']: val for d, val in zip(upper_ids, upper_values) if val is not None}
-    text_dict = {d['index']: val for d, val in zip(text_ids, text_values) if val}
-
-    parameters = []
-    for idx, name in name_dict.items():
-        if not name or idx not in type_dict or not type_dict[idx]:
-            continue
-
-        typ = type_dict[idx]
-
-        if typ == "float":
-            # Float: store as [lower, upper] floats
-            try:
-                lower = float(lower_dict.get(idx, 0))
-                upper = float(upper_dict.get(idx, 1))
-                if lower >= upper:
-                    continue  # Skip invalid ranges
-            except (TypeError, ValueError):
-                continue
-            type_info = {"range": [lower, upper]}
-
-        elif typ == "int":
-            # Discrete (numeric values)
-            raw_val = text_dict.get(idx, "")
-            parsed_vals = []
-            for v in str(raw_val).replace(",", " ").split():
-                try:
-                    parsed_vals.append(float(v))
-                except ValueError:
-                    continue
-            if not parsed_vals:
-                continue
-            type_info = {"range": parsed_vals}
-
-        else:  # "cat"
-            raw_val = text_dict.get(idx, "")
-            parsed_vals = [v.strip() for v in str(raw_val).replace(",", " ").split() if v.strip()]
-            if not parsed_vals:
-                continue
-            type_info = {"values": parsed_vals}
-
-        parameters.append({
-            "id": idx,
-            "name": name,
-            "type": typ,
-            "type_info": type_info
-        })
-
-    # Create enhanced display
-    if parameters:
-        display_items = []
-        for i, param in enumerate(parameters, 1):
-            if param["type"] == "float":
-                range_str = f"[{param['type_info']['range'][0]} - {param['type_info']['range'][1]}]"
-            elif param["type"] == "int":
-                range_str = f"Values: {param['type_info']['range']}"
-            else:
-                range_str = f"Options: {param['type_info']['values']}"
-            
-            display_items.append(
-                dbc.Card([
-                    dbc.CardBody([
-                        html.H6(f"{i}. {param['name']}", className="mb-1"),
-                        dbc.Badge(param["type"].upper(), color="primary", className="me-2"),
-                        html.Small(range_str, className="text-muted")
-                    ])
-                ], className="mb-2")
-            )
-        display = html.Div(display_items)
-    else:
-        display = html.P("No parameters defined yet", className="text-muted")
-
+def toggle_extra_columns(n_clicks, is_open):
+    """Toggle the extra columns section"""
     if n_clicks:
-        return parameters, display
-    return dash.no_update, display
+        new_state = not is_open
+        button_text = [
+            html.I(className="bi bi-dash-square me-2" if new_state else "bi bi-plus-square me-2"),
+            "Hide Extra Columns" if new_state else "Add Extra Columns (Optional)"
+        ]
+        return new_state, button_text
+    return is_open, no_update
 
-# FIXED: Delete parameter block with correct card structure navigation
+
+# Callback to handle domain creation and redirect
 @callback(
-    Output("parameter-container", "children", allow_duplicate=True),
-    Output("parameter-store", "data", allow_duplicate=True),
-    Input({'type': 'delete-parameter', 'index': ALL}, 'n_clicks'),
-    State("parameter-container", "children"),
-    State("parameter-store", "data"),
-    prevent_initial_call="initial_duplicate"
+    Output('redirect-to-opti-run', 'href', allow_duplicate=True),
+    Input('create-domain-btn', 'n_clicks'),
+    [State({'type': 'parameter-name', 'index': ALL}, 'value'),
+     State({'type': 'parameter-type', 'index': ALL}, 'value'),
+     State({'type': 'parameter-type-specific-lower', 'index': ALL}, 'value'),
+     State({'type': 'parameter-type-specific-upper', 'index': ALL}, 'value'),
+     State({'type': 'objective-name', 'index': ALL}, 'value'),
+     State({'type': 'objective-direction', 'index': ALL}, 'value'),
+     State('starting-sampling-DD', 'value'),
+     State('nb-sampling-points', 'value')],
+    prevent_initial_call=True
 )
-def delete_parameter(n_clicks_list, container_children, stored_data):
-    if not any(n_clicks_list):
+def create_domain_and_redirect(n_clicks, param_names, param_types, param_lowers, param_uppers,
+                                obj_names, obj_directions, sampling_method, num_samples):
+    """Create domain and redirect to optimization run page"""
+    if not n_clicks:
         raise PreventUpdate
-
-    triggered_id = ctx.triggered_id
-    if not triggered_id:
-        raise PreventUpdate
-
-    index_to_delete = triggered_id['index']
-    print(f"🗑️ Attempting to delete parameter with index: {index_to_delete}")
-
-    # ROBUST: Find and remove the card containing our parameter
-    new_children = []
-    for i, child in enumerate(container_children):
-        try:
-            # Search for parameter-block with our index in this card
-            found_id = find_component_id_in_structure(child, 'parameter-block')
-            
-            if found_id != index_to_delete:
-                new_children.append(child)
-            else:
-                print(f"✅ Found and removing parameter card #{i}: {index_to_delete}")
-                
-        except Exception as e:
-            print(f"⚠️ Error processing child #{i}: {e}")
-            # Keep the child if we can't determine its ID
-            new_children.append(child)
-
-    # Remove from store
-    new_store = [
-        param for param in stored_data or []
-        if param.get("id") != index_to_delete
-    ]
-
-    return new_children, new_store
+    
+    # Validate inputs
+    if not param_names or not any(param_names):
+        return no_update
+    
+    if not obj_names or not any(obj_names):
+        return no_update
+    
+    # Here you would normally save the domain configuration
+    # This callback should call the same logic as your existing domain creation callback
+    # For now, just redirect
+    return '/Opt-run'

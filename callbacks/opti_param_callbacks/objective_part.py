@@ -1,4 +1,4 @@
-import dash
+"""import dash
 from dash import callback, Input, Output, State, MATCH, ALL, html, dcc, ctx
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
@@ -231,4 +231,4 @@ def delete_objective(n_clicks_list, current_children, stored_data):
         if obj.get("id") != index_to_delete
     ]
 
-    return new_children, new_store
+    return new_children, new_store"""
