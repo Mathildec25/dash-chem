@@ -1,4 +1,4 @@
-# Add these to callbacks/opti_param_callbacks/parameter_part.py
+"""# Add these to callbacks/opti_param_callbacks/parameter_part.py
 
 import dash
 from dash import callback, Input, Output, State, MATCH, ALL, html, dcc, ctx, no_update
@@ -14,7 +14,7 @@ import uuid
     prevent_initial_call=True
 )
 def add_new_parameter_compact(n_clicks, current_children):
-    """Add new parameter row - compact version"""
+
     if not n_clicks:
         raise PreventUpdate
 
@@ -92,7 +92,7 @@ def add_new_parameter_compact(n_clicks, current_children):
     prevent_initial_call=True
 )
 def add_new_objective_compact(n_clicks, current_children):
-    """Add new objective row - compact version"""
+
     if not n_clicks:
         raise PreventUpdate
 
@@ -169,7 +169,7 @@ def add_new_objective_compact(n_clicks, current_children):
     prevent_initial_call=True
 )
 def toggle_extra_columns(n_clicks, is_open):
-    """Toggle the extra columns section"""
+
     if n_clicks:
         new_state = not is_open
         button_text = [
@@ -196,7 +196,6 @@ def toggle_extra_columns(n_clicks, is_open):
 )
 def create_domain_and_redirect(n_clicks, param_names, param_types, param_lowers, param_uppers,
                                 obj_names, obj_directions, sampling_method, num_samples):
-    """Create domain and redirect to optimization run page"""
     if not n_clicks:
         raise PreventUpdate
     
@@ -210,4 +209,4 @@ def create_domain_and_redirect(n_clicks, param_names, param_types, param_lowers,
     # Here you would normally save the domain configuration
     # This callback should call the same logic as your existing domain creation callback
     # For now, just redirect
-    return '/Opt-run'
+    return '/Opt-run'"""
