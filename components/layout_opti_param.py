@@ -4,7 +4,6 @@ import uuid
 
 initial_id = str(uuid.uuid4())
 initial_objective_id = str(uuid.uuid4())
-initial_extra_col_id = str(uuid.uuid4())
 
 def create_opti_param_layout():
     return dbc.Container([
@@ -35,6 +34,29 @@ def create_opti_param_layout():
             ], width=True)
         ], className="mb-4 align-items-center"),
         
+        # Alert containers
+        dbc.Row([
+            dbc.Col([
+                dbc.Alert(
+                    id="validation-alert",
+                    is_open=False,
+                    dismissable=True,
+                    className="mb-3"
+                )
+            ], md=12)
+        ]),
+        
+        dbc.Row([
+            dbc.Col([
+                dbc.Alert(
+                    id="creation-status",
+                    is_open=False,
+                    dismissable=True,
+                    className="mb-3"
+                )
+            ], md=12)
+        ]),
+        
         dbc.Row([
             # Parameters Card
             dbc.Col([
@@ -53,67 +75,70 @@ def create_opti_param_layout():
                             ),
                         ], className="mb-3"),
                         
-                        # Parameters container
+                        # Parameters container with initial row
                         html.Div(id="parameter-container", children=[
-                            # Initial parameter row - COMPACT
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Input(
-                                        id={'type': 'parameter-name', 'index': initial_id},
-                                        placeholder="Parameter name",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    )
-                                ], width=4),
-                                dbc.Col([
-                                    dcc.Dropdown(
-                                        id={'type': 'parameter-type', 'index': initial_id},
-                                        options=[
-                                            {"label": "Continuous", "value": "float"},
-                                            {"label": "Discrete", "value": "int"},
-                                            {"label": "Categorical", "value": "cat"},
-                                        ],
-                                        value="float",
-                                        placeholder="Type",
-                                        clearable=False,
-                                        style={"fontSize": "0.875rem"}
-                                    )
-                                ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-                                dbc.Col([
-                                    dbc.Input(
-                                        id={'type': 'parameter-type-specific-lower', 'index': initial_id},
-                                        placeholder="Min",
-                                        type="number",
-                                        step="any",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    )
-                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-                                dbc.Col([
-                                    dbc.Input(
-                                        id={'type': 'parameter-type-specific-upper', 'index': initial_id},
-                                        placeholder="Max",
-                                        type="number",
-                                        step="any",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    )
-                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-                                dbc.Col([
-                                    dbc.Button(
-                                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                                        id={'type': 'delete-parameter', 'index': initial_id},
-                                        color="danger",
-                                        outline=True,
-                                        size="sm",
-                                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                                    )
-                                ], width=1, style={"paddingLeft": "0.25rem"}),
-                            ], className="mb-2 align-items-center"),
-                            # Hidden divs for compatibility
-                            html.Div(id={'type': 'parameter-type-container', 'index': initial_id}, style={"display": "none"}),
-                            html.Div(id={'type': 'parameter-type-specific-container', 'index': initial_id}, style={"display": "none"}),
-                            html.Div(id={'type': 'parameter-block', 'index': initial_id}, style={"display": "none"}),
+                            html.Div([
+                                dbc.Row([
+                                    dbc.Col([
+                                        dbc.Input(
+                                            id={'type': 'parameter-name', 'index': initial_id},
+                                            placeholder="Parameter name",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
+                                        )
+                                    ], width=3),
+                                    dbc.Col([
+                                        dcc.Dropdown(
+                                            id={'type': 'parameter-type', 'index': initial_id},
+                                            options=[
+                                                {"label": "Continuous", "value": "float"},
+                                                {"label": "Discrete", "value": "int"},
+                                                {"label": "Categorical", "value": "cat"},
+                                            ],
+                                            value="float",
+                                            placeholder="Type",
+                                            clearable=False,
+                                            style={"fontSize": "0.875rem"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        html.Div(id={'type': 'parameter-inputs', 'index': initial_id}, children=[
+                                            dbc.Row([
+                                                dbc.Col([
+                                                    dbc.Input(
+                                                        id={'type': 'parameter-min', 'index': initial_id},
+                                                        placeholder="Min",
+                                                        type="number",
+                                                        step="any",
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    )
+                                                ], width=6),
+                                                dbc.Col([
+                                                    dbc.Input(
+                                                        id={'type': 'parameter-max', 'index': initial_id},
+                                                        placeholder="Max",
+                                                        type="number",
+                                                        step="any",
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    )
+                                                ], width=6),
+                                            ])
+                                        ])
+                                    ], width=6),
+                                    dbc.Col([
+                                        dbc.Button(
+                                            html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                                            id={'type': 'delete-parameter', 'index': initial_id},
+                                            color="danger",
+                                            outline=True,
+                                            size="sm",
+                                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                                        )
+                                    ], width=1),
+                                ], className="mb-2 align-items-center"),
+                            ], id={'type': 'parameter-row', 'index': initial_id})
                         ]),
                     ], style={"padding": "1.25rem"})
                 ], style={
@@ -142,65 +167,62 @@ def create_opti_param_layout():
                             ),
                         ], className="mb-3"),
                         
-                        # Objectives container
+                        # Objectives container with initial row
                         html.Div(id="objective-container", children=[
-                            # Initial objective row - COMPACT
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Input(
-                                        id={'type': 'objective-name', 'index': initial_objective_id},
-                                        placeholder="Objective name",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    )
-                                ], width=4),
-                                dbc.Col([
-                                    dcc.Dropdown(
-                                        id={'type': 'objective-direction', 'index': initial_objective_id},
-                                        options=[
-                                            {"label": "Minimize", "value": "min"},
-                                            {"label": "Maximize", "value": "max"}
-                                        ],
-                                        placeholder="Direction",
-                                        clearable=False,
-                                        style={"fontSize": "0.875rem"}
-                                    )
-                                ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-                                dbc.Col([
-                                    dbc.Input(
-                                        id={'type': 'objective-lower-bound', 'index': initial_objective_id},
-                                        placeholder="Min",
-                                        type="number",
-                                        step="any",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    )
-                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-                                dbc.Col([
-                                    dbc.Input(
-                                        id={'type': 'objective-upper-bound', 'index': initial_objective_id},
-                                        placeholder="Max",
-                                        type="number",
-                                        step="any",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    )
-                                ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-                                dbc.Col([
-                                    dbc.Button(
-                                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                                        id={'type': 'delete-objective-btn', 'index': initial_objective_id},
-                                        color="danger",
-                                        outline=True,
-                                        size="sm",
-                                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                                    )
-                                ], width=1, style={"paddingLeft": "0.25rem"}),
-                            ], className="mb-2 align-items-center"),
-                            # Hidden divs for compatibility
-                            html.Div(id={'type': 'objective-direction-container', 'index': initial_objective_id}, style={"display": "none"}),
-                            html.Div(id={'type': 'objective-bounds-container', 'index': initial_objective_id}, style={"display": "none"}),
-                            html.Div(id={'type': 'objective-block', 'index': initial_objective_id}, style={"display": "none"}),
+                            html.Div([
+                                dbc.Row([
+                                    dbc.Col([
+                                        dbc.Input(
+                                            id={'type': 'objective-name', 'index': initial_objective_id},
+                                            placeholder="Objective name",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
+                                        )
+                                    ], width=4),
+                                    dbc.Col([
+                                        dcc.Dropdown(
+                                            id={'type': 'objective-direction', 'index': initial_objective_id},
+                                            options=[
+                                                {"label": "Minimize", "value": "min"},
+                                                {"label": "Maximize", "value": "max"}
+                                            ],
+                                            placeholder="Direction",
+                                            clearable=False,
+                                            style={"fontSize": "0.875rem"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        dbc.Input(
+                                            id={'type': 'objective-lower', 'index': initial_objective_id},
+                                            placeholder="Min",
+                                            type="number",
+                                            step="any",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        dbc.Input(
+                                            id={'type': 'objective-upper', 'index': initial_objective_id},
+                                            placeholder="Max",
+                                            type="number",
+                                            step="any",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        dbc.Button(
+                                            html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                                            id={'type': 'delete-objective', 'index': initial_objective_id},
+                                            color="danger",
+                                            outline=True,
+                                            size="sm",
+                                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                                        )
+                                    ], width=1),
+                                ], className="mb-2 align-items-center"),
+                            ], id={'type': 'objective-row', 'index': initial_objective_id})
                         ]),
                     ], style={"padding": "1.25rem"})
                 ], style={
@@ -300,26 +322,24 @@ def create_opti_param_layout():
         # Continue Button
         dbc.Row([
             dbc.Col([
-                dcc.Link(
-                    dbc.Button([
-                        html.I(className="bi bi-arrow-right-circle me-2"),
-                        "Continue to Experiments"
-                    ],
-                    id="create-domain-btn",
-                    color="primary",
-                    size="lg",
-                    className="w-100",
-                    style={
-                        "backgroundColor": "#6366f1",
-                        "border": "none",
-                        "borderRadius": "8px",
-                        "padding": "0.75rem",
-                        "fontSize": "1rem",
-                        "fontWeight": "500",
-                        "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.2)"
-                    }
-                    ), 
-                    href="/Opt-run"
+                dbc.Button([
+                    html.I(className="bi bi-arrow-right-circle me-2"),
+                    "Continue to Experiments"
+                ],
+                id="create-domain-btn",
+                color="primary",
+                size="lg",
+                className="w-100",
+                disabled=True,
+                style={
+                    "backgroundColor": "#6366f1",
+                    "border": "none",
+                    "borderRadius": "8px",
+                    "padding": "0.75rem",
+                    "fontSize": "1rem",
+                    "fontWeight": "500",
+                    "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.2)"
+                }
                 )
             ], md=6, className="mx-auto")
         ]),

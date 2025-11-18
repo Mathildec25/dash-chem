@@ -1,33 +1,24 @@
+"""
+BoFire utilities for Bayesian Optimization
+Based on working code from user
+"""
+
 import pandas as pd
 import numpy as np
-from collections import Counter
-from matplotlib import pyplot as plt
-
-from pymoo.problems import get_problem
-from pymoo.util.plotting import plot
 
 import bofire.strategies.api as strategies
-from bofire.benchmarks.data.photoswitches import EXPERIMENTS
-from bofire.benchmarks.LookupTableBenchmark import LookupTableBenchmark
-from bofire.benchmarks.single import (Ackley, Branin, Branin30, Hartmann, Hartmann6plus, Himmelblau)
-from bofire.benchmarks.multi import DTLZ2, BNH, TNK, ZDT1, SnarBenchmark, CrossCoupling
 from bofire.data_models.enum import SamplingMethodEnum
-from bofire.data_models.acquisition_functions.api import (qLogEI, qLogNEI, qNEI, qEI, qSR, qUCB, qPI, qLogEI, qLogNEI, qNegIntPosVar,
-                                                          qEHVI, qLogEHVI, qNEHVI, qLogNEHVI) 
+from bofire.data_models.acquisition_functions.api import qLogNEI, qLogNEHVI
 from bofire.data_models.api import Domain, Inputs, Outputs
-from bofire.data_models.features.api import ContinuousInput, DiscreteInput, CategoricalDescriptorInput, CategoricalInput, CategoricalMolecularInput, ContinuousOutput
+from bofire.data_models.features.api import (
+    ContinuousInput, 
+    DiscreteInput, 
+    CategoricalInput, 
+    ContinuousOutput
+)
 from bofire.data_models.objectives.api import MinimizeObjective, MaximizeObjective
-from bofire.data_models.domain.api import Constraints
-from bofire.data_models.constraints.api import (LinearEqualityConstraint, LinearInequalityConstraint, ProductInequalityConstraint)
-from bofire.data_models.strategies.api import (RandomStrategy, SoboStrategy, MoboStrategy, QparegoStrategy)
-from bofire.data_models.surrogates.api import (SingleTaskGPSurrogate, MixedSingleTaskGPSurrogate, BotorchSurrogates,
-                                               TanimotoGPSurrogate, RandomForestSurrogate, XGBoostSurrogate)
-from bofire.surrogates.mlp import MLPEnsemble
-from bofire.data_models.strategies.predictives.active_learning import ActiveLearningStrategy
-from bofire.data_models.strategies.predictives.botorch import BotorchStrategy
-from bofire.runners.api import run
-from bofire.utils.multiobjective import compute_hypervolume
-from bofire.plot.objective import plot_objective_plotly
+from bofire.data_models.strategies.api import RandomStrategy, SoboStrategy, MoboStrategy
+
 
 def create_bofire_domain_from_store(parameter_data, objective_data=None):
     """
@@ -113,7 +104,7 @@ def sampling(domain, sampling_method: str, nb_points: int):
 
     Args:
         domain (Domain): BoFire domain.
-        sampling_method (str): Name of SamplingMethodEnum (e.g., 'LHS', 'UNIFORM').
+        sampling_method (str): Name of SamplingMethodEnum (e.g., 'LHS', 'UNIFORM', 'SOBOL').
         nb_points (int): Number of points to sample.
 
     Returns:
@@ -129,17 +120,24 @@ def sampling(domain, sampling_method: str, nb_points: int):
     return sampler.ask(nb_points)
 
 
-## Think about ref point and add strat and AF dyna ##
-def optimization(obj, domain, Strategy, AF, experiments):
+def bayesian_optimization(domain, experiments, n_candidates=1):
     """
     Run Bayesian optimization using the appropriate strategy based on the number of objectives.
     
     - Single objective: SoboStrategy + qLogNEI
     - Multiple objectives: MoboStrategy + qLogNEHVI
+    
+    Args:
+        domain: BoFire Domain object
+        experiments: DataFrame with completed experiments (params + objectives)
+        n_candidates: Number of candidates to suggest
+    
+    Returns:
+        DataFrame with suggested candidates
     """
     
-   # Determine number of objectives
-    n_obj = len(obj) 
+    # Determine number of objectives
+    n_obj = len(domain.outputs.features)
     
     # Select strategy and acquisition function based on objective count
     if n_obj == 1:
@@ -150,12 +148,10 @@ def optimization(obj, domain, Strategy, AF, experiments):
         raise ValueError("Domain must have at least one objective")
 
     # Initialize strategy
-    Strat = strategies.map(data_model)
+    strat = strategies.map(data_model)
     
     # Provide past experiments
-    Strat.tell(experiments=experiments)
+    strat.tell(experiments=experiments)
     
-    # Ask for next candidate
-    return Strat.ask(candidate_count=1)
-    
-    
+    # Ask for next candidates
+    return strat.ask(candidate_count=n_candidates)

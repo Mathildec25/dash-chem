@@ -1,175 +1,269 @@
-"""# Add these to callbacks/opti_param_callbacks/parameter_part.py
+"""
+Parameter configuration callbacks - ALL add/delete operations
+NO DUPLICATE OUTPUTS - each output appears only once
+"""
 
-import dash
 from dash import callback, Input, Output, State, MATCH, ALL, html, dcc, ctx, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import uuid
 
-# COMPACT: Add parameter callback
+
+# ===== PARAMETERS =====
+
 @callback(
-    Output("parameter-container", "children", allow_duplicate=True),
-    Input("add-para-button", "n_clicks"),
+    Output("parameter-container", "children"),
+    [Input("add-para-button", "n_clicks"),
+     Input({'type': 'delete-parameter', 'index': ALL}, 'n_clicks')],
     State("parameter-container", "children"),
     prevent_initial_call=True
 )
-def add_new_parameter_compact(n_clicks, current_children):
+def manage_parameters(add_clicks, delete_clicks, current_children):
+    """Handle both add and delete for parameters"""
+    triggered = ctx.triggered_id
+    
+    if triggered == "add-para-button":
+        # ADD new parameter
+        if not add_clicks:
+            raise PreventUpdate
+        
+        new_id = str(uuid.uuid4())
+        new_row = html.Div([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'parameter-name', 'index': new_id},
+                        placeholder="Parameter name",
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=3),
+                dbc.Col([
+                    dcc.Dropdown(
+                        id={'type': 'parameter-type', 'index': new_id},
+                        options=[
+                            {"label": "Continuous", "value": "float"},
+                            {"label": "Discrete", "value": "int"},
+                            {"label": "Categorical", "value": "cat"},
+                        ],
+                        value="float",
+                        placeholder="Type",
+                        clearable=False,
+                        style={"fontSize": "0.875rem"}
+                    )
+                ], width=2),
+                dbc.Col([
+                    html.Div(id={'type': 'parameter-inputs', 'index': new_id}, children=[
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Input(
+                                    id={'type': 'parameter-min', 'index': new_id},
+                                    placeholder="Min",
+                                    type="number",
+                                    step="any",
+                                    size="sm",
+                                    style={"borderRadius": "6px"}
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Input(
+                                    id={'type': 'parameter-max', 'index': new_id},
+                                    placeholder="Max",
+                                    type="number",
+                                    step="any",
+                                    size="sm",
+                                    style={"borderRadius": "6px"}
+                                )
+                            ], width=6),
+                        ])
+                    ])
+                ], width=6),
+                dbc.Col([
+                    dbc.Button(
+                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                        id={'type': 'delete-parameter', 'index': new_id},
+                        color="danger",
+                        outline=True,
+                        size="sm",
+                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                    )
+                ], width=1),
+            ], className="mb-2 align-items-center"),
+        ], id={'type': 'parameter-row', 'index': new_id})
+        
+        return current_children + [new_row]
+    
+    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-parameter':
+        # DELETE parameter
+        if not any(delete_clicks):
+            raise PreventUpdate
+        
+        index_to_delete = triggered['index']
+        new_children = []
+        for child in current_children:
+            try:
+                if child['props']['id']['index'] != index_to_delete:
+                    new_children.append(child)
+            except:
+                new_children.append(child)
+        
+        return new_children
+    
+    raise PreventUpdate
 
-    if not n_clicks:
-        raise PreventUpdate
 
-    new_id = str(uuid.uuid4())
-
-    new_row = html.Div([
-        dbc.Row([
+# Update parameter inputs based on type
+@callback(
+    Output({'type': 'parameter-inputs', 'index': MATCH}, 'children'),
+    Input({'type': 'parameter-type', 'index': MATCH}, 'value'),
+    prevent_initial_call=True
+)
+def update_parameter_inputs(param_type):
+    """Show appropriate inputs based on parameter type"""
+    idx = ctx.triggered_id['index']
+    
+    if param_type == 'float' or param_type == 'int':
+        return dbc.Row([
             dbc.Col([
                 dbc.Input(
-                    id={'type': 'parameter-name', 'index': new_id},
-                    placeholder="Parameter name",
-                    size="sm",
-                    style={"borderRadius": "6px"}
-                )
-            ], width=4),
-            dbc.Col([
-                dcc.Dropdown(
-                    id={'type': 'parameter-type', 'index': new_id},
-                    options=[
-                        {"label": "Continuous", "value": "float"},
-                        {"label": "Discrete", "value": "int"},
-                        {"label": "Categorical", "value": "cat"},
-                    ],
-                    value="float",
-                    placeholder="Type",
-                    clearable=False,
-                    style={"fontSize": "0.875rem"}
-                )
-            ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-            dbc.Col([
-                dbc.Input(
-                    id={'type': 'parameter-type-specific-lower', 'index': new_id},
+                    id={'type': 'parameter-min', 'index': idx},
                     placeholder="Min",
                     type="number",
-                    step="any",
+                    step="any" if param_type == 'float' else "1",
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
-            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
+            ], width=6),
             dbc.Col([
                 dbc.Input(
-                    id={'type': 'parameter-type-specific-upper', 'index': new_id},
+                    id={'type': 'parameter-max', 'index': idx},
                     placeholder="Max",
                     type="number",
-                    step="any",
+                    step="any" if param_type == 'float' else "1",
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
-            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-            dbc.Col([
-                dbc.Button(
-                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-parameter', 'index': new_id},
-                    color="danger",
-                    outline=True,
-                    size="sm",
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                )
-            ], width=1, style={"paddingLeft": "0.25rem"}),
-        ], className="mb-2 align-items-center"),
-        # Hidden divs for compatibility
-        html.Div(id={'type': 'parameter-type-container', 'index': new_id}, style={"display": "none"}),
-        html.Div(id={'type': 'parameter-type-specific-container', 'index': new_id}, style={"display": "none"}),
-        html.Div(id={'type': 'parameter-block', 'index': new_id}, style={"display": "none"}),
-    ])
-
-    return current_children + [new_row]
+            ], width=6),
+        ])
+    
+    elif param_type == 'cat':
+        return dbc.Input(
+            id={'type': 'parameter-categories', 'index': idx},
+            placeholder="Values (comma-separated): A, B, C",
+            type="text",
+            size="sm",
+            style={"borderRadius": "6px"}
+        )
+    
+    return html.Div()
 
 
-# COMPACT: Add objective callback
+# ===== OBJECTIVES =====
+
 @callback(
-    Output("objective-container", "children", allow_duplicate=True),
-    Input("add-objective-button", "n_clicks"),
+    Output("objective-container", "children"),
+    [Input("add-objective-button", "n_clicks"),
+     Input({'type': 'delete-objective', 'index': ALL}, 'n_clicks')],
     State("objective-container", "children"),
     prevent_initial_call=True
 )
-def add_new_objective_compact(n_clicks, current_children):
+def manage_objectives(add_clicks, delete_clicks, current_children):
+    """Handle both add and delete for objectives"""
+    triggered = ctx.triggered_id
+    
+    if triggered == "add-objective-button":
+        # ADD new objective
+        if not add_clicks:
+            raise PreventUpdate
+        
+        new_id = str(uuid.uuid4())
+        new_row = html.Div([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'objective-name', 'index': new_id},
+                        placeholder="Objective name",
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=4),
+                dbc.Col([
+                    dcc.Dropdown(
+                        id={'type': 'objective-direction', 'index': new_id},
+                        options=[
+                            {"label": "Minimize", "value": "min"},
+                            {"label": "Maximize", "value": "max"}
+                        ],
+                        placeholder="Direction",
+                        clearable=False,
+                        style={"fontSize": "0.875rem"}
+                    )
+                ], width=2),
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'objective-lower', 'index': new_id},
+                        placeholder="Min",
+                        type="number",
+                        step="any",
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=2),
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'objective-upper', 'index': new_id},
+                        placeholder="Max",
+                        type="number",
+                        step="any",
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=2),
+                dbc.Col([
+                    dbc.Button(
+                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                        id={'type': 'delete-objective', 'index': new_id},
+                        color="danger",
+                        outline=True,
+                        size="sm",
+                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                    )
+                ], width=1),
+            ], className="mb-2 align-items-center"),
+        ], id={'type': 'objective-row', 'index': new_id})
+        
+        return current_children + [new_row]
+    
+    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-objective':
+        # DELETE objective
+        if not any(delete_clicks):
+            raise PreventUpdate
+        
+        index_to_delete = triggered['index']
+        new_children = []
+        for child in current_children:
+            try:
+                if child['props']['id']['index'] != index_to_delete:
+                    new_children.append(child)
+            except:
+                new_children.append(child)
+        
+        return new_children
+    
+    raise PreventUpdate
 
-    if not n_clicks:
-        raise PreventUpdate
 
-    new_id = str(uuid.uuid4())
+# ===== EXTRA COLUMNS =====
 
-    new_row = html.Div([
-        dbc.Row([
-            dbc.Col([
-                dbc.Input(
-                    id={'type': 'objective-name', 'index': new_id},
-                    placeholder="Objective name",
-                    size="sm",
-                    style={"borderRadius": "6px"}
-                )
-            ], width=4),
-            dbc.Col([
-                dcc.Dropdown(
-                    id={'type': 'objective-direction', 'index': new_id},
-                    options=[
-                        {"label": "Minimize", "value": "min"},
-                        {"label": "Maximize", "value": "max"}
-                    ],
-                    placeholder="Direction",
-                    clearable=False,
-                    style={"fontSize": "0.875rem"}
-                )
-            ], width=3, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-            dbc.Col([
-                dbc.Input(
-                    id={'type': 'objective-lower-bound', 'index': new_id},
-                    placeholder="Min",
-                    type="number",
-                    step="any",
-                    size="sm",
-                    style={"borderRadius": "6px"}
-                )
-            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-            dbc.Col([
-                dbc.Input(
-                    id={'type': 'objective-upper-bound', 'index': new_id},
-                    placeholder="Max",
-                    type="number",
-                    step="any",
-                    size="sm",
-                    style={"borderRadius": "6px"}
-                )
-            ], width=2, style={"paddingLeft": "0.25rem", "paddingRight": "0.25rem"}),
-            dbc.Col([
-                dbc.Button(
-                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-objective-btn', 'index': new_id},
-                    color="danger",
-                    outline=True,
-                    size="sm",
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                )
-            ], width=1, style={"paddingLeft": "0.25rem"}),
-        ], className="mb-2 align-items-center"),
-        # Hidden divs for compatibility
-        html.Div(id={'type': 'objective-direction-container', 'index': new_id}, style={"display": "none"}),
-        html.Div(id={'type': 'objective-bounds-container', 'index': new_id}, style={"display": "none"}),
-        html.Div(id={'type': 'objective-block', 'index': new_id}, style={"display": "none"}),
-    ])
-
-    return current_children + [new_row]
-
-
-# Toggle extra columns
 @callback(
-    [Output("extra-columns-collapse", "is_open", allow_duplicate=True),
-     Output("toggle-extra-columns", "children", allow_duplicate=True)],
+    [Output("extra-columns-collapse", "is_open"),
+     Output("toggle-extra-columns", "children")],
     Input("toggle-extra-columns", "n_clicks"),
     State("extra-columns-collapse", "is_open"),
     prevent_initial_call=True
 )
 def toggle_extra_columns(n_clicks, is_open):
-
+    """Toggle extra columns section visibility"""
     if n_clicks:
         new_state = not is_open
         button_text = [
@@ -180,33 +274,62 @@ def toggle_extra_columns(n_clicks, is_open):
     return is_open, no_update
 
 
-# Callback to handle domain creation and redirect
 @callback(
-    Output('redirect-to-opti-run', 'href', allow_duplicate=True),
-    Input('create-domain-btn', 'n_clicks'),
-    [State({'type': 'parameter-name', 'index': ALL}, 'value'),
-     State({'type': 'parameter-type', 'index': ALL}, 'value'),
-     State({'type': 'parameter-type-specific-lower', 'index': ALL}, 'value'),
-     State({'type': 'parameter-type-specific-upper', 'index': ALL}, 'value'),
-     State({'type': 'objective-name', 'index': ALL}, 'value'),
-     State({'type': 'objective-direction', 'index': ALL}, 'value'),
-     State('starting-sampling-DD', 'value'),
-     State('nb-sampling-points', 'value')],
+    Output("extra-column-container", "children"),
+    [Input("add-extra-column-button", "n_clicks"),
+     Input({'type': 'delete-extra-column', 'index': ALL}, 'n_clicks')],
+    State("extra-column-container", "children"),
     prevent_initial_call=True
 )
-def create_domain_and_redirect(n_clicks, param_names, param_types, param_lowers, param_uppers,
-                                obj_names, obj_directions, sampling_method, num_samples):
-    if not n_clicks:
-        raise PreventUpdate
+def manage_extra_columns(add_clicks, delete_clicks, current_children):
+    """Handle both add and delete for extra columns"""
+    triggered = ctx.triggered_id
     
-    # Validate inputs
-    if not param_names or not any(param_names):
-        return no_update
+    if triggered == "add-extra-column-button":
+        # ADD new extra column
+        if not add_clicks:
+            raise PreventUpdate
+        
+        new_id = str(uuid.uuid4())
+        new_row = html.Div([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'extra-column-name', 'index': new_id},
+                        placeholder="Column name",
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=10),
+                dbc.Col([
+                    dbc.Button(
+                        "✕",
+                        id={'type': 'delete-extra-column', 'index': new_id},
+                        color="danger",
+                        outline=True,
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=2),
+            ], className="mb-2 align-items-center"),
+        ], id={'type': 'extra-column-row', 'index': new_id})
+        
+        return current_children + [new_row]
     
-    if not obj_names or not any(obj_names):
-        return no_update
+    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-extra-column':
+        # DELETE extra column
+        if not any(delete_clicks):
+            raise PreventUpdate
+        
+        index_to_delete = triggered['index']
+        new_children = []
+        for child in current_children:
+            try:
+                if child['props']['id']['index'] != index_to_delete:
+                    new_children.append(child)
+            except:
+                new_children.append(child)
+        
+        return new_children
     
-    # Here you would normally save the domain configuration
-    # This callback should call the same logic as your existing domain creation callback
-    # For now, just redirect
-    return '/Opt-run'"""
+    raise PreventUpdate

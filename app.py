@@ -11,8 +11,8 @@ from flask import send_from_directory
 # Local imports (modules)
 from callbacks.app_callbacks import register_app_callbacks    
 from callbacks.opti_home_callbacks import new_proj_callbacks, already_created_callbacks
-from callbacks.opti_param_callbacks import reactant_part, parameter_part, objective_part, other_column_part, sampling_part
-from callbacks.opti_run_callbacks import run_part, visualization_part
+from callbacks.opti_param_callbacks import parameter_part, domain_creation
+from callbacks.opti_run_callbacks import run_optimization
 from components.sidebar import generate_sidebar 
 from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks
 

@@ -199,3 +199,47 @@ def delete_excel_file_with_domain(n_clicks, selected_file):
     except Exception as e:
         print(f"Error deleting file: {e}")
         return dash.no_update, dash.no_update
+    
+    
+
+"""
+Callbacks for opening existing projects
+"""
+
+import dash
+from dash import callback, Input, Output, State, no_update
+from dash.exceptions import PreventUpdate
+
+
+@callback(
+    Output('open-existing-project-btn', 'style'),
+    Input('existing-projects-list', 'value'),
+    prevent_initial_call=True
+)
+def show_open_button(selected_file):
+    """Show the Open button when a project is selected"""
+    if selected_file:
+        return {
+            "borderRadius": "8px",
+            "fontWeight": "500",
+            "display": "block"
+        }
+    return {
+        "borderRadius": "8px",
+        "fontWeight": "500",
+        "display": "none"
+    }
+
+
+@callback(
+    [Output('current-excel-file', 'data', allow_duplicate=True),
+     Output('url', 'pathname', allow_duplicate=True)],
+    Input('open-existing-project-btn', 'n_clicks'),
+    State('existing-projects-list', 'value'),
+    prevent_initial_call=True
+)
+def open_existing_project(n_clicks, selected_file):
+    """Open selected project and navigate to Run page"""
+    if n_clicks and selected_file:
+        return selected_file, '/Opt-run'
+    return no_update, no_update

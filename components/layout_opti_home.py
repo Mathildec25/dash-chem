@@ -1,244 +1,218 @@
+"""
+Layout for Optimization Home page
+"""
+
 import dash_bootstrap_components as dbc
 from dash import dcc, html
-import pandas as pd
 import os
-from excel_storage import EXCEL_FOLDER, TRACKING_FILE, TRACKING_FILENAME
+import pandas as pd
+from config_path import EXCEL_FOLDER, TRACKING_FILE
 
-def load_tracked_files():
+
+def get_existing_projects():
+    """Get list of existing project files"""
+    projects = []
+    
+    # Check tracking file
     if os.path.exists(TRACKING_FILE):
-        df = pd.read_excel(TRACKING_FILE)
-        return [{'label': fname, 'value': fname} for fname in df['filename'].dropna()]
-    return []
+        try:
+            df = pd.read_excel(TRACKING_FILE, engine='openpyxl')
+            if 'filename' in df.columns:
+                for fname in df['filename'].values:
+                    if fname and os.path.exists(os.path.join(EXCEL_FOLDER, fname)):
+                        projects.append({'label': fname.replace('.xlsx', ''), 'value': fname})
+        except:
+            pass
+    
+    # Also check folder directly
+    if os.path.exists(EXCEL_FOLDER):
+        for f in os.listdir(EXCEL_FOLDER):
+            if f.endswith('.xlsx'):
+                entry = {'label': f.replace('.xlsx', ''), 'value': f}
+                if entry not in projects:
+                    projects.append(entry)
+    
+    return projects
+
 
 def create_opti_home_layout():
+    projects = get_existing_projects()
+    
     return dbc.Container([
-        # Header Section - Clean and minimal
+        # Header
         dbc.Row([
             dbc.Col([
-                html.H1("Bayesian Optimization Platform", 
-                       className="text-center mb-2",
+                html.H1("Bayesian Optimization", 
                        style={
                            "color": "#1a1a1a", 
-                           "fontWeight": "600",
+                           "fontWeight": "700",
                            "fontSize": "2.5rem",
-                           "letterSpacing": "-0.02em"
+                           "letterSpacing": "-0.02em",
+                           "textAlign": "center"
                        }),
-                html.P("Choose your optimization approach",
-                      className="text-center mb-5",
+                html.P("Design and optimize your experiments with AI-powered suggestions",
                       style={
                           "fontSize": "1.1rem",
                           "color": "#6c757d",
-                          "fontWeight": "400"
+                          "textAlign": "center",
+                          "marginBottom": "2rem"
                       })
-            ], width=12)
-        ], className="mt-5 mb-4"),
+            ], md=12)
+        ], className="mb-4"),
         
-        # Main Cards Section - Side by side
         dbc.Row([
             # New Project Card
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
-                        # Icon circle
                         html.Div([
-                            html.Div([
-                                html.I(className="bi bi-plus-lg",
-                                      style={"fontSize": "2rem", "color": "white"})
-                            ], style={
-                                "width": "80px",
-                                "height": "80px",
-                                "borderRadius": "50%",
-                                "backgroundColor": "#a8a8a8",
-                                "display": "flex",
-                                "alignItems": "center",
-                                "justifyContent": "center",
-                                "margin": "0 auto 1.5rem auto",
-                            })
-                        ]),
+                            html.I(className="bi bi-plus-circle", 
+                                  style={"fontSize": "3rem", "color": "#6366f1"}),
+                        ], className="text-center mb-3"),
                         
-                        # Title
                         html.H4("New Project", 
                                className="text-center mb-3",
-                               style={
-                                   "fontWeight": "600",
-                                   "color": "#1a1a1a",
-                                   "fontSize": "1.5rem"
-                               }),
+                               style={"fontWeight": "600"}),
                         
-                        # Description
-                        html.P("Start a fresh optimization project with custom parameters and objectives",
-                              className="text-center mb-4",
-                              style={
-                                  "color": "#6c757d",
-                                  "fontSize": "0.95rem",
-                                  "lineHeight": "1.6"
-                              }),
+                        dbc.Input(
+                            id="new-proj",
+                            placeholder="Enter project name...",
+                            type="text",
+                            className="mb-3",
+                            style={"borderRadius": "8px"}
+                        ),
                         
-                        # Input for project name
-                        html.Div([
-                            dbc.Input(
-                                id="new-proj",
-                                type="text",
-                                placeholder="Enter project name...",
-                                className="mb-3",
-                                style={
-                                    "fontSize": "1rem",
-                                    "padding": "0.75rem",
-                                    "borderRadius": "8px",
-                                    "border": "1px solid #e0e0e0",
-                                    "transition": "all 0.2s"
-                                }
-                            ),
-                        ], style={"marginBottom": "1.5rem"}),
-                        
-                        # Button
-                        html.Div([
-                            dcc.Link(
-                                dbc.Button([
-                                    "Create New Project"
-                                ],
-                                id="start-opti-button",
-                                style={
-                                    "backgroundColor": "#fb8500",
-                                    "border": "none",
-                                    "padding": "0.75rem 2rem",
-                                    "fontSize": "1rem",
-                                    "fontWeight": "500",
-                                    "borderRadius": "8px",
-                                    "width": "100%",
-                                    "transition": "all 0.3s",
-                                    "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.2)",
-                                    "display": "none"
-                                },
-                                className="hover-lift"
-                                ), 
-                                href="/Opt-param"
-                            )
-                        ], id="start-opti-button-container"),
-                    ], style={"padding": "2.5rem 2rem"})
+                        dbc.Button([
+                            html.I(className="bi bi-arrow-right me-2"),
+                            "Create Project"
+                        ],
+                        id="start-opti-button",
+                        color="primary",
+                        className="w-100",
+                        style={
+                            "backgroundColor": "#6366f1",
+                            "border": "none",
+                            "borderRadius": "8px",
+                            "fontWeight": "500",
+                            "display": "none"
+                        }
+                        )
+                    ], style={"padding": "2rem"})
                 ], style={
                     "borderRadius": "16px",
                     "border": "1px solid #e0e0e0",
                     "boxShadow": "0 4px 12px rgba(0,0,0,0.08)",
-                    "transition": "all 0.3s",
-                    "height": "100%",
-                    "backgroundColor": "white"
-                }, className="h-100 hover-card-modern")
+                    "height": "100%"
+                })
             ], md=6, className="mb-4"),
             
-            # Existing Project Card
+            # Existing Projects Card
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
-                        # Icon circle
                         html.Div([
-                            html.Div([
-                                html.I(className="bi bi-folder2-open",
-                                      style={"fontSize": "2rem", "color": "white"})
-                            ], style={
-                                "width": "80px",
-                                "height": "80px",
-                                "borderRadius": "50%",
-                                "backgroundColor": "#a8a8a8",
-                                "display": "flex",
-                                "alignItems": "center",
-                                "justifyContent": "center",
-                                "margin": "0 auto 1.5rem auto",
-                            })
-                        ]),
+                            html.I(className="bi bi-folder2-open", 
+                                  style={"fontSize": "3rem", "color": "#10b981"}),
+                        ], className="text-center mb-3"),
                         
-                        # Title
-                        html.H4("Load Existing Project", 
+                        html.H4("Open Project", 
                                className="text-center mb-3",
-                               style={
-                                   "fontWeight": "600",
-                                   "color": "#1a1a1a",
-                                   "fontSize": "1.5rem"
-                               }),
+                               style={"fontWeight": "600"}),
                         
-                        # Description
-                        html.P("Continue working on a previously saved optimization project",
-                              className="text-center mb-4",
-                              style={
-                                  "color": "#6c757d",
-                                  "fontSize": "0.95rem",
-                                  "lineHeight": "1.6"
-                              }),
+                        dcc.Dropdown(
+                            id="existing-projects-list",
+                            options=projects,
+                            placeholder="Select a project...",
+                            style={"borderRadius": "8px"},
+                            className="mb-3"
+                        ) if projects else html.P(
+                            "No existing projects",
+                            className="text-muted text-center mb-3"
+                        ),
                         
-                        # Dropdown for file selection
+                        dbc.Button([
+                            html.I(className="bi bi-folder2-open me-2"),
+                            "Open Project"
+                        ],
+                        id="open-existing-project-btn",
+                        color="success",
+                        className="w-100",
+                        style={
+                            "borderRadius": "8px",
+                            "fontWeight": "500",
+                            "display": "none"
+                        }
+                        ) if projects else None,
+                        
                         html.Div([
-                            dcc.Dropdown(
-                                id="excels-DD-opti",
-                                options=load_tracked_files(),
-                                placeholder="Select a project...",
-                                className="mb-2",
-                                style={
-                                    "fontSize": "1rem",
-                                    "borderRadius": "8px"
-                                }
-                            ),
-                            html.Div(id='domain-status-display', className="mb-2"),
-                        ], style={"marginBottom": "1rem"}),
-                        
-                        # Sheet selector (hidden by default)
-                        html.Div([
-                            html.Div(id='sheets-DD-opti', className="mb-3"),
-                        ]),
-                        
-                        # Action buttons
-                        dbc.Row([
-                            dbc.Col([
-                                html.Div([
-                                    dcc.Link(
-                                        dbc.Button([
-                                            "Load Project"
-                                        ],
-                                        id="restart-opti-button",
-                                        style={
-                                            "backgroundColor": "#fb8500",
-                                            "border": "none",
-                                            "padding": "0.75rem 2rem",
-                                            "fontSize": "1rem",
-                                            "fontWeight": "500",
-                                            "borderRadius": "8px",
-                                            "width": "100%",
-                                            "transition": "all 0.3s",
-                                            "boxShadow": "0 2px 8px rgba(16, 185, 129, 0.2)",
-                                            "display": "none"
-                                        },
-                                        className="hover-lift"
-                                        ), 
-                                        href="/Opt-run"
-                                    )
-                                ])
-                            ], md=8),
-                            dbc.Col([
-                                dbc.Button([
-                                    html.I(className="bi bi-trash")
-                                ],
-                                id="delete-excel-button-opti",
-                                outline=True,
-                                color="danger",
-                                style={
-                                    "padding": "0.75rem",
-                                    "borderRadius": "8px",
-                                    "width": "100%",
-                                    "display": "none",
-                                    "transition": "all 0.3s"
-                                }
-                                )
-                            ], md=4)
-                        ])
-                    ], style={"padding": "2.5rem 2rem"})
+                            html.Small(f"{len(projects)} project(s) available", 
+                                      className="text-muted")
+                        ], className="text-center mt-2")
+                    ], style={"padding": "2rem"})
                 ], style={
                     "borderRadius": "16px",
                     "border": "1px solid #e0e0e0",
                     "boxShadow": "0 4px 12px rgba(0,0,0,0.08)",
-                    "transition": "all 0.3s",
-                    "height": "100%",
-                    "backgroundColor": "white"
-                }, className="h-100 hover-card-modern")
+                    "height": "100%"
+                })
             ], md=6, className="mb-4"),
-        ], justify="center", style={"maxWidth": "1000px", "margin": "0 auto"}),
+        ]),
         
-])
+        # Info section
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("How it works", className="mb-3", style={"fontWeight": "600"}),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("1", className="badge bg-primary me-2", 
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Define Domain"),
+                                    html.P("Set your parameters and objectives", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("2", className="badge bg-primary me-2",
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Initial Sampling"),
+                                    html.P("Generate starting experiments", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("3", className="badge bg-primary me-2",
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Run & Record"),
+                                    html.P("Execute experiments and enter results", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("4", className="badge bg-success me-2",
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Optimize"),
+                                    html.P("Get AI-suggested next experiments", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                        ])
+                    ], style={"padding": "1.5rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "backgroundColor": "#f8f9fa"
+                })
+            ], md=12)
+        ])
+        
+    ], fluid=True, style={
+        "maxWidth": "1000px",
+        "marginTop": "3rem",
+        "paddingBottom": "3rem"
+    })
