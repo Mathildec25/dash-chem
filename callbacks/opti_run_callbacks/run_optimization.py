@@ -25,12 +25,11 @@ from config_path import EXCEL_FOLDER
      Output('run-status-alert', 'color')],
     [Input('current-excel-file', 'data'),
      Input('url', 'pathname')],
-    prevent_initial_call=False  # Allow initial call to load on page arrival
+    prevent_initial_call=False
 )
 def load_experiment_table(excel_file, pathname):
     """Load Excel file and display as editable DataTable"""
     
-    # Only process when on the Run page
     if pathname != '/Opt-run':
         raise PreventUpdate
     
@@ -57,15 +56,12 @@ def load_experiment_table(excel_file, pathname):
                 "danger"
             )
         
-        # Load Excel
         df = pd.read_excel(file_path, engine='openpyxl')
         
         print(f"📊 Loaded {len(df)} rows from {excel_file}")
         
-        # Load domain info for column styling
         domain_data = DomainStorage.load_domain(excel_file)
         
-        # Get column lists
         param_names = []
         obj_names = []
         extra_names = []
@@ -75,20 +71,30 @@ def load_experiment_table(excel_file, pathname):
             obj_names = domain_data.get('metadata', {}).get('objective_names', [])
             extra_names = domain_data.get('metadata', {}).get('extra_column_names', [])
         
-        # Create column definitions with styling
         columns = []
         style_data_conditional = []
         
         for col in df.columns:
+            col_type = 'text'
+            
+            if col in obj_names:
+                col_type = 'numeric'
+            elif col in param_names:
+                if domain_data:
+                    params = domain_data.get('parameters', [])
+                    for p in params:
+                        if p.get('name') == col and p.get('type') == 'float':
+                            col_type = 'numeric'
+                            break
+            
             col_def = {
                 'name': col,
                 'id': col,
                 'editable': True,
-                'type': 'numeric' if col in param_names or col in obj_names else 'text'
+                'type': col_type
             }
             columns.append(col_def)
             
-            # Column header colors
             if col in param_names:
                 style_data_conditional.append({
                     'if': {'column_id': col},
@@ -105,7 +111,6 @@ def load_experiment_table(excel_file, pathname):
                     'backgroundColor': 'rgba(255, 107, 53, 0.1)'
                 })
         
-        # Style for empty objective cells (highlight them)
         for obj in obj_names:
             style_data_conditional.append({
                 'if': {
@@ -116,7 +121,6 @@ def load_experiment_table(excel_file, pathname):
                 'border': '2px solid #ffc107'
             })
         
-        # Create DataTable
         table = dash_table.DataTable(
             id='experiment-datatable',
             columns=columns,
@@ -146,7 +150,6 @@ def load_experiment_table(excel_file, pathname):
             export_format='xlsx'
         )
         
-        # Count incomplete rows
         incomplete = 0
         for _, row in df.iterrows():
             for obj in obj_names:
@@ -187,14 +190,11 @@ def save_table_changes(n_clicks, table_data, excel_file):
     
     try:
         file_path = os.path.join(EXCEL_FOLDER, excel_file)
-        
         df = pd.DataFrame(table_data)
         
-        # Save with formatting
         with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Experiments')
             
-            # Get domain info for styling
             domain_data = DomainStorage.load_domain(excel_file)
             if domain_data:
                 from openpyxl.styles import Font, PatternFill, Alignment
@@ -249,6 +249,114 @@ def add_new_row(n_clicks, data, columns):
     return data
 
 
+# ===== ADD/DELETE COLUMN MODALS =====
+
+@callback(
+    [Output('opti-add-column-modal', 'is_open'),
+     Output('opti-delete-column-modal', 'is_open')],
+    [Input('add-column-btn', 'n_clicks'),
+     Input('opti-cancel-add-column', 'n_clicks'),
+     Input('opti-confirm-add-column', 'n_clicks'),
+     Input('delete-column-btn', 'n_clicks'),
+     Input('opti-cancel-delete-column', 'n_clicks'),
+     Input('opti-confirm-delete-column', 'n_clicks')],
+    [State('opti-add-column-modal', 'is_open'),
+     State('opti-delete-column-modal', 'is_open')],
+    prevent_initial_call=True
+)
+def toggle_modals(add_open, add_cancel, add_confirm, del_open, del_cancel, del_confirm, add_is_open, del_is_open):
+    """Toggle add/delete column modals"""
+    triggered = ctx.triggered_id
+    
+    if triggered == 'add-column-btn':
+        return True, False
+    elif triggered in ['opti-cancel-add-column', 'opti-confirm-add-column']:
+        return False, False
+    elif triggered == 'delete-column-btn':
+        return False, True
+    elif triggered in ['opti-cancel-delete-column', 'opti-confirm-delete-column']:
+        return False, False
+    
+    return add_is_open, del_is_open
+
+
+@callback(
+    [Output('experiment-datatable', 'columns', allow_duplicate=True),
+     Output('experiment-datatable', 'data', allow_duplicate=True),
+     Output('opti-new-column-name', 'value'),
+     Output('opti-new-column-default', 'value')],
+    Input('opti-confirm-add-column', 'n_clicks'),
+    [State('opti-new-column-name', 'value'),
+     State('opti-new-column-default', 'value'),
+     State('experiment-datatable', 'columns'),
+     State('experiment-datatable', 'data')],
+    prevent_initial_call=True
+)
+def add_new_column(n_clicks, col_name, default_value, columns, data):
+    """Add a new column to the table"""
+    
+    if not n_clicks or not col_name or not col_name.strip():
+        raise PreventUpdate
+    
+    col_name = col_name.strip()
+    
+    existing_cols = [c['id'] for c in columns]
+    if col_name in existing_cols:
+        raise PreventUpdate
+    
+    new_col = {
+        'name': col_name,
+        'id': col_name,
+        'editable': True,
+        'type': 'text'
+    }
+    columns.append(new_col)
+    
+    default = default_value if default_value else ''
+    for row in data:
+        row[col_name] = default
+    
+    return columns, data, '', ''
+
+
+@callback(
+    Output('opti-column-to-delete', 'options'),
+    Input('opti-delete-column-modal', 'is_open'),
+    State('experiment-datatable', 'columns'),
+    prevent_initial_call=True
+)
+def populate_delete_column_dropdown(is_open, columns):
+    """Populate dropdown with column names"""
+    if not is_open or not columns:
+        raise PreventUpdate
+    
+    return [{'label': c['name'], 'value': c['id']} for c in columns]
+
+
+@callback(
+    [Output('experiment-datatable', 'columns', allow_duplicate=True),
+     Output('experiment-datatable', 'data', allow_duplicate=True)],
+    Input('opti-confirm-delete-column', 'n_clicks'),
+    [State('opti-column-to-delete', 'value'),
+     State('experiment-datatable', 'columns'),
+     State('experiment-datatable', 'data')],
+    prevent_initial_call=True
+)
+def delete_column(n_clicks, col_to_delete, columns, data):
+    """Delete a column from the table"""
+    
+    if not n_clicks or not col_to_delete:
+        raise PreventUpdate
+    
+    columns = [c for c in columns if c['id'] != col_to_delete]
+    
+    for row in data:
+        if col_to_delete in row:
+            del row[col_to_delete]
+    
+    return columns, data
+
+
 # ===== VALIDATE AND ENABLE OPTIMIZATION =====
 
 @callback(
@@ -264,7 +372,6 @@ def validate_for_optimization(table_data, excel_file):
         return True
     
     try:
-        # Load domain to get objective names
         domain_data = DomainStorage.load_domain(excel_file)
         if not domain_data:
             return True
@@ -274,15 +381,14 @@ def validate_for_optimization(table_data, excel_file):
         if not obj_names:
             return True
         
-        # Check each row for complete objectives
         for row in table_data:
             for obj in obj_names:
                 if obj in row:
                     val = row[obj]
                     if val is None or val == '' or (isinstance(val, float) and np.isnan(val)):
-                        return True  # Incomplete - disable button
+                        return True
         
-        return False  # All complete - enable button
+        return False
     
     except:
         return True
@@ -310,7 +416,6 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
     print("🚀 Starting Bayesian Optimization...")
     
     try:
-        # Load domain
         domain_data = DomainStorage.load_domain(excel_file)
         if not domain_data:
             print("❌ Domain not found")
@@ -324,23 +429,18 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         print(f"📋 Parameters: {param_names}")
         print(f"🎯 Objectives: {obj_names}")
         
-        # Recreate BoFire domain
         domain = create_bofire_domain_from_store(parameters, objectives)
         print("✅ Domain recreated")
         
-        # Convert table data to DataFrame
         df = pd.DataFrame(table_data)
         print(f"📊 Table has {len(df)} rows")
         
-        # Extract experiments (parameters and objectives only)
         available_cols = [col for col in param_names + obj_names if col in df.columns]
         experiments = df[available_cols].copy()
         
-        # Convert to numeric
         for col in experiments.columns:
             experiments[col] = pd.to_numeric(experiments[col], errors='coerce')
         
-        # Check for NaN values in objectives
         for obj in obj_names:
             if obj in experiments.columns:
                 nan_count = experiments[obj].isna().sum()
@@ -349,7 +449,6 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         
         print(f"📈 Experiments data:\n{experiments}")
         
-        # Run Bayesian optimization
         n_suggestions = int(nb_suggestions) if nb_suggestions else 1
         print(f"🔄 Requesting {n_suggestions} candidate(s)...")
         
@@ -361,31 +460,27 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         
         print(f"✅ Generated candidates:\n{new_candidates}")
         
-        # Create new rows from candidates
         new_rows = []
         for _, candidate in new_candidates.iterrows():
             new_row = {}
             
-            # Fill all columns
             for col in df.columns:
                 if col == 'Point type':
                     new_row[col] = 'BO'
                 elif col in param_names:
                     val = candidate.get(col, '')
-                    # Round floats
                     param_def = next((p for p in parameters if p['name'] == col), None)
                     if param_def and param_def.get('type') == 'float' and isinstance(val, (int, float)):
                         new_row[col] = round(float(val), 3)
                     else:
                         new_row[col] = val
                 elif col in obj_names:
-                    new_row[col] = ''  # Empty - user needs to fill
+                    new_row[col] = ''
                 else:
                     new_row[col] = ''
             
             new_rows.append(new_row)
         
-        # Append new rows to table
         updated_data = table_data + new_rows
         
         msg = f"✅ Generated {len(new_rows)} new experiment(s) to test!"

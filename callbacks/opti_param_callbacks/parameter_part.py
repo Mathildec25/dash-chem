@@ -122,14 +122,15 @@ def update_parameter_inputs(param_type):
     """Show appropriate inputs based on parameter type"""
     idx = ctx.triggered_id['index']
     
-    if param_type == 'float' or param_type == 'int':
+    if param_type == 'float':
+        # Continuous: Min and Max
         return dbc.Row([
             dbc.Col([
                 dbc.Input(
                     id={'type': 'parameter-min', 'index': idx},
                     placeholder="Min",
                     type="number",
-                    step="any" if param_type == 'float' else "1",
+                    step="any",
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
@@ -139,17 +140,19 @@ def update_parameter_inputs(param_type):
                     id={'type': 'parameter-max', 'index': idx},
                     placeholder="Max",
                     type="number",
-                    step="any" if param_type == 'float' else "1",
+                    step="any",
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
             ], width=6),
         ])
     
-    elif param_type == 'cat':
+    elif param_type == 'int' or param_type == 'cat':
+        # Discrete or Categorical: comma-separated values
+        placeholder = "Values (comma-separated): 1, 2, 3, 4, 5" if param_type == 'int' else "Values (comma-separated): A, B, C"
         return dbc.Input(
             id={'type': 'parameter-categories', 'index': idx},
-            placeholder="Values (comma-separated): A, B, C",
+            placeholder=placeholder,
             type="text",
             size="sm",
             style={"borderRadius": "6px"}

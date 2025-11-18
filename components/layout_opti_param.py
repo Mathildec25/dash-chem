@@ -34,22 +34,11 @@ def create_opti_param_layout():
             ], width=True)
         ], className="mb-4 align-items-center"),
         
-        # Alert containers
+        # Alert for validation errors (only shown when clicking Continue)
         dbc.Row([
             dbc.Col([
                 dbc.Alert(
                     id="validation-alert",
-                    is_open=False,
-                    dismissable=True,
-                    className="mb-3"
-                )
-            ], md=12)
-        ]),
-        
-        dbc.Row([
-            dbc.Col([
-                dbc.Alert(
-                    id="creation-status",
                     is_open=False,
                     dismissable=True,
                     className="mb-3"

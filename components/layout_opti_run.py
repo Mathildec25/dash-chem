@@ -64,10 +64,28 @@ def create_opti_run_layout():
                                 dbc.ButtonGroup([
                                     dbc.Button([
                                         html.I(className="bi bi-plus-lg me-1"),
-                                        "Add Row"
+                                        "Row"
                                     ],
                                     id="add-row-btn",
                                     color="primary",
+                                    outline=True,
+                                    size="sm"
+                                    ),
+                                    dbc.Button([
+                                        html.I(className="bi bi-plus-lg me-1"),
+                                        "Column"
+                                    ],
+                                    id="add-column-btn",
+                                    color="secondary",
+                                    outline=True,
+                                    size="sm"
+                                    ),
+                                    dbc.Button([
+                                        html.I(className="bi bi-trash me-1"),
+                                        "Column"
+                                    ],
+                                    id="delete-column-btn",
+                                    color="danger",
                                     outline=True,
                                     size="sm"
                                     ),
@@ -230,6 +248,35 @@ def create_opti_run_layout():
                 )
             ], md=6, className="mx-auto")
         ], className="mt-4"),
+        
+        # Modal for adding column
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Add New Column")),
+            dbc.ModalBody([
+                dbc.Label("Column Name"),
+                dbc.Input(id="opti-new-column-name", placeholder="Enter column name...", className="mb-3"),
+                dbc.Label("Default Value (optional)"),
+                dbc.Input(id="opti-new-column-default", placeholder="Default value for all rows...")
+            ]),
+            dbc.ModalFooter([
+                dbc.Button("Cancel", id="opti-cancel-add-column", className="me-2", outline=True, color="secondary"),
+                dbc.Button("Add Column", id="opti-confirm-add-column", color="primary")
+            ])
+        ], id="opti-add-column-modal", is_open=False),
+        
+        # Modal for deleting column
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Delete Column")),
+            dbc.ModalBody([
+                dbc.Label("Select Column to Delete"),
+                dcc.Dropdown(id="opti-column-to-delete", placeholder="Select a column..."),
+                html.P("⚠️ This action cannot be undone!", className="text-danger mt-3 mb-0 small")
+            ]),
+            dbc.ModalFooter([
+                dbc.Button("Cancel", id="opti-cancel-delete-column", className="me-2", outline=True, color="secondary"),
+                dbc.Button("Delete Column", id="opti-confirm-delete-column", color="danger")
+            ])
+        ], id="opti-delete-column-modal", is_open=False),
         
     ], fluid=True, style={
         "maxWidth": "1400px",

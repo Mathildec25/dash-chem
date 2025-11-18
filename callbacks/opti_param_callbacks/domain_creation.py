@@ -18,68 +18,47 @@ from config_path import EXCEL_FOLDER, TRACKING_FILE
 
 
 @callback(
-    [Output('validation-alert', 'children'),
-     Output('validation-alert', 'is_open'),
-     Output('create-domain-btn', 'disabled')],
+    Output('create-domain-btn', 'disabled'),
     [Input({'type': 'parameter-name', 'index': ALL}, 'value'),
      Input({'type': 'objective-name', 'index': ALL}, 'value'),
-     Input('starting-sampling-DD', 'value'),
-     Input('nb-sampling-points', 'value'),
      Input('project-name-store', 'data')],
     prevent_initial_call=True
 )
-def validate_configuration(param_names, obj_names, sampling_method, nb_points, project_name):
-    """Validate configuration before allowing domain creation"""
-    
-    errors = []
+def enable_button(param_names, obj_names, project_name):
+    """Enable button when minimum requirements are met (no visible warnings)"""
     
     # Check project name
     if not project_name or not project_name.strip():
-        errors.append("❌ Project name is required")
+        return True
     
-    # Check parameters
+    # Check at least one parameter
     valid_params = [p for p in param_names if p and p.strip()]
     if not valid_params:
-        errors.append("❌ At least one parameter is required")
+        return True
     
-    # Check objectives
+    # Check at least one objective
     valid_objs = [o for o in obj_names if o and o.strip()]
     if not valid_objs:
-        errors.append("❌ At least one objective is required")
+        return True
     
-    # Check sampling
-    if not sampling_method or sampling_method == "none":
-        errors.append("⚠️ No sampling method selected")
-    elif not nb_points or int(nb_points) < 1:
-        errors.append("❌ Number of sampling points must be at least 1")
-    
-    # Return validation result
-    if errors:
-        alert = dbc.Alert([
-            html.H6("Configuration Issues:", className="alert-heading"),
-            html.Ul([html.Li(e) for e in errors])
-        ], color="warning")
-        return alert, True, True
-    else:
-        alert = dbc.Alert([
-            html.I(className="bi bi-check-circle me-2"),
-            f"✅ Configuration valid: {len(valid_params)} parameters, {len(valid_objs)} objectives"
-        ], color="success")
-        return alert, True, False
+    return False  # Enable button
 
 
 @callback(
     [Output('current-excel-file', 'data'),
      Output('url', 'pathname', allow_duplicate=True),
-     Output('creation-status', 'children'),
-     Output('creation-status', 'is_open')],
+     Output('validation-alert', 'children'),
+     Output('validation-alert', 'is_open')],
     Input('create-domain-btn', 'n_clicks'),
     [State('project-name-store', 'data'),
      State({'type': 'parameter-name', 'index': ALL}, 'id'),
      State({'type': 'parameter-name', 'index': ALL}, 'value'),
      State({'type': 'parameter-type', 'index': ALL}, 'value'),
+     State({'type': 'parameter-min', 'index': ALL}, 'id'),
      State({'type': 'parameter-min', 'index': ALL}, 'value'),
+     State({'type': 'parameter-max', 'index': ALL}, 'id'),
      State({'type': 'parameter-max', 'index': ALL}, 'value'),
+     State({'type': 'parameter-categories', 'index': ALL}, 'id'),
      State({'type': 'parameter-categories', 'index': ALL}, 'value'),
      State({'type': 'objective-name', 'index': ALL}, 'id'),
      State({'type': 'objective-name', 'index': ALL}, 'value'),
@@ -93,7 +72,9 @@ def validate_configuration(param_names, obj_names, sampling_method, nb_points, p
     prevent_initial_call=True
 )
 def create_domain_and_excel(n_clicks, project_name, 
-                           param_ids, param_names, param_types, param_mins, param_maxs, param_cats,
+                           param_ids, param_names, param_types, 
+                           min_ids, param_mins, max_ids, param_maxs, 
+                           cat_ids, param_cats,
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
                            sampling_method, nb_points):
@@ -108,45 +89,109 @@ def create_domain_and_excel(n_clicks, project_name,
         # ===== 1. BUILD PARAMETERS =====
         parameters = []
         
+        # Debug: print what we received
+        print(f"🔍 param_ids: {[p['index'] for p in param_ids]}")
+        print(f"🔍 param_names: {param_names}")
+        print(f"🔍 param_types: {param_types}")
+        print(f"🔍 min_ids: {[m['index'] for m in min_ids] if min_ids else []}")
+        print(f"🔍 param_mins: {param_mins}")
+        print(f"🔍 max_ids: {[m['index'] for m in max_ids] if max_ids else []}")
+        print(f"🔍 param_maxs: {param_maxs}")
+        print(f"🔍 cat_ids: {[c['index'] for c in cat_ids] if cat_ids else []}")
+        print(f"🔍 param_cats: {param_cats}")
+        
+        # Create dictionaries using the actual IDs of each component
+        cats_dict = {}
+        mins_dict = {}
+        maxs_dict = {}
+        
+        # Build dictionaries using the IDs
+        if cat_ids and param_cats:
+            for cid, cval in zip(cat_ids, param_cats):
+                if cval:
+                    cats_dict[cid['index']] = cval
+        
+        if min_ids and param_mins:
+            for mid, mval in zip(min_ids, param_mins):
+                if mval is not None:
+                    mins_dict[mid['index']] = mval
+        
+        if max_ids and param_maxs:
+            for mid, mval in zip(max_ids, param_maxs):
+                if mval is not None:
+                    maxs_dict[mid['index']] = mval
+        
+        print(f"🔍 cats_dict: {cats_dict}")
+        print(f"🔍 mins_dict: {mins_dict}")
+        print(f"🔍 maxs_dict: {maxs_dict}")
+        
         for i, (pid, name, ptype) in enumerate(zip(param_ids, param_names, param_types)):
             if not name or not name.strip():
                 continue
             
             idx = pid['index']
             
-            if ptype == 'float' or ptype == 'int':
-                # Continuous or Discrete
-                pmin = param_mins[i] if i < len(param_mins) else None
-                pmax = param_maxs[i] if i < len(param_maxs) else None
+            if ptype == 'float':
+                # Continuous: Min and Max
+                pmin = mins_dict.get(idx)
+                pmax = maxs_dict.get(idx)
                 
                 if pmin is None or pmax is None:
-                    continue
+                    alert = dbc.Alert(f"❌ Parameter '{name}' needs Min and Max values", color="danger")
+                    return no_update, no_update, alert, True
                 
-                if ptype == 'float':
-                    parameters.append({
-                        'id': idx,
-                        'name': name.strip(),
-                        'type': 'float',
-                        'type_info': {'range': [float(pmin), float(pmax)]}
-                    })
-                else:  # int
-                    parameters.append({
-                        'id': idx,
-                        'name': name.strip(),
-                        'type': 'int',
-                        'type_info': {'range': list(range(int(pmin), int(pmax) + 1))}
-                    })
+                parameters.append({
+                    'id': idx,
+                    'name': name.strip(),
+                    'type': 'float',
+                    'type_info': {'range': [float(pmin), float(pmax)]}
+                })
+            
+            elif ptype == 'int':
+                # Discrete: comma-separated values (can be integers or floats)
+                cats = cats_dict.get(idx)
+                if not cats:
+                    alert = dbc.Alert(f"❌ Discrete parameter '{name}' needs values (e.g., 1, 2, 3 or 0.5, 1.0, 1.5)", color="danger")
+                    return no_update, no_update, alert, True
+                
+                # Parse as numbers (int or float)
+                try:
+                    values = []
+                    for v in str(cats).split(','):
+                        v = v.strip()
+                        if v:
+                            # Try int first, then float
+                            try:
+                                values.append(int(v))
+                            except ValueError:
+                                values.append(float(v))
+                except ValueError as e:
+                    alert = dbc.Alert(f"❌ Discrete parameter '{name}' has invalid values: {str(e)}", color="danger")
+                    return no_update, no_update, alert, True
+                
+                if not values:
+                    alert = dbc.Alert(f"❌ Discrete parameter '{name}' needs at least one value", color="danger")
+                    return no_update, no_update, alert, True
+                
+                parameters.append({
+                    'id': idx,
+                    'name': name.strip(),
+                    'type': 'int',
+                    'type_info': {'range': values}
+                })
             
             elif ptype == 'cat':
-                # Categorical
-                cats = param_cats[i] if i < len(param_cats) else None
+                # Categorical: comma-separated values
+                cats = cats_dict.get(idx)
                 if not cats:
-                    continue
+                    alert = dbc.Alert(f"❌ Categorical parameter '{name}' needs values (e.g., A, B, C)", color="danger")
+                    return no_update, no_update, alert, True
                 
                 # Split by comma and clean
                 values = [v.strip() for v in str(cats).split(',') if v.strip()]
                 if not values:
-                    continue
+                    alert = dbc.Alert(f"❌ Categorical parameter '{name}' needs at least one value", color="danger")
+                    return no_update, no_update, alert, True
                 
                 parameters.append({
                     'id': idx,
@@ -156,7 +201,7 @@ def create_domain_and_excel(n_clicks, project_name,
                 })
         
         if not parameters:
-            alert = dbc.Alert("❌ No valid parameters defined", color="danger")
+            alert = dbc.Alert("❌ At least one valid parameter is required", color="danger")
             return no_update, no_update, alert, True
         
         print(f"✅ Built {len(parameters)} parameters")
@@ -181,7 +226,7 @@ def create_domain_and_excel(n_clicks, project_name,
             })
         
         if not objectives:
-            alert = dbc.Alert("❌ No valid objectives defined", color="danger")
+            alert = dbc.Alert("❌ At least one valid objective is required", color="danger")
             return no_update, no_update, alert, True
         
         print(f"✅ Built {len(objectives)} objectives")
