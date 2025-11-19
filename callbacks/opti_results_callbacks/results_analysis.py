@@ -293,7 +293,7 @@ def create_parallel_coordinates(df, param_names, obj_names):
 
 
 def create_parameter_importance(df, param_names, obj_names):
-    """Create parameter importance plot based on correlation"""
+    """Create parameter importance plot based on correlation (without absolute values)"""
     
     if not param_names or not obj_names:
         fig = go.Figure()
@@ -310,7 +310,7 @@ def create_parameter_importance(df, param_names, obj_names):
     
     obj_values = pd.to_numeric(df[obj_col], errors='coerce')
     
-    # Calculate correlations
+    # Calculate correlations (without absolute value)
     correlations = []
     for param in param_names:
         if param in df.columns:
@@ -318,7 +318,7 @@ def create_parameter_importance(df, param_names, obj_names):
             valid_mask = param_values.notna() & obj_values.notna()
             if valid_mask.sum() > 2:
                 corr = param_values[valid_mask].corr(obj_values[valid_mask])
-                correlations.append((param, abs(corr) if not np.isnan(corr) else 0))
+                correlations.append((param, corr if not np.isnan(corr) else 0))
             else:
                 correlations.append((param, 0))
     
@@ -328,27 +328,34 @@ def create_parameter_importance(df, param_names, obj_names):
                           x=0.5, y=0.5, showarrow=False)
         return fig
     
-    # Sort by importance
-    correlations.sort(key=lambda x: x[1], reverse=True)
+    # Sort by absolute value for display order, but show actual correlation
+    correlations.sort(key=lambda x: abs(x[1]), reverse=True)
     params, values = zip(*correlations)
     
-    # Colors based on value
-    colors = ['#10b981' if v > 0.5 else '#f59e0b' if v > 0.3 else '#6c757d' for v in values]
+    # Colors based on positive/negative correlation
+    colors = []
+    for v in values:
+        if v > 0.3:
+            colors.append('#10b981')  # Green for positive
+        elif v < -0.3:
+            colors.append('#ef4444')  # Red for negative
+        else:
+            colors.append('#6c757d')  # Gray for weak
     
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=values,
-        y=params,
+        x=list(values),
+        y=list(params),
         orientation='h',
         marker_color=colors
     ))
     
     fig.update_layout(
-        xaxis_title=f"|Correlation| with {obj_col}",
+        xaxis_title=f"Correlation with {obj_col}",
         yaxis_title="",
         margin=dict(l=100, r=20, t=20, b=50),
         plot_bgcolor='white',
-        xaxis=dict(gridcolor='#f0f0f0', range=[0, 1]),
+        xaxis=dict(gridcolor='#f0f0f0', range=[-1, 1], zeroline=True, zerolinecolor='#000000', zerolinewidth=1),
         yaxis=dict(autorange="reversed")
     )
     

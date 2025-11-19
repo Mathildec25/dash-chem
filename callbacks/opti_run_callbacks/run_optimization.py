@@ -3,7 +3,7 @@ Run Optimization Callbacks
 Handles table display, editing, validation, and Bayesian optimization
 """
 
-from dash import callback, Input, Output, State, html, no_update, ctx
+from dash import callback, Input, Output, State, html, no_update, ctx, dcc
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 from dash import dash_table
@@ -400,15 +400,26 @@ def validate_for_optimization(table_data, excel_file):
     [Output('experiment-datatable', 'data', allow_duplicate=True),
      Output('bo-result-alert', 'children'),
      Output('bo-result-alert', 'is_open'),
-     Output('bo-result-alert', 'color')],
+     Output('bo-result-alert', 'color'),
+     Output('run-bo-btn', 'children'),
+     Output('run-bo-btn', 'disabled', allow_duplicate=True)],
     Input('run-bo-btn', 'n_clicks'),
     [State('experiment-datatable', 'data'),
      State('current-excel-file', 'data'),
      State('nb-suggestions', 'value')],
-    prevent_initial_call=True
+    prevent_initial_call=True,
+    running=[
+        (Output('run-bo-btn', 'disabled'), True, False),
+        (Output('run-bo-btn', 'children'), 
+         [dbc.Spinner(size="sm", spinner_class_name="me-2"), "Computing..."], 
+         [html.I(className="bi bi-lightning-charge me-2"), "Get New Experiments"])
+    ]
 )
 def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
     """Run Bayesian optimization and add new suggested experiments"""
+    
+    # Default button content
+    default_btn = [html.I(className="bi bi-lightning-charge me-2"), "Get New Experiments"]
     
     if not n_clicks:
         raise PreventUpdate
@@ -419,7 +430,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         domain_data = DomainStorage.load_domain(excel_file)
         if not domain_data:
             print("❌ Domain not found")
-            return no_update, "❌ Domain not found", True, "danger"
+            return no_update, "❌ Domain not found", True, "danger", default_btn, False
         
         parameters = domain_data.get('parameters', [])
         objectives = domain_data.get('objectives', [])
@@ -428,6 +439,9 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         
         print(f"📋 Parameters: {param_names}")
         print(f"🎯 Objectives: {obj_names}")
+        
+        # Create a mapping of parameter names to their definitions for validation
+        param_definitions = {p['name']: p for p in parameters}
         
         domain = create_bofire_domain_from_store(parameters, objectives)
         print("✅ Domain recreated")
@@ -438,25 +452,77 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         available_cols = [col for col in param_names + obj_names if col in df.columns]
         experiments = df[available_cols].copy()
         
+        # Process each column based on its parameter type
         for col in experiments.columns:
-            experiments[col] = pd.to_numeric(experiments[col], errors='coerce')
+            if col in param_definitions:
+                param_def = param_definitions[col]
+                param_type = param_def.get('type')
+                type_info = param_def.get('type_info', {})
+                
+                if param_type == 'cat':
+                    # For categorical parameters, keep as string but validate values
+                    allowed_values = type_info.get('values', [])
+                    print(f"🏷️ Categorical parameter '{col}' - allowed values: {allowed_values}")
+                    
+                    # Convert to string and strip whitespace
+                    experiments[col] = experiments[col].astype(str).str.strip()
+                    
+                    # Check for invalid values
+                    actual_values = experiments[col].unique().tolist()
+                    invalid_values = [v for v in actual_values if v not in allowed_values and v != 'nan' and v != '' and v != 'None']
+                    
+                    if invalid_values:
+                        error_msg = f"❌ Invalid values for '{col}': {invalid_values}. Allowed: {allowed_values}"
+                        print(error_msg)
+                        return no_update, error_msg, True, "danger", default_btn, False
+                    
+                    # Replace 'nan' and 'None' strings with first valid value
+                    if allowed_values:
+                        experiments[col] = experiments[col].replace(['nan', 'None', ''], allowed_values[0])
+                    
+                elif param_type == 'int':
+                    # For discrete parameters, convert to numeric
+                    allowed_values = type_info.get('range', [])
+                    print(f"🔢 Discrete parameter '{col}' - allowed values: {allowed_values}")
+                    experiments[col] = pd.to_numeric(experiments[col], errors='coerce')
+                    
+                elif param_type == 'float':
+                    # For continuous parameters, convert to numeric
+                    experiments[col] = pd.to_numeric(experiments[col], errors='coerce')
+                    
+            else:
+                # This is an objective column - convert to numeric
+                experiments[col] = pd.to_numeric(experiments[col], errors='coerce')
         
+        # Check for NaN values in objectives
         for obj in obj_names:
             if obj in experiments.columns:
                 nan_count = experiments[obj].isna().sum()
                 if nan_count > 0:
                     print(f"⚠️ {nan_count} NaN values in {obj}")
         
-        print(f"📈 Experiments data:\n{experiments}")
+        # Remove rows with NaN in objectives (incomplete experiments)
+        complete_mask = pd.Series([True] * len(experiments))
+        for obj in obj_names:
+            if obj in experiments.columns:
+                complete_mask = complete_mask & experiments[obj].notna()
+        
+        experiments_complete = experiments[complete_mask].copy()
+        
+        if len(experiments_complete) == 0:
+            return no_update, "❌ No complete experiments found. Please fill in all objective values.", True, "danger", default_btn, False
+        
+        print(f"📈 Complete experiments data ({len(experiments_complete)} rows):\n{experiments_complete}")
+        print(f"📈 Data types:\n{experiments_complete.dtypes}")
         
         n_suggestions = int(nb_suggestions) if nb_suggestions else 1
         print(f"🔄 Requesting {n_suggestions} candidate(s)...")
         
-        new_candidates = bayesian_optimization(domain, experiments, n_candidates=n_suggestions)
+        new_candidates = bayesian_optimization(domain, experiments_complete, n_candidates=n_suggestions)
         
         if new_candidates is None or (hasattr(new_candidates, 'empty') and new_candidates.empty):
             print("❌ No candidates generated")
-            return no_update, "❌ Optimization failed to generate candidates", True, "danger"
+            return no_update, "❌ Optimization failed to generate candidates", True, "danger", default_btn, False
         
         print(f"✅ Generated candidates:\n{new_candidates}")
         
@@ -469,9 +535,15 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
                     new_row[col] = 'BO'
                 elif col in param_names:
                     val = candidate.get(col, '')
-                    param_def = next((p for p in parameters if p['name'] == col), None)
-                    if param_def and param_def.get('type') == 'float' and isinstance(val, (int, float)):
-                        new_row[col] = round(float(val), 3)
+                    param_def = param_definitions.get(col)
+                    if param_def:
+                        if param_def.get('type') == 'float' and isinstance(val, (int, float)):
+                            new_row[col] = round(float(val), 3)
+                        elif param_def.get('type') == 'cat':
+                            # Keep categorical values as strings
+                            new_row[col] = str(val) if val else ''
+                        else:
+                            new_row[col] = val
                     else:
                         new_row[col] = val
                 elif col in obj_names:
@@ -485,13 +557,21 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         
         msg = f"✅ Generated {len(new_rows)} new experiment(s) to test!"
         print(msg)
-        return updated_data, msg, True, "success"
+        return updated_data, msg, True, "success", default_btn, False
     
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
         print(f"💥 Optimization error:\n{error_trace}")
-        return no_update, f"❌ Optimization error: {str(e)}", True, "danger"
+        
+        # Provide more helpful error messages for common issues
+        error_str = str(e)
+        if "invalid values" in error_str.lower():
+            # Extract parameter name and allowed values from error
+            hint = "\n\n💡 Hint: Check that all categorical parameter values in your data match the allowed categories defined in your domain."
+            return no_update, f"❌ Optimization error: {error_str}{hint}", True, "danger", default_btn, False
+        
+        return no_update, f"❌ Optimization error: {error_str}", True, "danger", default_btn, False
 
 
 # ===== AUTO-SAVE ON TABLE EDIT =====
