@@ -405,21 +405,20 @@ def validate_for_optimization(table_data, excel_file):
      Output('run-bo-btn', 'disabled', allow_duplicate=True)],
     Input('run-bo-btn', 'n_clicks'),
     [State('experiment-datatable', 'data'),
-     State('current-excel-file', 'data'),
-     State('nb-suggestions', 'value')],
+     State('current-excel-file', 'data')],
     prevent_initial_call=True,
     running=[
         (Output('run-bo-btn', 'disabled'), True, False),
         (Output('run-bo-btn', 'children'), 
          [dbc.Spinner(size="sm", spinner_class_name="me-2"), "Computing..."], 
-         [html.I(className="bi bi-lightning-charge me-2"), "Get New Experiments"])
+         [html.I(className="bi bi-lightning-charge me-2"), "Get New Experiment"])
     ]
 )
-def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
-    """Run Bayesian optimization and add new suggested experiments"""
+def run_bayesian_optimization(n_clicks, table_data, excel_file):
+    """Run Bayesian optimization and add new suggested experiment"""
     
     # Default button content
-    default_btn = [html.I(className="bi bi-lightning-charge me-2"), "Get New Experiments"]
+    default_btn = [html.I(className="bi bi-lightning-charge me-2"), "Get New Experiment"]
     
     if not n_clicks:
         raise PreventUpdate
@@ -427,6 +426,12 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
     print("🚀 Starting Bayesian Optimization...")
     
     try:
+        # Auto-save table before running optimization
+        file_path = os.path.join(EXCEL_FOLDER, excel_file)
+        df_to_save = pd.DataFrame(table_data)
+        df_to_save.to_excel(file_path, index=False, engine='openpyxl')
+        print(f"💾 Table auto-saved to {excel_file}")
+        
         domain_data = DomainStorage.load_domain(excel_file)
         if not domain_data:
             print("❌ Domain not found")
@@ -515,8 +520,9 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         print(f"📈 Complete experiments data ({len(experiments_complete)} rows):\n{experiments_complete}")
         print(f"📈 Data types:\n{experiments_complete.dtypes}")
         
-        n_suggestions = int(nb_suggestions) if nb_suggestions else 1
-        print(f"🔄 Requesting {n_suggestions} candidate(s)...")
+        # Always generate exactly 1 candidate
+        n_suggestions = 1
+        print(f"🔄 Requesting {n_suggestions} candidate...")
         
         new_candidates = bayesian_optimization(domain, experiments_complete, n_candidates=n_suggestions)
         
@@ -555,7 +561,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, nb_suggestions):
         
         updated_data = table_data + new_rows
         
-        msg = f"✅ Generated {len(new_rows)} new experiment(s) to test!"
+        msg = f"✅ Generated 1 new experiment to test!"
         print(msg)
         return updated_data, msg, True, "success", default_btn, False
     

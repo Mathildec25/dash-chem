@@ -172,43 +172,26 @@ def create_opti_run_layout():
             ], md=12, className="mb-3")
         ]),
         
-        # Optimization Controls
+        # Optimization Controls - Simplified (no number selection)
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
                         html.H5("Bayesian Optimization", className="mb-3", style={"fontWeight": "600"}),
-                        dbc.Row([
-                            dbc.Col([
-                                html.Label("Number of suggestions", className="form-label small text-muted"),
-                                dbc.Input(
-                                    id="nb-suggestions",
-                                    type="number",
-                                    value=1,
-                                    min=1,
-                                    max=10,
-                                    size="sm",
-                                    style={"borderRadius": "6px"}
-                                )
-                            ], md=4),
-                            dbc.Col([
-                                html.Label(" ", className="form-label small"),  # Spacer
-                                dbc.Button([
-                                    html.I(className="bi bi-lightning-charge me-2"),
-                                    "Get New Experiments"
-                                ],
-                                id="run-bo-btn",
-                                color="success",
-                                size="lg",
-                                className="w-100",
-                                disabled=True,
-                                style={
-                                    "borderRadius": "8px",
-                                    "fontWeight": "500"
-                                }
-                                )
-                            ], md=8)
-                        ])
+                        dbc.Button([
+                            html.I(className="bi bi-lightning-charge me-2"),
+                            "Get New Experiment"
+                        ],
+                        id="run-bo-btn",
+                        color="success",
+                        size="lg",
+                        className="w-100",
+                        disabled=True,
+                        style={
+                            "borderRadius": "8px",
+                            "fontWeight": "500"
+                        }
+                        )
                     ], style={"padding": "1.25rem"})
                 ], style={
                     "borderRadius": "12px",
