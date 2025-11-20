@@ -8,7 +8,7 @@
   left: 0;
   width: 50px; /* barre fine par défaut */
   height: 100vh;
-  background-color: #f96052;
+  background-color: #219ebc;
   padding-top: 0.5rem;  
   transition: width 0.3s ease;
   z-index: 1000;
@@ -76,12 +76,12 @@
 }
 
 #dropdown-container .VirtualizedSelectOption {
-  background-color: #ff9e3d;
+  background-color: #8ecae6;
   color: white;
 }
 
 #dropdown-container .VirtualizedSelectFocusedOption {
-  background-color: #fa840d;
+  background-color: #8ecae6;
   font-size: 21px;
   color: white;
 }
@@ -103,7 +103,7 @@
 }
 
 .sidebar-nav .nav-link:hover {
-  background-color: #ff9e3d;
+  background-color: #8ecae6;
   color: black;
 }
 
@@ -119,7 +119,7 @@
 
 /* Style the active page in the sidebar */
 .sidebar-nav .nav-link.active {
-  background-color: #ff9e3d; 
+  background-color: #8ecae6; 
   color: black;           
   width: 50px; 
   transition: width 0.3s ease;         

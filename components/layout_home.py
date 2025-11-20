@@ -33,14 +33,13 @@ def create_home_layout():
                             html.I(className="bi bi-table", 
                                   style={"fontSize": "48px", "color": "#3498db"}),
                             html.H4("Dashboard", className="mt-3 mb-2"),
-                            html.P("View and edit your data in a familiar spreadsheet format. "
-                                  "Filter, sort, and manage your experimental data with ease.",
+                            html.P("View and edit your data in a familiar spreadsheet format.",
                                   className="text-muted",
                                   style={"fontSize": "16px"})
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm hover-card")
-            ], md=4, className="mb-3"),
+                ], className="h-100 shadow hover-card")
+            ], md=3, className="mb-3"),
             
             dbc.Col([
                 dbc.Card([
@@ -49,14 +48,28 @@ def create_home_layout():
                             html.I(className="bi bi-graph-up", 
                                   style={"fontSize": "48px", "color": "#2ecc71"}),
                             html.H4("Visualization", className="mt-3 mb-2"),
-                            html.P("Create interactive charts and graphs. Explore your data with "
-                                  "histograms, scatter plots, and other visualization tools.",
+                            html.P("Create interactive charts and explore your data.",
                                   className="text-muted",
                                   style={"fontSize": "16px"})
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm hover-card")
-            ], md=4, className="mb-3"),
+                ], className="h-100 shadow hover-card")
+            ], md=3, className="mb-3"),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.I(className="bi bi-gear", 
+                                  style={"fontSize": "48px", "color": "#95a5a6"}),
+                            html.H4("Caracterization", className="mt-3 mb-2"),
+                            html.P("Manage and track your experimental analysis.",
+                                  className="text-muted",
+                                  style={"fontSize": "16px"})
+                        ], className="text-center")
+                    ])
+                ], className="h-100 shadow hover-card")
+            ], md=3, className="mb-3"),
             
             dbc.Col([
                 dbc.Card([
@@ -65,14 +78,13 @@ def create_home_layout():
                             html.I(className="bi bi-calculator", 
                                   style={"fontSize": "48px", "color": "#e74c3c"}),
                             html.H4("Optimization", className="mt-3 mb-2"),
-                            html.P("Use Bayesian Optimization to find optimal experimental conditions. "
-                                  "AI-powered recommendations for your next experiments.",
+                            html.P("AI-powered recommendations for experiments.",
                                   className="text-muted",
                                   style={"fontSize": "16px"})
                         ], className="text-center")
                     ])
-                ], className="h-100 shadow-sm hover-card")
-            ], md=4, className="mb-3"),
+                ], className="h-100 shadow hover-card")
+            ], md=3, className="mb-3"),
         ], className="mb-4"),
         
         # Main Action Section
@@ -88,7 +100,7 @@ def create_home_layout():
                     ], width=12)
                 ]),
                 
-                # Step 1: Upload or Select File
+                # Step 1: Load Data
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
@@ -100,8 +112,9 @@ def create_home_layout():
                             ], style={"backgroundColor": "#f8f9fa"}),
                             dbc.CardBody([
                                 dbc.Tabs([
-                                    dbc.Tab(label="Upload New File", tab_id="upload-tab"),
-                                    dbc.Tab(label="Select Existing File", tab_id="select-tab"),
+                                    dbc.Tab(label="📤 Upload", tab_id="upload-tab"),
+                                    dbc.Tab(label="📂 Existing", tab_id="select-tab"),
+                                    dbc.Tab(label="✨ New", tab_id="create-tab"),
                                 ], id="file-tabs", active_tab="upload-tab", className="mb-3"),
                                 
                                 html.Div(id="tab-content", children=[
@@ -127,9 +140,6 @@ def create_home_layout():
                                     ], className="mb-0")
                                 ], style={"backgroundColor": "#f8f9fa"}),
                                 dbc.CardBody([
-                                    html.P("Great! Your data is ready. Now choose what you want to do:",
-                                          className="text-muted mb-3"),
-                                    
                                     dbc.Row([
                                         dbc.Col([
                                             dcc.Link(
@@ -143,8 +153,8 @@ def create_home_layout():
                                                 ), 
                                                 href="/table"
                                             ),
-                                            html.Small("View and edit your data",
-                                                      className="text-muted")
+                                            html.Small("View and edit",
+                                                      className="text-muted d-block text-center")
                                         ], md=6, lg=3, className="mb-3"),
                                         
                                         dbc.Col([
@@ -159,8 +169,8 @@ def create_home_layout():
                                                 ), 
                                                 href="/visu"
                                             ),
-                                            html.Small("Create charts and graphs",
-                                                      className="text-muted")
+                                            html.Small("Charts & graphs",
+                                                      className="text-muted d-block text-center")
                                         ], md=6, lg=3, className="mb-3"),
                                         
                                         dbc.Col([
@@ -175,8 +185,8 @@ def create_home_layout():
                                                 ), 
                                                 href="/carac"
                                             ),
-                                            html.Small("Manage analysis",
-                                                      className="text-muted")
+                                            html.Small("Analysis",
+                                                      className="text-muted d-block text-center")
                                         ], md=6, lg=3, className="mb-3"),
                                         
                                         dbc.Col([
@@ -191,8 +201,8 @@ def create_home_layout():
                                                 ), 
                                                 href="/Opt-home"
                                             ),
-                                            html.Small("Start Bayesian Optimization",
-                                                      className="text-muted")
+                                            html.Small("AI optimization",
+                                                      className="text-muted d-block text-center")
                                         ], md=6, lg=3, className="mb-3"),
                                     ], justify="center")
                                 ])
@@ -213,32 +223,4 @@ def create_home_layout():
             ])
         ], className="shadow"),
         
-        # Help Section
-        dbc.Row([
-            dbc.Col([
-                dbc.Alert([
-                    html.H6([
-                        html.I(className="bi bi-info-circle me-2"),
-                        "Need Help?"
-                    ], className="alert-heading"),
-                    html.Hr(),
-                    html.P([
-                        html.Strong("Dashboard: "),
-                        "Perfect for data entry and quick edits. Works like Excel."
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Visualization: "),
-                        "Best for understanding trends and patterns in your data."
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Caracterization: "),
-                        "Need to be updated"
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Optimization: "),
-                        "Use when you want AI to suggest your next experiments."
-                    ], className="mb-0"),
-                ], color="info", className="mt-4")
-            ], width=12)
-        ])
     ], fluid=True, style={"maxWidth": "1400px"})

@@ -1,5 +1,5 @@
 import dash
-from dash import Input, Output, State, callback, ALL, html, dcc
+from dash import dcc, html, Input, Output, State, callback, ALL
 import dash_bootstrap_components as dbc
 import pandas as pd
 import os
@@ -24,7 +24,7 @@ from excel_storage import (
 from domain_storage import DomainStorage
 
 # ============================================
-# TAB CONTENT CALLBACK
+# TAB CONTENT CALLBACK - REMPLACE L'ANCIEN
 # ============================================
 
 @callback(
@@ -32,7 +32,7 @@ from domain_storage import DomainStorage
     Input('file-tabs', 'active_tab')
 )
 def render_tab_content(active_tab):
-    """Render content based on selected tab"""
+    """Render content based on selected tab - AVEC 3 TABS"""
     if active_tab == "upload-tab":
         return html.Div([
             dcc.Upload(
@@ -41,9 +41,8 @@ def render_tab_content(active_tab):
                     html.Div([
                         html.I(className="bi bi-cloud-upload", 
                               style={"fontSize": "48px", "color": "#3498db"}),
-                        html.H5("Drop files here or click to browse", 
-                               className="mt-3 mb-2"),
-                        html.P("Supported formats: Excel (.xlsx, .xls)",
+                        html.H5("Drop files here or click", className="mt-3 mb-2"),
+                        html.P("Excel (.xlsx, .xls)",
                               className="text-muted")
                     ], className="text-center p-4")
                 ]),
@@ -67,11 +66,10 @@ def render_tab_content(active_tab):
         if not files:
             return dbc.Alert([
                 html.I(className="bi bi-folder-x me-2"),
-                "No files available. Please upload a file first."
+                "No files available. Please upload or create a file first."
             ], color="warning")
         
         return html.Div([
-            html.P("Select a previously uploaded file:", className="text-muted mb-2"),
             dcc.Dropdown(
                 id="excels-DD-visible",
                 options=[{"label": f, "value": f} for f in files],
@@ -80,6 +78,59 @@ def render_tab_content(active_tab):
             ),
             html.Div(id="sheet-selector-container"),
             html.Div(id="file-actions-container")
+        ])
+    
+    elif active_tab == "create-tab":
+        return html.Div([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H5([
+                        html.I(className="bi bi-file-earmark-plus me-2"),
+                        "Create New Excel File"
+                    ], className="mb-3"),
+                    
+                    html.P("Create a blank Excel file and customize it in the Dashboard", 
+                           className="text-muted mb-3"),
+                    
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Label("File Name", className="fw-bold"),
+                            dbc.Input(
+                                id="new-excel-name",
+                                placeholder="e.g., My_Experiments",
+                                type="text",
+                                className="mb-2"
+                            ),
+                            html.Small("Extension .xlsx will be added automatically", 
+                                      className="text-muted d-block mb-3")
+                        ], width=12),
+                    ]),
+                    
+                    dbc.Button([
+                        html.I(className="bi bi-arrow-right-circle me-2"),
+                        "Create & Open in Dashboard"
+                    ],
+                    id="create-excel-btn",
+                    color="success",
+                    size="lg",
+                    className="w-100"
+                    ),
+                    
+                    html.Hr(className="my-3"),
+                    
+                    dbc.Alert([
+                        html.I(className="bi bi-info-circle me-2"),
+                        html.Strong("In Dashboard you can:"),
+                        html.Ul([
+                            html.Li("Rename columns by clicking on headers"),
+                            html.Li("Add/delete rows and columns"),
+                            html.Li("Edit all cell values"),
+                            html.Li("Filter and sort data"),
+                            html.Li("Save changes anytime")
+                        ], className="mb-0 mt-2")
+                    ], color="light", className="border border-success")
+                ])
+            ], className="shadow-sm")
         ])
 
 
@@ -111,7 +162,6 @@ def handle_file_selection(selected_file):
             return dbc.Alert("Unsupported file type", color="danger"), html.Div()
         
         sheet_selector = html.Div([
-            html.P("Select a sheet:", className="text-muted mb-2 mt-3"),
             dcc.Dropdown(
                 id={'type': 'sheet-dropdown-visible', 'index': selected_file},
                 options=[{"label": name, "value": name} for name in sheet_names],
@@ -146,8 +196,8 @@ def handle_file_selection(selected_file):
 
 @callback(
     [Output('excels-DD', 'value', allow_duplicate=True),
-     Output('selected-excel-store', 'data', allow_duplicate=True),  # Update the main excel store
-     Output('selected-sheet-store', 'data', allow_duplicate=True),  # Update the sheet store
+     Output('selected-excel-store', 'data', allow_duplicate=True),
+     Output('selected-sheet-store', 'data', allow_duplicate=True),
      Output('step-2-container', 'style'),
      Output('output-data-upload', 'children', allow_duplicate=True)],
     Input('confirm-file-btn', 'n_clicks'),
@@ -271,6 +321,121 @@ def handle_file_upload(list_of_contents, list_of_names):
 
 
 # ============================================
+# CREATE EXCEL FROM SCRATCH - REDIRECT TO DASHBOARD
+# ============================================
+
+@callback(
+    [Output('output-data-upload', 'children', allow_duplicate=True),
+     Output('excels-DD', 'options', allow_duplicate=True),
+     Output('excels-DD', 'value', allow_duplicate=True),
+     Output('selected-excel-store', 'data', allow_duplicate=True),
+     Output('selected-sheet-store', 'data', allow_duplicate=True),
+     Output('url', 'pathname', allow_duplicate=True)],  # CHANGEMENT: Redirect vers Dashboard
+    Input('create-excel-btn', 'n_clicks'),
+    [State('new-excel-name', 'value')],  # CHANGEMENT: Plus besoin de cols/rows
+    prevent_initial_call=True
+)
+def create_excel_from_scratch(n_clicks, filename):
+    """Create a minimal Excel file and redirect to Dashboard for editing"""
+    if not n_clicks:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    # Validate inputs
+    if not filename or not filename.strip():
+        error_alert = dbc.Alert("Please enter a file name", color="danger", dismissable=True)
+        return error_alert, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    try:
+        # Ensure filename has extension
+        filename = filename.strip()
+        if not filename.endswith('.xlsx'):
+            filename += '.xlsx'
+        
+        file_path = os.path.join(EXCEL_FOLDER, filename)
+        
+        # Check if file already exists
+        if os.path.exists(file_path):
+            error_alert = dbc.Alert(
+                f"A file named '{filename}' already exists. Please choose a different name.",
+                color="warning", 
+                dismissable=True
+            )
+            return error_alert, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        
+        # NOUVEAU: Créer un fichier minimal (3 colonnes, 10 lignes)
+        # L'utilisateur pourra tout modifier dans Dashboard
+        columns = ["Column_1", "Column_2", "Column_3"]
+        df = pd.DataFrame(index=range(10), columns=columns)
+        df = df.fillna("")
+        
+        # Save to Excel with formatting
+        with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Sheet1')
+            
+            # Apply formatting
+            worksheet = writer.sheets['Sheet1']
+            from openpyxl.styles import Font, PatternFill, Alignment
+            
+            # Format headers
+            for cell in worksheet[1]:
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max(max_length + 2, 15), 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        # Update tracking file
+        if os.path.exists(TRACKING_FILE):
+            df_tracking = pd.read_excel(TRACKING_FILE, engine='openpyxl')
+        else:
+            df_tracking = pd.DataFrame(columns=["filename"])
+        
+        if filename not in df_tracking["filename"].values:
+            new_row = pd.DataFrame([{"filename": filename}])
+            df_tracking = pd.concat([df_tracking, new_row], ignore_index=True)
+            df_tracking.to_excel(TRACKING_FILE, index=False, engine='openpyxl')
+        
+        # Refresh dropdown options
+        files = get_uploaded_excel_files()
+        options = [{"label": f, "value": f} for f in files]
+        
+        # Create success message (will be shown briefly before redirect)
+        success_alert = dbc.Alert([
+            html.I(className="bi bi-check-circle-fill me-2"),
+            f"Successfully created '{filename}'! Redirecting to Dashboard...",
+        ], color="success")
+        
+        # NOUVEAU: Redirect to Dashboard au lieu de rester sur Home
+        return (
+            success_alert,
+            options,
+            filename,              # Update excels-DD value
+            filename,              # Update selected-excel-store
+            "Sheet1",             # Update selected-sheet-store
+            "/table"              # REDIRECT TO DASHBOARD
+        )
+        
+    except Exception as e:
+        error_alert = dbc.Alert(
+            f"Failed to create file: {str(e)}", 
+            color="danger", 
+            dismissable=True
+        )
+        return error_alert, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+
+# ============================================
 # DELETE FILE CALLBACK
 # ============================================
 
@@ -330,7 +495,7 @@ def delete_file(n_clicks, selected_file):
 
 
 # ============================================
-# MAINTAIN COMPATIBILITY WITH OLD CALLBACKS - UPDATE STORES
+# MAINTAIN COMPATIBILITY WITH OLD CALLBACKS
 # ============================================
 
 @callback(
@@ -384,7 +549,6 @@ def update_dropdown_and_buttons(selected_excel, sheet_values):
     # Show delete button whenever a file is selected
     delete_button_style = {"display": "inline-block", "marginTop": "12px"}
     
-    # Update stores with selected excel and sheet
     return (
         sheet_dropdown, 
         text_dd2_style, 
