@@ -1,0 +1,62 @@
+{
+  "excel_name": "new proje.xlsx",
+  "parameters": [
+    {
+      "id": "0f136717-2639-430b-8380-44c074c860df",
+      "name": "newone",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          100.0
+        ]
+      }
+    },
+    {
+      "id": "dee4697c-83d9-456b-b41b-3c67b8573877",
+      "name": "pok",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          20.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "8de34470-dd30-416f-985c-f5428b65364c",
+      "name": "ok",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 2
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "a8d14f43-f6b8-406d-92d5-ba3e5c87b398",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 4,
+    "column_order": [
+      "Point type",
+      "newone",
+      "pok",
+      "ok"
+    ],
+    "parameter_names": [
+      "newone",
+      "pok"
+    ],
+    "objective_names": [
+      "ok"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ]
+  }
+}

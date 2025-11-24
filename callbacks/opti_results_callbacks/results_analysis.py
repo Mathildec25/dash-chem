@@ -286,7 +286,7 @@ def create_parallel_coordinates(df, param_names, obj_names):
     ))
     
     fig.update_layout(
-        margin=dict(l=80, r=80, t=30, b=30)
+        margin=dict(l=80, r=80, t=50, b=50)
     )
     
     return fig

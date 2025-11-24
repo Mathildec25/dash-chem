@@ -333,10 +333,6 @@ def create_opti_param_layout():
             ], md=6, className="mx-auto")
         ]),
         
-        # Hidden stores
-        dcc.Store(id='parameter-store', data=[], storage_type="session"),
-        dcc.Store(id='objective-store', data=[], storage_type="session"),
-        dcc.Store(id="extra-columns-store", data=[], storage_type="session"),
         
     ], fluid=True, style={
         "maxWidth": "1400px",
