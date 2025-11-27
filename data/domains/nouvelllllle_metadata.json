@@ -1,0 +1,49 @@
+{
+  "excel_name": "nouvelllllle.xlsx",
+  "parameters": [
+    {
+      "id": "8a27b078-b452-4a87-8965-5222aee8c7fd",
+      "name": "ok",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          4.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "c7f70345-d039-4bf9-8f9b-22164d430e30",
+      "name": "dddd",
+      "direction": "min",
+      "lower_bound": -1,
+      "upper_bound": 4
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "b69c7a51-d364-4cf6-9391-1e4ade909892",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 1,
+    "column_order": [
+      "Point type",
+      "ok",
+      "dddd"
+    ],
+    "parameter_names": [
+      "ok"
+    ],
+    "objective_names": [
+      "dddd"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ]
+  }
+}
