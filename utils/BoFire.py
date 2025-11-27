@@ -1,6 +1,7 @@
 """
 BoFire utilities for Bayesian Optimization
 Based on working code from user
+Enhanced with advanced customization options
 """
 
 import pandas as pd
@@ -8,7 +9,9 @@ import numpy as np
 
 import bofire.strategies.api as strategies
 from bofire.data_models.enum import SamplingMethodEnum
-from bofire.data_models.acquisition_functions.api import qLogNEI, qLogNEHVI
+from bofire.data_models.acquisition_functions.api import (
+    qLogNEI, qLogNEHVI, qEI, qNEI, qPI, qUCB, qSR
+)
 from bofire.data_models.api import Domain, Inputs, Outputs
 from bofire.data_models.features.api import (
     ContinuousInput, 
@@ -120,17 +123,76 @@ def sampling(domain, sampling_method: str, nb_points: int):
     return sampler.ask(nb_points)
 
 
-def bayesian_optimization(domain, experiments, n_candidates=1):
+def get_available_acquisition_functions(is_multi_objective=False):
+    """
+    Get available acquisition functions for single or multi-objective optimization.
+    
+    Args:
+        is_multi_objective: Boolean indicating if multi-objective
+    
+    Returns:
+        dict: Dictionary mapping display names to acquisition function classes
+    """
+    if is_multi_objective:
+        # Multi-objective acquisition functions
+        return {
+            'qLogNEHVI (default)': qLogNEHVI,
+        }
+    else:
+        # Single-objective acquisition functions
+        return {
+            'qLogNEI (default)': qLogNEI,
+            'qEI (Expected Improvement)': qEI,
+            'qNEI (Noisy Expected Improvement)': qNEI,
+            'qPI (Probability of Improvement)': qPI,
+            'qUCB (Upper Confidence Bound)': qUCB,
+            'qSR (Simple Regret)': qSR,
+        }
+
+
+def create_acquisition_function_from_name(acq_name, is_multi_objective=False):
+    """
+    Create an acquisition function instance from its name.
+    
+    Args:
+        acq_name: Name of the acquisition function
+        is_multi_objective: Boolean indicating if multi-objective
+    
+    Returns:
+        Acquisition function instance or None for default
+    """
+    if acq_name == 'qLogNEI (default)' or acq_name == 'qLogNEHVI (default)':
+        return None  # Will use default in bayesian_optimization
+    
+    acq_functions = get_available_acquisition_functions(is_multi_objective)
+    
+    # Get the class from the dict
+    acq_class = acq_functions.get(acq_name)
+    
+    if acq_class is None:
+        # Fallback to default (return None)
+        return None
+    
+    # Instantiate the acquisition function
+    try:
+        return acq_class()
+    except Exception as e:
+        print(f"Warning: Could not instantiate {acq_name}, using default. Error: {e}")
+        return None
+
+
+def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_function=None):
     """
     Run Bayesian optimization using the appropriate strategy based on the number of objectives.
     
-    - Single objective: SoboStrategy + qLogNEI
-    - Multiple objectives: MoboStrategy + qLogNEHVI
+    - Single objective: SoboStrategy (default: qLogNEI)
+    - Multiple objectives: MoboStrategy (default: qLogNEHVI)
     
     Args:
         domain: BoFire Domain object
         experiments: DataFrame with completed experiments (params + objectives)
-        n_candidates: Number of candidates to suggest
+        n_candidates: Number of candidates to suggest (default: 1)
+        acquisition_function: Custom acquisition function instance (optional). If None, defaults are used.
     
     Returns:
         DataFrame with suggested candidates
@@ -141,9 +203,13 @@ def bayesian_optimization(domain, experiments, n_candidates=1):
     
     # Select strategy and acquisition function based on objective count
     if n_obj == 1:
-        data_model = SoboStrategy(domain=domain, acquisition_function=qLogNEI())
+        # Single-objective optimization (SOBO)
+        acq_func = acquisition_function if acquisition_function is not None else qLogNEI()
+        data_model = SoboStrategy(domain=domain, acquisition_function=acq_func)
     elif n_obj >= 2:
-        data_model = MoboStrategy(domain=domain, acquisition_function=qLogNEHVI())
+        # Multi-objective optimization (MOBO)
+        acq_func = acquisition_function if acquisition_function is not None else qLogNEHVI()
+        data_model = MoboStrategy(domain=domain, acquisition_function=acq_func)
     else:
         raise ValueError("Domain must have at least one objective")
 
@@ -155,3 +221,17 @@ def bayesian_optimization(domain, experiments, n_candidates=1):
     
     # Ask for next candidates
     return strat.ask(candidate_count=n_candidates)
+
+
+def get_optimization_type(domain):
+    """
+    Determine if optimization is single or multi-objective based on domain.
+    
+    Args:
+        domain: BoFire Domain object
+    
+    Returns:
+        str: 'SOBO' for single objective, 'MOBO' for multi-objective
+    """
+    n_obj = len(domain.outputs.features)
+    return 'SOBO' if n_obj == 1 else 'MOBO'
