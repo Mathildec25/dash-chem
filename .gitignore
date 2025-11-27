@@ -2,8 +2,15 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+env/
+venv/
+ENV/
+
 .env/
 *.env
+.public/
+*.public
 .vscode/
 results.xlsx
 *.xlsx
