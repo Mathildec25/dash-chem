@@ -333,7 +333,7 @@ def create_opti_param_layout():
             ], md=6, className="mx-auto")
         ]),
         
-        
+
     ], fluid=True, style={
         "maxWidth": "1400px",
         "backgroundColor": "#f8f9fa",
