@@ -1,0 +1,103 @@
+{
+  "excel_name": "Loic_SOBO.xlsx",
+  "parameters": [
+    {
+      "id": "6aef5f74-f814-4253-8a54-e700d0ae4f59",
+      "name": "h2o2_eq",
+      "type": "float",
+      "type_info": {
+        "range": [
+          2.0,
+          3.0
+        ]
+      }
+    },
+    {
+      "id": "46c9ba84-ca60-4100-a486-ba09e8ad8ecc",
+      "name": "reaction_time_s",
+      "type": "float",
+      "type_info": {
+        "range": [
+          60.0,
+          600.0
+        ]
+      }
+    },
+    {
+      "id": "e0a94d38-b972-47f0-bfff-57147bcf60eb",
+      "name": "temperature",
+      "type": "float",
+      "type_info": {
+        "range": [
+          80.0,
+          160.0
+        ]
+      }
+    },
+    {
+      "id": "ea72457d-d47e-476f-9ae3-8f5e6a2a2daa",
+      "name": "reactor_volume",
+      "type": "int",
+      "type_info": {
+        "range": [
+          0.5,
+          1.0,
+          1.5
+        ]
+      }
+    },
+    {
+      "id": "8797fd1c-5a60-455e-b42c-5bd345ab2e77",
+      "name": "mixer",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "T",
+          "Y",
+          "Arrow"
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "b1f798ad-cc54-4bc3-a1a7-4e25a3d4373a",
+      "name": "Selectivity",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 1
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "a24009f4-3786-4c11-b7d3-6e0ace23dd69",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 1,
+    "column_order": [
+      "Point type",
+      "h2o2_eq",
+      "reaction_time_s",
+      "temperature",
+      "reactor_volume",
+      "mixer",
+      "Selectivity"
+    ],
+    "parameter_names": [
+      "h2o2_eq",
+      "reaction_time_s",
+      "temperature",
+      "reactor_volume",
+      "mixer"
+    ],
+    "objective_names": [
+      "Selectivity"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ]
+  }
+}

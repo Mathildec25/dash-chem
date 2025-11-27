@@ -1,266 +1,218 @@
+"""
+Layout for Optimization Home page
+"""
+
 import dash_bootstrap_components as dbc
 from dash import dcc, html
-import pandas as pd
 import os
-from excel_storage import EXCEL_FOLDER, TRACKING_FILE, TRACKING_FILENAME
+import pandas as pd
+from config_path import EXCEL_FOLDER, TRACKING_FILE
 
-def load_tracked_files():
+
+def get_existing_projects():
+    """Get list of existing project files"""
+    projects = []
+    
+    # Check tracking file
     if os.path.exists(TRACKING_FILE):
-        df = pd.read_excel(TRACKING_FILE)
-        return [{'label': fname, 'value': fname} for fname in df['filename'].dropna()]
-    return []
+        try:
+            df = pd.read_excel(TRACKING_FILE, engine='openpyxl')
+            if 'filename' in df.columns:
+                for fname in df['filename'].values:
+                    if fname and os.path.exists(os.path.join(EXCEL_FOLDER, fname)):
+                        projects.append({'label': fname.replace('.xlsx', ''), 'value': fname})
+        except:
+            pass
+    
+    # Also check folder directly
+    if os.path.exists(EXCEL_FOLDER):
+        for f in os.listdir(EXCEL_FOLDER):
+            if f.endswith('.xlsx'):
+                entry = {'label': f.replace('.xlsx', ''), 'value': f}
+                if entry not in projects:
+                    projects.append(entry)
+    
+    return projects
+
 
 def create_opti_home_layout():
+    projects = get_existing_projects()
+    
     return dbc.Container([
-        # Header Section
+        # Header
         dbc.Row([
             dbc.Col([
-                html.H1("Bayesian Optimization Hub", 
-                       className="text-center mb-2",
-                       style={"color": "#2c3e50", "fontWeight": "bold"}),
-                html.P("AI-powered experimental design and optimization using BoFire",
-                      className="text-center text-muted mb-4",
-                      style={"fontSize": "18px"})
-            ], width=12)
-        ], className="mt-4"),
-        
-        # Info Alert
-        dbc.Alert([
-            html.I(className="bi bi-robot me-2"),
-            html.Strong("What is Bayesian Optimization? "),
-            "An intelligent approach to experimental design that uses machine learning to suggest the most promising "
-            "experiments, with aim to reduce the number of trials needed to find optimal conditions.",
-        ], color="info", className="mb-4"),
-        
-        # Process Overview
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="bi bi-1-circle", 
-                                  style={"fontSize": "32px", "color": "#3498db"}),
-                            html.H6("Define Domain", className="mt-2 mb-1"),
-                            html.Small("Set parameters, objectives & constraints",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
-            
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="bi bi-2-circle", 
-                                  style={"fontSize": "32px", "color": "#2ecc71"}),
-                            html.H6("Initial Sampling", className="mt-2 mb-1"),
-                            html.Small("Generate first experiments points",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
-            
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="bi bi-3-circle", 
-                                  style={"fontSize": "32px", "color": "#9b59b6"}),
-                            html.H6("Run Experiments", className="mt-2 mb-1"),
-                            html.Small("Execute suggested experiments & record results",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
-            
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="bi bi-4-circle", 
-                                  style={"fontSize": "32px", "color": "#e74c3c"}),
-                            html.H6("AI Suggestions", className="mt-2 mb-1"),
-                            html.Small("BO for next experiment recommendations",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
+                html.H1("Bayesian Optimization", 
+                       style={
+                           "color": "#1a1a1a", 
+                           "fontWeight": "700",
+                           "fontSize": "2.5rem",
+                           "letterSpacing": "-0.02em",
+                           "textAlign": "center"
+                       }),
+                html.P("Design and optimize your experiments with AI-powered suggestions",
+                      style={
+                          "fontSize": "1.1rem",
+                          "color": "#6c757d",
+                          "textAlign": "center",
+                          "marginBottom": "2rem"
+                      })
+            ], md=12)
         ], className="mb-4"),
         
-        # Main Action Options
         dbc.Row([
             # New Project Card
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader([
-                        html.Div([
-                            html.H4([
-                                html.I(className="bi bi-plus-circle me-2"),
-                                "Start New Project"
-                            ], className="text-success mb-0"),
-                        ])
-                    ], style={"backgroundColor": "#e8f5e8"}),
                     dbc.CardBody([
-                        html.P("Create a new optimization project from scratch",
-                              className="text-muted mb-3"),
-                        
-                        dbc.Row([
-                            dbc.Col([
-                                dbc.Label("Project Name", className="fw-bold mb-2"),
-                                dbc.Input(
-                                    id="new-proj",
-                                    type="text",
-                                    placeholder="🔬 Enter your project name...",
-                                    className="mb-3",
-                                    style={"fontSize": "16px"}
-                                ),
-                            ], width=12)
-                        ]),
-                        
                         html.Div([
-                            dcc.Link(
-                                dbc.Button([
-                                    html.I(className="bi bi-rocket-takeoff me-2"),
-                                    "Create Project & Configure Domain"
-                                ],
-                                id="start-opti-button",
-                                color="success",
-                                size="lg",
-                                className="w-100",
-                                style={"marginTop": "12px", "display": "none"}
-                                ), 
-                                href="/Opt-param"
-                            )
-                        ], id="start-opti-button-container"),
+                            html.I(className="bi bi-plus-circle", 
+                                  style={"fontSize": "3rem", "color": "#6366f1"}),
+                        ], className="text-center mb-3"),
                         
-                        # Process Flow
-                        dbc.Alert([
-                            html.Strong("Next Steps: "),
-                            "Parameter Definition → Objective Setting → Initial Sampling → Domain Creation"
-                        ], color="light", className="mt-3 mb-0", style={"border": "1px solid #28a745"})
-                    ])
-                ], className="h-100 shadow-sm")
+                        html.H4("New Project", 
+                               className="text-center mb-3",
+                               style={"fontWeight": "600"}),
+                        
+                        dbc.Input(
+                            id="new-proj",
+                            placeholder="Enter project name...",
+                            type="text",
+                            className="mb-3",
+                            style={"borderRadius": "8px"}
+                        ),
+                        
+                        dbc.Button([
+                            html.I(className="bi bi-arrow-right me-2"),
+                            "Create Project"
+                        ],
+                        id="start-opti-button",
+                        color="primary",
+                        className="w-100",
+                        style={
+                            "backgroundColor": "#6366f1",
+                            "border": "none",
+                            "borderRadius": "8px",
+                            "fontWeight": "500",
+                            "display": "none"
+                        }
+                        )
+                    ], style={"padding": "2rem"})
+                ], style={
+                    "borderRadius": "16px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 4px 12px rgba(0,0,0,0.08)",
+                    "height": "100%"
+                })
             ], md=6, className="mb-4"),
             
-            # Existing Project Card
+            # Existing Projects Card
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader([
-                        html.Div([
-                            html.H4([
-                                html.I(className="bi bi-folder-open me-2"),
-                                "Continue Existing Project"
-                            ], className="text-primary mb-0"),
-                        ])
-                    ], style={"backgroundColor": "#e7f3ff"}),
                     dbc.CardBody([
-                        html.P("Select an existing project that already has a configured domain",
-                              className="text-muted mb-3"),
-                        dbc.Row([
-                            dbc.Col([
-                                dbc.Label("Select Project File", className="fw-bold mb-2"),
-                                dcc.Dropdown(
-                                    id="excels-DD-opti",
-                                    options=load_tracked_files(),
-                                    placeholder="📁 Choose an existing optimization project...",
-                                    className="mb-2",
-                                    style={"fontSize": "16px"}
-                                ),
-                                html.Div(id='domain-status-display', className="mb-2"),
-                            ], width=12)
-                        ]),
+                        html.Div([
+                            html.I(className="bi bi-folder2-open", 
+                                  style={"fontSize": "3rem", "color": "#10b981"}),
+                        ], className="text-center mb-3"),
+                        
+                        html.H4("Open Project", 
+                               className="text-center mb-3",
+                               style={"fontWeight": "600"}),
+                        
+                        dcc.Dropdown(
+                            id="existing-projects-list",
+                            options=projects,
+                            placeholder="Select a project...",
+                            style={"borderRadius": "8px"},
+                            className="mb-3"
+                        ) if projects else html.P(
+                            "No existing projects",
+                            className="text-muted text-center mb-3"
+                        ),
+                        
+                        dbc.Button([
+                            html.I(className="bi bi-folder2-open me-2"),
+                            "Open Project"
+                        ],
+                        id="open-existing-project-btn",
+                        color="success",
+                        className="w-100",
+                        style={
+                            "borderRadius": "8px",
+                            "fontWeight": "500",
+                            "display": "none"
+                        }
+                        ) if projects else None,
                         
                         html.Div([
-                            dbc.Label("Select Data Sheet", className="fw-bold mb-2", id="text-DD-2-opti", style={"display":"none"}),
-                            html.Div(id='sheets-DD-opti', className="mb-2"),
-                        ]),
-                        
-                        dbc.Row([
-                            dbc.Col([
-                                html.Div([
-                                    dcc.Link(
-                                        dbc.Button([
-                                            html.I(className="bi bi-play-fill me-2"),
-                                            "Continue Optimization"
-                                        ],
-                                        id="restart-opti-button",
-                                        color="primary",
-                                        size="lg",
-                                        className="w-100",
-                                        style={"marginTop": "12px", "display": "none"}
-                                        ), 
-                                        href="/Opt-run"
-                                    )
-                                ], id="restart-opti-button-container"),
-                            ], md=8),
-                            dbc.Col([
-                                html.Div([
-                                    dbc.Button([
-                                        html.I(className="bi bi-trash me-2"),
-                                        "Delete"
-                                    ],
-                                    id="delete-excel-button-opti",
-                                    color="outline-danger",
-                                    size="lg",
-                                    className="w-100",
-                                    style={"marginTop": "12px", "display": "none"}
-                                    )
-                                ], id="delete-button-container"),
-                            ], md=4)
-                        ]),
-                        
-                        # Process Flow
-                        dbc.Alert([
-                            html.Strong("Next Steps: "),
-                            "Review Results → Add New Experiments → Get AI Recommendations → Analyze Performance"
-                        ], color="light", className="mt-3 mb-0", style={"border": "1px solid #007bff"})
-                    ])
-                ], className="h-100 shadow-sm")
+                            html.Small(f"{len(projects)} project(s) available", 
+                                      className="text-muted")
+                        ], className="text-center mt-2")
+                    ], style={"padding": "2rem"})
+                ], style={
+                    "borderRadius": "16px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 4px 12px rgba(0,0,0,0.08)",
+                    "height": "100%"
+                })
             ], md=6, className="mb-4"),
         ]),
         
-        # Help and Information Section
+        # Info section
         dbc.Row([
             dbc.Col([
-                dbc.Alert([
-                    html.H6([
-                        html.I(className="bi bi-question-circle me-2"),
-                        "Understanding Bayesian Optimization"
-                    ], className="alert-heading"),
-                    html.Hr(),
-                    html.P([
-                        html.Strong("Why use BO? "),
-                        "Traditional experimental approaches often require many trials. Bayesian Optimization uses "
-                        "machine learning to intelligently suggest which experiments to run next, "
-                        "reducing the time and resources needed to find optimal conditions."
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Key Benefits: "),
-                        "• Fewer experiments needed • Handles complex parameter interactions • "
-                        "Provides uncertainty estimates • Works with expensive/time-consuming experiments"
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Best For: "),
-                        "Process optimization, material discovery, reaction condition screening, "
-                        "and any scenario where experiments are costly or time-consuming."
-                    ], className="mb-0"),
-                ], color="light", className="border")
-            ], width=12)
-        ], className="mt-4"),
-        
-        # Technical Info
-        dbc.Row([
-            dbc.Col([
-                dbc.Alert([
-                    html.I(className="bi bi-gear-fill me-2"),
-                    html.Strong("Powered by BoFire: "),
-                    "This platform uses BoFire, a Bayesian Optimization framework developed specifically for "
-                    "experimental design and optimization in research and industry applications.",
-                ], color="secondary", className="mt-3")
-            ], width=12)
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("How it works", className="mb-3", style={"fontWeight": "600"}),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("1", className="badge bg-primary me-2", 
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Define Domain"),
+                                    html.P("Set your parameters and objectives", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("2", className="badge bg-primary me-2",
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Initial Sampling"),
+                                    html.P("Generate starting experiments", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("3", className="badge bg-primary me-2",
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Run & Record"),
+                                    html.P("Execute experiments and enter results", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.Span("4", className="badge bg-success me-2",
+                                             style={"borderRadius": "50%", "padding": "0.5rem 0.75rem"}),
+                                    html.Strong("Optimize"),
+                                    html.P("Get AI-suggested next experiments", 
+                                          className="text-muted small mb-0 mt-1")
+                                ])
+                            ], md=3),
+                        ])
+                    ], style={"padding": "1.5rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "backgroundColor": "#f8f9fa"
+                })
+            ], md=12)
         ])
-    ], fluid=True, style={"maxWidth": "1400px"})
+        
+    ], fluid=True, style={
+        "maxWidth": "1000px",
+        "marginTop": "3rem",
+        "paddingBottom": "3rem"
+    })

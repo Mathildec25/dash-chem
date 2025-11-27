@@ -2,628 +2,342 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 import uuid
 
-# For the solvent part
-solvents = [
-    'Acetonitrile', 'Methanol', 'Butanol', 'THF', 'DMSO', 'Water', 'Ethanol', 'Cyclohexane', 'Toluene', 'Isopropyl alcohol',
-    'Acetone', 'Hexane', 'Dichloromethane', 'DMF', 'Benzene', 'Chloroform', 'Heptane', 'Acetic acid', 'Diethyl ether', 'Chlorobenzene'
-]
-
-# ID to match in AccordionItems
-initial_id = str(uuid.uuid4()) # For the parameters part
-initial_objective_id = str(uuid.uuid4()) # For the objectives part
-initial_extra_col_id = str(uuid.uuid4()) # For the extra columns part
-
-def chunk_list(lst, chunk_size):
-    return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
-
-chunks = chunk_list(solvents, 5)
+initial_id = str(uuid.uuid4())
+initial_objective_id = str(uuid.uuid4())
 
 def create_opti_param_layout():
     return dbc.Container([
-        # Header Section
+        # Header with back button
         dbc.Row([
+            dbc.Col([
+                dcc.Link(
+                    html.I(className="bi bi-arrow-left", style={"fontSize": "1.5rem", "color": "#6c757d"}),
+                    href="/Opt-home",
+                    style={"textDecoration": "none"}
+                )
+            ], width="auto"),
             dbc.Col([
                 html.H1("Domain Configuration", 
-                       className="text-center mb-2",
-                       style={"color": "#2c3e50", "fontWeight": "bold"}),
-                html.P("Define your experimental space for Bayesian Optimization",
-                      className="text-center text-muted mb-4",
-                      style={"fontSize": "18px"})
-            ], width=12)
-        ], className="mt-4"),
-
-        # Progress Overview
+                       style={
+                           "color": "#1a1a1a", 
+                           "fontWeight": "600",
+                           "fontSize": "2rem",
+                           "letterSpacing": "-0.02em",
+                           "marginBottom": "0.25rem"
+                       }),
+                html.P("Define your optimization space parameters and objectives",
+                      style={
+                          "fontSize": "1rem",
+                          "color": "#6c757d",
+                          "marginBottom": "0"
+                      })
+            ], width=True)
+        ], className="mb-4 align-items-center"),
+        
+        # Alert for validation errors (only shown when clicking Continue)
         dbc.Row([
             dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="bi bi-sliders", 
-                                  style={"fontSize": "32px", "color": "#007bff"}),
-                            html.H6("1. Parameters", className="mt-2 mb-1"),
-                            html.Small("Variables you can control",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
-            
+                dbc.Alert(
+                    id="validation-alert",
+                    is_open=False,
+                    dismissable=True,
+                    className="mb-3"
+                )
+            ], md=12)
+        ]),
+        
+        dbc.Row([
+            # Parameters Card
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
                         html.Div([
-                            html.I(className="bi bi-bullseye", 
-                                  style={"fontSize": "32px", "color": "#28a745"}),
-                            html.H6("2. Objectives", className="mt-2 mb-1"),
-                            html.Small("Goals to optimize",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
-            
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="bi bi-table", 
-                                  style={"fontSize": "32px", "color": "#6c757d"}),
-                            html.H6("3. Extra Data", className="mt-2 mb-1"),
-                            html.Small("Additional tracking columns",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
-            
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="bi bi-gear-fill", 
-                                  style={"fontSize": "32px", "color": "#ffc107"}),
-                            html.H6("4. Launch", className="mt-2 mb-1"),
-                            html.Small("Configure & start optimization",
-                                      className="text-muted")
-                        ], className="text-center")
-                    ])
-                ], className="h-100 shadow-sm border-0")
-            ], md=3, className="mb-3"),
-        ], className="mb-4"),
-
-        # Main Configuration Accordion
-        dbc.Card([
-            dbc.CardBody([
-                dbc.Accordion([
-                    # Parameters Section
-                    dbc.AccordionItem([
-                        # Parameter container
+                            html.H5("Parameters", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
+                            dbc.Button([
+                                html.I(className="bi bi-plus-lg")
+                            ],
+                            id="add-para-button",
+                            color="primary",
+                            size="sm",
+                            className="float-end",
+                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                            ),
+                        ], className="mb-3"),
+                        
+                        # Parameters container with initial row
                         html.Div(id="parameter-container", children=[
-                            dbc.Card([
-                                dbc.CardBody([
-                                    dbc.Row(
-                                        id={'type': 'parameter-block', 'index': initial_id},
-                                        children=[
-                                            dbc.Col([
-                                                dbc.Label("Parameter Name", className="fw-bold"),
-                                                dbc.Input(  
-                                                    id={'type': 'parameter-name', 'index': initial_id},
-                                                    placeholder="e.g., Temperature, Concentration...",
-                                                    type="text",
-                                                    size="md",
-                                                    style={"fontSize": "16px"}
-                                                ),
-                                            ], width=5),
-                                            dbc.Col([
-                                                html.Div(id={'type': 'parameter-type-container', 'index': initial_id})
-                                            ], width=5),
-                                            dbc.Col([
-                                                dbc.Label("Delete", className="fw-bold"),
-                                                dbc.Button(
-                                                    "✕", 
-                                                    id={'type': 'delete-parameter', 'index': initial_id}, 
-                                                    color="outline-danger", 
-                                                    size="sm",
-                                                    className="w-100"
-                                                ),
-                                            ], width=2)
-                                        ],
-                                        className="align-items-end mb-3"
-                                    ),
-                                    # Type-specific configuration area
-                                    html.Div(id={'type': 'parameter-type-specific-container', 'index': initial_id}),
-                                ])
-                            ], className="mb-3 shadow-sm")
-                        ]),
-                        
-                        # Action buttons
-                        dbc.Row([
-                            dbc.Col([
-                                dbc.Button([
-                                    html.I(className="bi bi-plus-circle me-2"),
-                                    "Add Parameter"
-                                ],
-                                id="add-para-button",
-                                color="primary",
-                                size="lg",
-                                className="me-3"
-                                ),
-                                dbc.Button([
-                                    html.I(className="bi bi-floppy me-2"),
-                                    "Save Parameters"
-                                ], 
-                                id="save-parameters-btn", 
-                                color="success", 
-                                size="lg"
-                                ),
-                            ], className="text-center")
-                        ], className="mb-3"),
-                        
-                        # Parameter display
-                        dbc.Card([
-                            dbc.CardHeader([
-                                html.H6([
-                                    html.I(className="bi bi-list-check me-2"),
-                                    "Current Parameters"
-                                ], className="mb-0")
-                            ]),
-                            dbc.CardBody([
-                                html.Div(
-                                    id="parameter-display", 
-                                    children=[html.P("No parameters defined yet", className="text-muted")],
-                                    style={"fontSize": "14px", "maxHeight": "300px", "overflowY": "auto"}
-                                )
-                            ])
-                        ], className="mt-3")
-                    ], 
-                    title=[
-                        html.I(className="bi bi-sliders me-2"),
-                        "Step 1: Define Parameters"
-                    ],
-                    item_id="item-parameters"),
-                    
-                    # Objectives Section
-                    dbc.AccordionItem([
-                        html.Div(id="objective-container", children=[
-                            dbc.Card([
-                                dbc.CardBody([
-                                    dbc.Row(
-                                        id={'type': 'objective-block', 'index': initial_objective_id},
-                                        children=[
-                                            dbc.Col([
-                                                dbc.Label("Objective Name", className="fw-bold"),
-                                                dbc.Input(
-                                                    id={'type': 'objective-name', 'index': initial_objective_id},
-                                                    placeholder="e.g., Yield, Purity, Cost...",
-                                                    type="text",
-                                                    size="md",
-                                                    style={"fontSize": "16px"}
-                                                ),
-                                            ], width=3),
-                                            dbc.Col([
-                                                html.Div(id={'type': 'objective-direction-container', 'index': initial_objective_id})
-                                            ], width=3),
-                                            dbc.Col([
-                                                html.Div(id={'type': 'objective-bounds-container', 'index': initial_objective_id})
-                                            ], width=4),
-                                            dbc.Col([
-                                                dbc.Label("Delete", className="fw-bold"),
-                                                dbc.Button(
-                                                    "✕",
-                                                    id={'type': 'delete-objective-btn', 'index': initial_objective_id},
-                                                    color="outline-danger",
-                                                    size="sm",
-                                                    className="w-100"
-                                                )
-                                            ], width=2),
-                                        ],
-                                        className="align-items-end mb-3"
-                                    )
-                                ])
-                            ], className="mb-3 shadow-sm")
-                        ]),
-                        
-                        # Action buttons
-                        dbc.Row([
-                            dbc.Col([
-                                dbc.Button([
-                                    html.I(className="bi bi-plus-circle me-2"),
-                                    "Add Objective"
-                                ],
-                                id="add-objective-button",
-                                color="primary",
-                                size="lg",
-                                className="me-3"
-                                ),
-                                dbc.Button([
-                                    html.I(className="bi bi-floppy me-2"),
-                                    "Save Objectives"
-                                ],
-                                id="save-objectives-btn",
-                                color="success",
-                                size="lg"
-                                )
-                            ], className="text-center")
-                        ], className="mb-3"),
-                        
-                        # Objectives display
-                        dbc.Card([
-                            dbc.CardHeader([
-                                html.H6([
-                                    html.I(className="bi bi-bullseye me-2"),
-                                    "Current Objectives"
-                                ], className="mb-0")
-                            ]),
-                            dbc.CardBody([
-                                html.Div(
-                                    id="objective-display",
-                                    children=[html.P("No objectives defined yet", className="text-muted")], 
-                                    style={"fontSize": "14px", "maxHeight": "300px", "overflowY": "auto"}
-                                )
-                            ])
-                        ], className="mt-3")
-                    ], 
-                    title=[
-                        html.I(className="bi bi-bullseye me-2"),
-                        "Step 2: Define Objectives"
-                    ],
-                    item_id="item-objectives"),
-                    
-                    # Extra Columns Section
-                    dbc.AccordionItem([
-                        # Header explanation
-                        dbc.Alert([
-                            html.I(className="bi bi-lightbulb-fill me-2"),
-                            html.Strong("Additional Columns "),
-                            "are for tracking extra information not used in optimization "
-                            "(batch ID, notes, operator, etc.). These help with data organization."
-                        ], color="info", className="mb-4"),
-                        
-                        dbc.Row([
-                            dbc.Col([
-                                html.Div(id="extra-column-container", children=[
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            dbc.Row(
-                                                id={'type': 'extra-column-block', 'index': initial_extra_col_id},
-                                                children=[
-                                                    dbc.Col([
-                                                        dbc.Label("Column Name", className="fw-bold"),
-                                                        dbc.Input(
-                                                            id={'type': 'extra-column-name', 'index': initial_extra_col_id},
-                                                            placeholder="e.g., Batch_ID, Operator, Notes...",
-                                                            type="text",
-                                                            size="md",
-                                                            style={"fontSize": "16px"}
-                                                        ),
-                                                    ], width=10),
-                                                    dbc.Col([
-                                                        dbc.Label("Delete", className="fw-bold"),
-                                                        dbc.Button(
-                                                            "✕",
-                                                            id={'type': 'delete-extra-column-btn', 'index': initial_extra_col_id},
-                                                            color="outline-danger",
-                                                            size="sm",
-                                                            className="w-100"
-                                                        )
-                                                    ], width=2),
-                                                ],
-                                                className="align-items-end mb-3"
-                                            )
-                                        ])
-                                    ], className="mb-3 shadow-sm")
-                                ]),
-                                
-                                # Action buttons
+                            html.Div([
                                 dbc.Row([
                                     dbc.Col([
-                                        dbc.Button([
-                                            html.I(className="bi bi-plus-circle me-2"),
-                                            "Add Column"
-                                        ],
-                                        id="add-extra-column-button",
-                                        color="primary",
-                                        size="lg",
-                                        className="me-3"
-                                        ),
-                                        dbc.Button([
-                                            html.I(className="bi bi-floppy me-2"),
-                                            "Save Columns"
-                                        ],
-                                        id="save-extra-columns-btn",
-                                        color="success",
-                                        size="lg"
-                                        ),
-                                    ], className="text-center")
-                                ], className="mb-3"),
-                                
-                                # Extra columns display
-                                dbc.Card([
-                                    dbc.CardHeader([
-                                        html.H6([
-                                            html.I(className="bi bi-table me-2"),
-                                            "Additional Columns"
-                                        ], className="mb-0")
-                                    ]),
-                                    dbc.CardBody([
-                                        html.Div(
-                                            id="extra-columns-display",
-                                            children=[html.P("No additional columns defined", className="text-muted")],
-                                            style={"fontSize": "14px", "maxHeight": "200px", "overflowY": "auto"}
+                                        dbc.Input(
+                                            id={'type': 'parameter-name', 'index': initial_id},
+                                            placeholder="Parameter name",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
                                         )
-                                    ])
-                                ], className="mt-3")
-                            ], width=12)
-                        ])
-                    ], 
-                    title=[
-                        html.I(className="bi bi-table me-2"),
-                        "Step 3: Additional Columns (Optional)"
-                    ],
-                    item_id="item-extra"),
-                    
-                    # Sampling and Launch Section
-                    dbc.AccordionItem([
-                        # Header explanation
-                        dbc.Alert([
-                            html.I(className="bi bi-lightbulb-fill me-2"),
-                            html.Strong("Initial Sampling "),
-                            "generates the first experimental points to train the AI model. "
-                            "More points = better initial model, fewer points = faster start."
-                        ], color="info", className="mb-4"),
-                        
-                        dbc.Card([
-                            dbc.CardHeader([
-                                html.H5([
-                                    html.I(className="bi bi-gear me-2"),
-                                    "Sampling Configuration"
-                                ], className="mb-0 text-primary")
-                            ]),
-                            dbc.CardBody([
-                                dbc.Row([
+                                    ], width=3),
                                     dbc.Col([
-                                        dbc.Label("Sampling Strategy", className="fw-bold mb-2"),
                                         dcc.Dropdown(
-                                            id="starting-sampling-DD",
+                                            id={'type': 'parameter-type', 'index': initial_id},
                                             options=[
-                                                {"label": "None (Manual Start)", "value": "none"},
-                                                {"label": "Random Sampling", "value": "random"},
-                                                {"label": "Latin Hypercube (Recommended)", "value": "latin_hypercube"},
-                                                {"label": "Sobol Sequence", "value": "sobol"},
+                                                {"label": "Continuous", "value": "float"},
+                                                {"label": "Discrete", "value": "int"},
+                                                {"label": "Categorical", "value": "cat"},
                                             ],
-                                            placeholder="Select sampling method...",
-                                            value="latin_hypercube",  # Default to recommended
-                                            style={"fontSize": "16px"},
-                                            className="mb-2"
-                                        ),
+                                            value="float",
+                                            placeholder="Type",
+                                            clearable=False,
+                                            style={"fontSize": "0.875rem"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        html.Div(id={'type': 'parameter-inputs', 'index': initial_id}, children=[
+                                            dbc.Row([
+                                                dbc.Col([
+                                                    dbc.Input(
+                                                        id={'type': 'parameter-min', 'index': initial_id},
+                                                        placeholder="Min",
+                                                        type="number",
+                                                        step="any",
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    )
+                                                ], width=6),
+                                                dbc.Col([
+                                                    dbc.Input(
+                                                        id={'type': 'parameter-max', 'index': initial_id},
+                                                        placeholder="Max",
+                                                        type="number",
+                                                        step="any",
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    )
+                                                ], width=6),
+                                            ])
+                                        ])
                                     ], width=6),
                                     dbc.Col([
-                                        dbc.Label("Number of Initial Points", className="fw-bold mb-2"),
-                                        dbc.Input(
-                                            id="nb-sampling-points",
-                                            type="number",
-                                            placeholder="e.g., 10, 20, 50...",
-                                            value=10,  # Default value
-                                            min=1,
-                                            style={"fontSize": "16px"},
-                                            className="mb-2"
-                                        ),
-                                        html.Small([
-                                            html.I(className="bi bi-calculator text-info me-1"),
-                                            "Recommendation: 2 × number of parameters"
-                                        ], className="text-muted")
-                                    ], width=6)
-                                ], className="mb-4"),
-                                
-                                # Summary section
-                                dbc.Alert([
-                                    html.H6("Ready to Create Domain?", className="alert-heading"),
-                                    html.P("Make sure you have defined:", className="mb-2"),
-                                    html.Ul([
-                                        html.Li("At least one parameter with valid bounds"),
-                                        html.Li("At least one objective with direction"),
-                                        html.Li("Sampling strategy (if desired) with a number of points")
-                                    ], className="mb-3"),
-                                ], color="light", className="border border-primary"),
-                                
-                                # Launch button
+                                        dbc.Button(
+                                            html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                                            id={'type': 'delete-parameter', 'index': initial_id},
+                                            color="danger",
+                                            outline=True,
+                                            size="sm",
+                                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                                        )
+                                    ], width=1),
+                                ], className="mb-2 align-items-center"),
+                            ], id={'type': 'parameter-row', 'index': initial_id})
+                        ]),
+                    ], style={"padding": "1.25rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white",
+                    "height": "100%"
+                })
+            ], md=6, className="mb-3"),
+            
+            # Objectives Card
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.H5("Objectives", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
+                            dbc.Button([
+                                html.I(className="bi bi-plus-lg")
+                            ],
+                            id="add-objective-button",
+                            color="success",
+                            size="sm",
+                            className="float-end",
+                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                            ),
+                        ], className="mb-3"),
+                        
+                        # Objectives container with initial row
+                        html.Div(id="objective-container", children=[
+                            html.Div([
                                 dbc.Row([
                                     dbc.Col([
-                                        dcc.Link(
-                                            dbc.Button([
-                                                html.I(className="bi bi-rocket-takeoff me-2"),
-                                                "Create Domain & Start Optimization"
-                                            ],
-                                            id="create-domain-btn",
-                                            color="success",
-                                            size="lg",
-                                            className="w-100",
-                                            style={"fontSize": "18px", "padding": "12px"}
-                                            ), 
-                                            href="/Opt-run"
+                                        dbc.Input(
+                                            id={'type': 'objective-name', 'index': initial_objective_id},
+                                            placeholder="Objective name",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
                                         )
-                                    ], md=6, className="mx-auto")
-                                ], className="mt-4")
-                            ])
-                        ], className="shadow-sm")
-                    ], 
-                    title=[
-                        html.I(className="bi bi-gear-fill me-2"),
-                        "Step 4: Configure & Launch"
-                    ],
-                    item_id="item-launch"),
-                ], 
-                id="accordion", 
-                active_item="item-parameters",
-                className="mb-4")
-            ])
-        ], className="shadow"),
+                                    ], width=4),
+                                    dbc.Col([
+                                        dcc.Dropdown(
+                                            id={'type': 'objective-direction', 'index': initial_objective_id},
+                                            options=[
+                                                {"label": "Minimize", "value": "min"},
+                                                {"label": "Maximize", "value": "max"}
+                                            ],
+                                            placeholder="Direction",
+                                            clearable=False,
+                                            style={"fontSize": "0.875rem"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        dbc.Input(
+                                            id={'type': 'objective-lower', 'index': initial_objective_id},
+                                            placeholder="Min",
+                                            type="number",
+                                            step="any",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        dbc.Input(
+                                            id={'type': 'objective-upper', 'index': initial_objective_id},
+                                            placeholder="Max",
+                                            type="number",
+                                            step="any",
+                                            size="sm",
+                                            style={"borderRadius": "6px"}
+                                        )
+                                    ], width=2),
+                                    dbc.Col([
+                                        dbc.Button(
+                                            html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                                            id={'type': 'delete-objective', 'index': initial_objective_id},
+                                            color="danger",
+                                            outline=True,
+                                            size="sm",
+                                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                                        )
+                                    ], width=1),
+                                ], className="mb-2 align-items-center"),
+                            ], id={'type': 'objective-row', 'index': initial_objective_id})
+                        ]),
+                    ], style={"padding": "1.25rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white",
+                    "height": "100%"
+                })
+            ], md=6, className="mb-3"),
+        ]),
         
-        # Help Section
+        # Extra Columns Card (Collapsible)
         dbc.Row([
             dbc.Col([
-                dbc.Alert([
-                    html.H6([
-                        html.I(className="bi bi-question-circle me-2"),
-                        "Domain Configuration Guide"
-                    ], className="alert-heading"),
-                    html.Hr(),
-                    html.P([
-                        html.Strong("Parameter Types: "),
-                        "• Continuous (decimals) • Discrete (specific numbers) • Categorical (text options)"
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Objectives: "),
-                        "• Minimize • Maximize • Bounds are used to normalized parameters values"
-                    ], className="mb-2"),
-                    html.P([
-                        html.Strong("Sampling: "),
-                        "• Latin Hypercube: Best space coverage • Random: Simple but less efficient • "
-                        "Sobol: Quasi-random, good for many parameters"
-                    ], className="mb-0"),
-                ], color="light", className="border")
-            ], width=12)
-        ], className="mt-4")
-    ], fluid=True, style={"maxWidth": "1400px"})
+                dbc.Button([
+                    html.I(className="bi bi-plus-square me-2"),
+                    "Add Extra Columns (Optional)"
+                ],
+                id="toggle-extra-columns",
+                outline=True,
+                color="secondary",
+                size="sm",
+                className="mb-3",
+                style={"borderRadius": "6px"}
+                ),
+                
+                dbc.Collapse([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6("Extra Columns", className="mb-3", style={"fontWeight": "600"}),
+                            html.Div(id="extra-column-container", children=[]),
+                            dbc.Button([
+                                html.I(className="bi bi-plus me-2"),
+                                "Add Column"
+                            ],
+                            id="add-extra-column-button",
+                            outline=True,
+                            color="secondary",
+                            size="sm",
+                            style={"borderRadius": "6px"}
+                            ),
+                        ], style={"padding": "1rem"})
+                    ], style={
+                        "borderRadius": "12px",
+                        "border": "1px solid #e0e0e0",
+                        "backgroundColor": "white"
+                    })
+                ], id="extra-columns-collapse", is_open=False),
+            ], md=12)
+        ]),
+        
+        # Sampling Configuration Card
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Initial Sampling", className="mb-3", style={"fontWeight": "600"}),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label("Method", className="form-label small text-muted"),
+                                dcc.Dropdown(
+                                    id="starting-sampling-DD",
+                                    options=[
+                                        {"label": "None", "value": "none"},
+                                        {"label": "Random", "value": "random"},
+                                        {"label": "Latin Hypercube", "value": "latin_hypercube"},
+                                        {"label": "Sobol", "value": "sobol"},
+                                    ],
+                                    value="latin_hypercube",
+                                    clearable=False,
+                                    style={"fontSize": "0.875rem"}
+                                ),
+                            ], md=6),
+                            dbc.Col([
+                                html.Label("Points", className="form-label small text-muted"),
+                                dbc.Input(
+                                    id="nb-sampling-points",
+                                    type="number",
+                                    value=10,
+                                    min=1,
+                                    size="sm",
+                                    style={"borderRadius": "6px"}
+                                ),
+                            ], md=6)
+                        ])
+                    ], style={"padding": "1.25rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white"
+                })
+            ], md=12, className="mb-3")
+        ]),
+        
+        # Continue Button
+        dbc.Row([
+            dbc.Col([
+                dbc.Button([
+                    html.I(className="bi bi-arrow-right-circle me-2"),
+                    "Continue to Experiments"
+                ],
+                id="create-domain-btn",
+                color="primary",
+                size="lg",
+                className="w-100",
+                disabled=True,
+                style={
+                    "backgroundColor": "#6366f1",
+                    "border": "none",
+                    "borderRadius": "8px",
+                    "padding": "0.75rem",
+                    "fontSize": "1rem",
+                    "fontWeight": "500",
+                    "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.2)"
+                }
+                )
+            ], md=6, className="mx-auto")
+        ]),
+        
 
-#===============================================
-# OTHER PARTS REMOVED BUT COULD BE ADDED LATER
-#===============================================
-
- # First part to selct Batch/Flow
-                            # dbc.AccordionItem(
-                            #     children=[
-                            #         dcc.RadioItems(
-                            #             options=[
-                            #                 {'label': 'Batch', 'value': 'Batch'},
-                            #                 {'label': 'Flow', 'value': 'Flow'},
-                            #                 {'label': "Don't know", 'value': "Don't know"},
-                            #             ],
-                            #             inline=True,
-                            #             labelStyle={'marginLeft': '200px', 'fontSize': '20px', 'display': 'inline-block'},
-                            #             inputStyle={'marginRight': '5px'},
-                            #         )
-                            #     ],
-                            #     title="Batch/Flow", 
-                            #     item_id="item-1",
-                            # ),
-                            # # Second part to select Solvent
-                            # dbc.AccordionItem(
-                            #     children=[
-                            #         dbc.Row([
-                            #             dbc.Col([
-                            #                 dcc.Checklist(
-                            #                     options=[{'label': item, 'value': item} for item in chunk],
-                            #                     labelStyle={'fontSize': '18px', 'display': 'block'},
-                            #                     inputStyle={'marginRight': '5px'},
-                            #                     id=f'checklist-col-{i}'
-                            #                 )
-                            #             ], width='auto', style={"marginLeft":"20px"}) for i, chunk in enumerate(chunks)
-                            #         ], justify='center'),
-                            #     ],
-                            #     title="Solvent",
-                            #     item_id="item-2",
-                            # ),
-                            # # Third part to draw Reactants and gather their SMILES
-                            # dbc.AccordionItem(
-                            #     children=[
-                            #         dbc.Row([
-                            #             html.Iframe(
-                            #                 id='ketcher-frame',
-                            #                 src="/ketcher/index.html",
-                            #                 style={'width': '100%', 'height': '400px', 'border': '1px solid #ccc'},
-                            #             )
-                            #         ]),
-                            #         dbc.Row([
-                            #             dbc.Col([
-                            #                 html.Div([
-                            #                     dbc.Button(
-                            #                         " Collect SMILES",
-                            #                         id="collect-smiles-btn",
-                            #                         color="primary",
-                            #                         style={"fontSize": "18px", "marginTop": "12px"},
-                            #                         n_clicks=0
-                            #                     )
-                            #                 ]),
-                            #                 dcc.Store(id="smiles-store", data=[], storage_type='session'),
-                            #                 html.Div(id="smiles-output", style={"marginTop": "12px"}),
-                            #             ])
-                            #         ])
-                            #     ],
-                            #     title="Reactants",
-                            #     item_id="item-3",
-                            # ),
-
-# # Seventh part to select specifications about BO algorithm
-                            # dbc.AccordionItem(
-                            #     children=[
-                            #         # html.Hr(),
-                            #         # dbc.Row([
-                            #         #     dbc.Col([
-                            #         #             html.H6("Scalarization techniques", style={"textAlign": "center", "fontSize": "20px"}),
-                            #         #             dcc.Dropdown(
-                            #         #                 id="scalarization-technique-DD",
-                            #         #                 options=[
-                            #         #                     {"label": "None", "value": "none"},
-                            #         #                     {"label": "Tchebychev", "value": "TCH"},
-                            #         #                     {"label": "Lexicographical/Chimera", "value": "chimera"},
-                            #         #                     {"label": "Weighted sum", "value": "weighted_sum"},
-                            #         #                 ],
-                            #         #                 style={"marginBottom": "10px", "marginTop": "10px"},
-                            #         #             ),
-                            #         #     ], width=12)
-                            #         # ]),
-                            #         html.Hr(),
-                            #         dbc.Row([
-                            #             dbc.Col([
-                            #                     html.H6("Surrogate models", style={"textAlign": "center", "fontSize": "20px"}),
-                            #                     dcc.Dropdown(
-                            #                         id="surrogate-model-DD",
-                            #                         options=[
-                            #                             {"label": "BoTorch/Gaussian Process (GP)", "value": "botorch"},
-                            #                             {"label": "Gryffin/Bayesian Neural Network (BNN)", "value": "gryffin"},
-                            #                             {"label": "Smac/Random Forest (RF)", "value": "smac"},
-                            #                             {"label": "Grid search", "value": "grid"},
-                            #                             {"label": "Random sampling", "value": "random"},
-                            #                         ],
-                            #                         style={"marginBottom": "10px", "marginTop": "10px"},
-                            #                     ),
-                            #             ], width=12)
-                            #         ]),
-                            #         html.Hr(),
-                            #         dbc.Row([
-                            #             dbc.Col([
-                            #                     html.H6("Acquisition functions", style={"textAlign": "center", "fontSize": "20px"}),
-                            #                     dcc.Dropdown(
-                            #                         id="acquisition-function-DD",
-                            #                         options=[
-                            #                             {"label": "Expected Improvement (EI)", "value": "EI"},
-                            #                             {"label": "Expected HyperVolume Improvement (EHVI)", "value": "EHVI"},
-                            #                             {"label": "Genetic", "value": "genetic"},
-                            #                             {"label": "qNEHVI", "value": "qNEHVI"},
-                            #                             {"label": "Probability of Improvement (PI)", "value": "PI"},
-                            #                         ],
-                            #                         style={"marginBottom": "10px", "marginTop": "10px"},
-                            #                     ),
-                            #             ], width=12)
-                            #         ]),
-                            #         # html.Hr(),
-                            #         # dbc.Row([
-                            #         #     dbc.Col([
-                            #         #             html.H6("Ending conditions", style={"textAlign": "center", "fontSize": "20px"}),
-                            #         #             dcc.Dropdown(
-                            #         #                 id="ending-condition-DD",
-                            #         #                 options=[
-                            #         #                     {"label": "None", "value": "none"},
-                            #         #                     {"label": "Iterations", "value": "iterations"},
-                            #         #                     {"label": "No more improvement", "value": "no_improvement"},
-                            #         #                     {"label": "Goal", "value": "goal"},
-                            #         #                 ],
-                            #         #                 style={"marginBottom": "10px", "marginTop": "10px"},
-                            #         #             ),
-                            #         #     ], width=12)
-                            #         # ])
-                            #     ],
-                            #     title="Algorithm Specifications",
-                            #     item_id="item-7",
-                            # ),
+    ], fluid=True, style={
+        "maxWidth": "1400px",
+        "backgroundColor": "#f8f9fa",
+        "minHeight": "100vh",
+        "paddingTop": "2rem",
+        "paddingBottom": "4rem"
+    })
