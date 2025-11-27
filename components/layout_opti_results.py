@@ -197,21 +197,31 @@ def create_opti_results_layout():
             ], md=12, className="mb-3"),
         ]),
         
-        # Export buttons
+# Generate Report button
         dbc.Row([
             dbc.Col([
-                dbc.ButtonGroup([
-                    dbc.Button([
-                        html.I(className="bi bi-download me-2"),
-                        "Export Results (Excel)"
-                    ], id="export-results-btn", color="primary", outline=True),
-                    dbc.Button([
-                        html.I(className="bi bi-file-earmark-pdf me-2"),
-                        "Generate Report"
-                    ], id="generate-report-btn", color="secondary", outline=True),
-                ])
+                dbc.Button([
+                    html.I(className="bi bi-file-earmark-text me-2"),
+                    "Generate Report"
+                ], id="generate-report-btn", color="primary", size="lg"),
             ], className="text-center mb-4")
         ]),
+        
+        # Download component and status alert for report
+        dcc.Download(id='download-report'),
+
+        dbc.Row([
+            dbc.Col([
+                dbc.Alert(
+                    id="generate-report-status",
+                    is_open=False,
+                    dismissable=True,
+                    duration=5000,
+                    className="mb-3"
+                )
+            ], md=12)
+        ]),
+        
         
     ], fluid=True, style={
         "maxWidth": "1400px",
