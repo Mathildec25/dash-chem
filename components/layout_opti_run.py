@@ -36,6 +36,17 @@ def create_opti_run_layout():
                       })
             ], width=True),
             dbc.Col([
+                # ✨ BOUTON AUTO-FILL DISCRET
+                dbc.Button([
+                    html.I(className="bi bi-broadcast me-2"),
+                    "Auto-fill"
+                ],
+                id="open-autofill-modal",
+                color="light",
+                size="sm",
+                outline=True,
+                className="me-3"
+                ),
                 html.Div(id="auto-save-indicator")
             ], width="auto", className="text-end")
         ], className="mb-4 align-items-center"),
@@ -258,6 +269,151 @@ def create_opti_run_layout():
                 dbc.Button("Delete", id="opti-confirm-delete-column", color="danger")
             ])
         ], id="opti-delete-column-modal", is_open=False),
+        
+        # ==================== MODAL AUTO-FILL ====================
+        dbc.Modal([
+            dbc.ModalHeader(
+                dbc.ModalTitle([
+                    html.I(className="bi bi-broadcast me-2"),
+                    "Auto-Fill Configuration"
+                ])
+            ),
+            dbc.ModalBody([
+                
+                # Switch Activation
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Label("Enable automatic filling"),
+                    ], width=9),
+                    dbc.Col([
+                        dbc.Switch(
+                            id="auto-fill-switch",
+                            value=False,  # Disabled by default
+                        ),
+                    ], width=3, className="text-end"),
+                ], className="mb-3"),
+                
+                html.Hr(),
+                
+                # File selection
+                dbc.Label("Results file to monitor:", className="fw-bold"),
+                
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Input(
+                            id="result-file-path",
+                            type="text",
+                            placeholder="Select or paste the file path...",
+                            value="",
+                        ),
+                    ], width=12),
+                ], className="mb-2"),
+                
+                # Drop zone for file upload
+                html.Div([
+                    dcc.Upload(
+                        id='upload-result-file',
+                        children=html.Div([
+                            html.I(className="bi bi-cloud-arrow-up me-2"),
+                            'Or drag and drop file here'
+                        ]),
+                        style={
+                            'width': '100%',
+                            'height': '50px',
+                            'lineHeight': '50px',
+                            'borderWidth': '2px',
+                            'borderStyle': 'dashed',
+                            'borderRadius': '5px',
+                            'textAlign': 'center',
+                            'cursor': 'pointer',
+                            'backgroundColor': '#f8f9fa'
+                        },
+                        multiple=False
+                    ),
+                ], className="mb-3"),
+                
+                html.Hr(),
+                
+                # Advanced settings
+                dbc.Accordion([
+                    dbc.AccordionItem([
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Check interval (seconds):"),
+                                dbc.Input(
+                                    id="check-interval-input",
+                                    type="number",
+                                    value=2,
+                                    min=1,
+                                    max=10,
+                                    step=1,
+                                ),
+                            ], width=12),
+                        ])
+                    ], title="Advanced Settings", item_id="advanced"),
+                ], start_collapsed=True, flush=True),
+                
+                html.Hr(),
+                
+                # Status
+                html.Div([
+                    html.Span("Status: ", className="fw-bold"),
+                    html.Span(id="auto-fill-status", className="text-muted"),
+                ], className="mt-2"),
+                
+            ]),
+            dbc.ModalFooter([
+                dbc.Button(
+                    "Reset",
+                    id="reset-autofill-btn",
+                    color="warning",
+                    outline=True,
+                    size="sm",
+                ),
+                dbc.Button(
+                    "Close",
+                    id="close-autofill-modal",
+                    color="secondary",
+                    size="sm",
+                ),
+            ]),
+        ],
+        id="autofill-modal",
+        size="lg",
+        is_open=False,
+        centered=True,
+        ),
+        
+        # ==================== COMPOSANTS AUTO-FILL ====================
+        
+        # Intervalle pour vérifier le fichier
+        dcc.Interval(
+            id='file-check-interval',
+            interval=2*1000,  # 2 secondes par défaut
+            n_intervals=0,
+            disabled=True  # Désactivé par défaut
+        ),
+        
+        # Alert discrète en bas à droite
+        html.Div([
+            dbc.Alert(
+                id="auto-fill-alert",
+                is_open=False,
+                duration=3000,
+                dismissable=True,
+            )
+        ], style={
+            'position': 'fixed',
+            'bottom': '20px',
+            'right': '20px',
+            'zIndex': 9999,
+            'maxWidth': '400px'
+        }),
+        
+        # Store pour le dernier résultat
+        dcc.Store(id='last-result-store'),
+        
+        # ==============================================================
         
         # Navigation
         dbc.Row([

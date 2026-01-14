@@ -1,0 +1,3 @@
+Acquisition time(s)	Concentration (g/mL)
+0h 0min 0s	-0.006860765360150499
+0h 0min 11s	-0.004494438331582459

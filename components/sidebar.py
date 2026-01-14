@@ -14,7 +14,7 @@ icon_map = {
 def generate_sidebar():
     nav_links = []
     for page in page_registry.values():
-        if page["name"] not in ["Opti parameterization", "Opti run", "Results & Analysis"]:
+        if page["name"] not in ["Opti parameterization", "Opti run", "Results & Analysis", "Caracterization"]:
             icon_entry = icon_map.get(page["name"], "bi-circle")
 
             # If it's an SVG path, render with html.Img
