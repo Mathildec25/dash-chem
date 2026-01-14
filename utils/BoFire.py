@@ -1,6 +1,6 @@
 """
 BoFire utilities for Bayesian Optimization
-Based on working code from user
+Enhanced version with configurable parameters
 """
 
 import pandas as pd
@@ -8,7 +8,13 @@ import numpy as np
 
 import bofire.strategies.api as strategies
 from bofire.data_models.enum import SamplingMethodEnum
-from bofire.data_models.acquisition_functions.api import qLogNEI, qLogNEHVI
+from bofire.data_models.acquisition_functions.api import (
+    qLogNEI, 
+    qLogNEHVI,
+    qEI,
+    qNEHVI,
+    qUCB
+)
 from bofire.data_models.api import Domain, Inputs, Outputs
 from bofire.data_models.features.api import (
     ContinuousInput, 
@@ -120,33 +126,101 @@ def sampling(domain, sampling_method: str, nb_points: int):
     return sampler.ask(nb_points)
 
 
-def bayesian_optimization(domain, experiments, n_candidates=1):
+def bayesian_optimization(
+    domain, 
+    experiments, 
+    n_candidates=1,
+    acquisition_function="qLogNEI",
+    strategy_type="auto",
+    num_restarts=20,
+    raw_samples=512,
+    ucb_beta=2.0,
+    sequential=False
+):
     """
-    Run Bayesian optimization using the appropriate strategy based on the number of objectives.
-    
-    - Single objective: SoboStrategy + qLogNEI
-    - Multiple objectives: MoboStrategy + qLogNEHVI
+    Run Bayesian optimization with configurable parameters.
     
     Args:
-        domain: BoFire Domain object
-        experiments: DataFrame with completed experiments (params + objectives)
-        n_candidates: Number of candidates to suggest
+        domain (Domain): BoFire Domain object
+        experiments (DataFrame): DataFrame with completed experiments (params + objectives)
+        n_candidates (int): Number of candidates to suggest (default: 1)
+        acquisition_function (str): Acquisition function to use:
+            - "qLogNEI" (recommended for single objective)
+            - "qLogNEHVI" (recommended for multi-objective)
+            - "qEI" (Expected Improvement)
+            - "qUCB" (Upper Confidence Bound)
+            - "qNEHVI" (Noisy Expected Hypervolume Improvement)
+        strategy_type (str): "auto", "sobo", or "mobo"
+            - "auto": automatically select based on number of objectives
+            - "sobo": force single-objective strategy
+            - "mobo": force multi-objective strategy
+        num_restarts (int): Number of optimization restarts (default: 20)
+        raw_samples (int): Number of raw samples for acquisition optimization (default: 512)
+        ucb_beta (float): Beta parameter for UCB acquisition function (default: 2.0)
+        sequential (bool): Use sequential optimization (default: False)
     
     Returns:
-        DataFrame with suggested candidates
+        DataFrame: Suggested candidates
     """
     
     # Determine number of objectives
     n_obj = len(domain.outputs.features)
     
-    # Select strategy and acquisition function based on objective count
-    if n_obj == 1:
-        data_model = SoboStrategy(domain=domain, acquisition_function=qLogNEI())
-    elif n_obj >= 2:
-        data_model = MoboStrategy(domain=domain, acquisition_function=qLogNEHVI())
+    # Auto-select strategy if needed
+    if strategy_type == "auto":
+        strategy_type = "sobo" if n_obj == 1 else "mobo"
+    
+    # Validate strategy selection
+    if strategy_type == "sobo" and n_obj > 1:
+        print(f"⚠️ Warning: SOBO strategy selected but {n_obj} objectives detected. Using MOBO instead.")
+        strategy_type = "mobo"
+    elif strategy_type == "mobo" and n_obj == 1:
+        print(f"⚠️ Warning: MOBO strategy selected but only 1 objective detected. Using SOBO instead.")
+        strategy_type = "sobo"
+    
+    # Create acquisition function based on selection
+    acq_func = None
+    
+    if acquisition_function == "qLogNEI":
+        acq_func = qLogNEI()
+    elif acquisition_function == "qLogNEHVI":
+        acq_func = qLogNEHVI()
+    elif acquisition_function == "qEI":
+        acq_func = qEI()
+    elif acquisition_function == "qNEHVI":
+        acq_func = qNEHVI()
+    elif acquisition_function == "qUCB":
+        acq_func = qUCB(beta=ucb_beta)
     else:
-        raise ValueError("Domain must have at least one objective")
-
+        # Default fallback
+        if strategy_type == "sobo":
+            acq_func = qLogNEI()
+        else:
+            acq_func = qLogNEHVI()
+        print(f"⚠️ Unknown acquisition function '{acquisition_function}'. Using default.")
+    
+    # Create appropriate strategy
+    if strategy_type == "sobo":
+        # Validate acquisition function is suitable for single-objective
+        if acquisition_function in ["qLogNEHVI", "qNEHVI"]:
+            print(f"⚠️ Warning: {acquisition_function} is for multi-objective. Using qLogNEI instead.")
+            acq_func = qLogNEI()
+        
+        data_model = SoboStrategy(
+            domain=domain, 
+            acquisition_function=acq_func
+        )
+    else:  # mobo
+        # Validate acquisition function is suitable for multi-objective
+        if acquisition_function in ["qLogNEI", "qEI", "qUCB"]:
+            print(f"⚠️ Warning: {acquisition_function} is for single-objective. Using qLogNEHVI instead.")
+            acq_func = qLogNEHVI()
+        
+        data_model = MoboStrategy(
+            domain=domain, 
+            acquisition_function=acq_func
+        )
+    
     # Initialize strategy
     strat = strategies.map(data_model)
     
@@ -154,4 +228,71 @@ def bayesian_optimization(domain, experiments, n_candidates=1):
     strat.tell(experiments=experiments)
     
     # Ask for next candidates
+    print(f"🎯 Strategy: {strategy_type.upper()}")
+    print(f"📊 Acquisition: {acquisition_function}")
+    print(f"🔢 Requesting {n_candidates} candidate(s)")
+    
     return strat.ask(candidate_count=n_candidates)
+
+
+def get_acquisition_functions_for_strategy(n_objectives):
+    """
+    Get list of suitable acquisition functions based on number of objectives.
+    
+    Args:
+        n_objectives (int): Number of objectives
+    
+    Returns:
+        list: List of dictionaries with acquisition function options
+    """
+    if n_objectives == 1:
+        return [
+            {"label": "qLogNEI (Recommended)", "value": "qLogNEI"},
+            {"label": "qEI (Expected Improvement)", "value": "qEI"},
+            {"label": "qUCB (Upper Confidence Bound)", "value": "qUCB"},
+        ]
+    else:
+        return [
+            {"label": "qLogNEHVI (Recommended)", "value": "qLogNEHVI"},
+            {"label": "qNEHVI (Noisy EHVI)", "value": "qNEHVI"},
+        ]
+
+
+def validate_bo_config(config, n_objectives):
+    """
+    Validate and adjust BO configuration if needed.
+    
+    Args:
+        config (dict): BO configuration dictionary
+        n_objectives (int): Number of objectives in the problem
+    
+    Returns:
+        dict: Validated and corrected configuration
+    """
+    validated = config.copy()
+    
+    # Ensure n_candidates is reasonable
+    if validated.get('n_candidates', 1) < 1:
+        validated['n_candidates'] = 1
+    elif validated.get('n_candidates', 1) > 10:
+        validated['n_candidates'] = 10
+    
+    # Auto-adjust strategy based on objectives
+    if validated.get('strategy_type') == 'auto':
+        validated['strategy_type'] = 'sobo' if n_objectives == 1 else 'mobo'
+    
+    # Adjust acquisition function if incompatible with strategy
+    strategy = validated.get('strategy_type', 'auto')
+    acq_func = validated.get('acquisition_function', 'qLogNEI')
+    
+    multi_obj_funcs = ['qLogNEHVI', 'qNEHVI']
+    single_obj_funcs = ['qLogNEI', 'qEI', 'qUCB']
+    
+    if strategy == 'sobo' and acq_func in multi_obj_funcs:
+        validated['acquisition_function'] = 'qLogNEI'
+        print(f"⚠️ Adjusted acquisition function to qLogNEI for single-objective optimization")
+    elif strategy == 'mobo' and acq_func in single_obj_funcs:
+        validated['acquisition_function'] = 'qLogNEHVI'
+        print(f"⚠️ Adjusted acquisition function to qLogNEHVI for multi-objective optimization")
+    
+    return validated

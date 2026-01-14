@@ -1,49 +1,29 @@
 """
-Layout for Run Optimization page
-Displays editable experiment table and BO controls
+Improved Optimization Run Layout with configurable Bayesian Optimization parameters
 """
 
-import dash_bootstrap_components as dbc
+import dash
 from dash import dcc, html
-
+import dash_bootstrap_components as dbc
+import uuid
 
 def create_opti_run_layout():
+    """Create the experiment management and optimization layout with BO configuration"""
+    
     return dbc.Container([
-        # Header
+        # Header with project info
         dbc.Row([
             dbc.Col([
-                dcc.Link(
-                    html.I(className="bi bi-arrow-left", style={"fontSize": "1.5rem", "color": "#6c757d"}),
-                    href="/Opt-param",
-                    style={"textDecoration": "none"}
-                )
-            ], width="auto"),
-            dbc.Col([
-                html.H1("Run Optimization", 
-                       style={
-                           "color": "#1a1a1a", 
-                           "fontWeight": "600",
-                           "fontSize": "2rem",
-                           "letterSpacing": "-0.02em",
-                           "marginBottom": "0.25rem"
-                       }),
-                html.P("Enter experiment results and run Bayesian optimization",
-                      style={
-                          "fontSize": "1rem",
-                          "color": "#6c757d",
-                          "marginBottom": "0"
-                      })
-            ], width=True),
-            dbc.Col([
-                html.Div(id="auto-save-indicator")
-            ], width="auto", className="text-end")
-        ], className="mb-4 align-items-center"),
+                html.H2("Experiment Manager", className="mb-2", style={"fontWeight": "700", "color": "#1e293b"}),
+                html.P("Run experiments and optimize with AI", className="text-muted mb-4")
+            ], md=12)
+        ]),
         
         # Status Alert
         dbc.Row([
             dbc.Col([
                 dbc.Alert(
-                    id="run-status-alert",
+                    id="opti-run-status-alert",
                     is_open=False,
                     dismissable=True,
                     className="mb-3"
@@ -51,136 +31,232 @@ def create_opti_run_layout():
             ], md=12)
         ]),
         
-        # Table Card
+        # Table Controls Row
+        dbc.Row([
+            dbc.Col([
+                dbc.ButtonGroup([
+                    dbc.Button([
+                        html.I(className="bi bi-plus-circle me-2"),
+                        "Add Row"
+                    ], id="add-row-btn-opti", outline=True, color="primary", size="sm"),
+                    dbc.Button([
+                        html.I(className="bi bi-plus-square me-2"),
+                        "Add Column"
+                    ], id="opti-add-column-btn", outline=True, color="secondary", size="sm"),
+                    dbc.Button([
+                        html.I(className="bi bi-trash me-2"),
+                        "Delete Column"
+                    ], id="opti-delete-column-btn", outline=True, color="danger", size="sm"),
+                ], className="mb-3")
+            ], md=6),
+            dbc.Col([
+                dbc.Button([
+                    html.I(className="bi bi-save me-2"),
+                    "Save Changes"
+                ], id="save-table-btn-opti", color="success", size="sm", className="float-end mb-3")
+            ], md=6),
+        ]),
+        
+        # Experiments Table
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        dbc.Row([
-                            dbc.Col([
-                                html.H5("Experiments", className="mb-0", style={"fontWeight": "600"})
-                            ]),
-                            dbc.Col([
-                                dbc.ButtonGroup([
-                                    dbc.Button([
-                                        html.I(className="bi bi-plus-lg me-1"),
-                                        "Row"
-                                    ],
-                                    id="add-row-btn",
-                                    color="primary",
-                                    outline=True,
-                                    size="sm"
-                                    ),
-                                    dbc.Button([
-                                        html.I(className="bi bi-plus-lg me-1"),
-                                        "Column"
-                                    ],
-                                    id="add-column-btn",
-                                    color="secondary",
-                                    outline=True,
-                                    size="sm"
-                                    ),
-                                    dbc.Button([
-                                        html.I(className="bi bi-trash me-1"),
-                                        "Column"
-                                    ],
-                                    id="delete-column-btn",
-                                    color="danger",
-                                    outline=True,
-                                    size="sm"
-                                    ),
-                                    dbc.Button([
-                                        html.I(className="bi bi-save me-1"),
-                                        "Save"
-                                    ],
-                                    id="save-table-btn",
-                                    color="success",
-                                    outline=True,
-                                    size="sm"
-                                    ),
-                                ])
-                            ], width="auto")
-                        ], align="center")
-                    ], style={"backgroundColor": "#f8f9fa", "padding": "1rem"}),
-                    
+                        html.H5("Experiments", className="mb-0", style={"fontWeight": "600"})
+                    ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        html.Div(id="experiment-table-container", children=[
-                            html.P("Loading experiments...", className="text-muted text-center py-5")
-                        ])
-                    ], style={"padding": "0"})
-                ], style={
-                    "borderRadius": "12px",
-                    "border": "1px solid #e0e0e0",
-                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
-                    "backgroundColor": "white"
-                })
-            ], md=12, className="mb-3")
-        ]),
-        
-        # Save Status
-        dbc.Row([
-            dbc.Col([
-                dbc.Alert(
-                    id="save-status",
-                    is_open=False,
-                    dismissable=True,
-                    duration=3000,
-                    className="mb-3"
-                )
-            ], md=12)
-        ]),
-        
-        # Legend
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    html.Span([
-                        html.Span(style={
-                            "display": "inline-block",
-                            "width": "12px",
-                            "height": "12px",
-                            "backgroundColor": "rgba(0, 123, 255, 0.3)",
-                            "marginRight": "6px",
-                            "borderRadius": "2px"
-                        }),
-                        "Parameters"
-                    ], className="me-4"),
-                    html.Span([
-                        html.Span(style={
-                            "display": "inline-block",
-                            "width": "12px",
-                            "height": "12px",
-                            "backgroundColor": "rgba(40, 167, 69, 0.3)",
-                            "marginRight": "6px",
-                            "borderRadius": "2px"
-                        }),
-                        "Objectives"
-                    ], className="me-4"),
-                    html.Span([
-                        html.Span(style={
-                            "display": "inline-block",
-                            "width": "12px",
-                            "height": "12px",
-                            "backgroundColor": "rgba(255, 193, 7, 0.3)",
-                            "marginRight": "6px",
-                            "borderRadius": "2px",
-                            "border": "2px solid #ffc107"
-                        }),
-                        "Needs Result"
+                        html.Div(id="opti-table-container", style={"overflowX": "auto"}),
+                        html.Div([
+                            html.Span([
+                                html.Span(style={
+                                    "display": "inline-block",
+                                    "width": "12px",
+                                    "height": "12px",
+                                    "backgroundColor": "rgba(99, 102, 241, 0.3)",
+                                    "marginRight": "6px",
+                                    "borderRadius": "2px",
+                                    "border": "2px solid #6366f1"
+                                }),
+                                "Parameters"
+                            ], className="me-4"),
+                            html.Span([
+                                html.Span(style={
+                                    "display": "inline-block",
+                                    "width": "12px",
+                                    "height": "12px",
+                                    "backgroundColor": "rgba(16, 185, 129, 0.3)",
+                                    "marginRight": "6px",
+                                    "borderRadius": "2px",
+                                    "border": "2px solid #10b981"
+                                }),
+                                "Objectives"
+                            ], className="me-4"),
+                            html.Span([
+                                html.Span(style={
+                                    "display": "inline-block",
+                                    "width": "12px",
+                                    "height": "12px",
+                                    "backgroundColor": "rgba(255, 193, 7, 0.3)",
+                                    "marginRight": "6px",
+                                    "borderRadius": "2px",
+                                    "border": "2px solid #ffc107"
+                                }),
+                                "Needs Result"
+                            ])
+                        ], className="text-muted small mt-2")
                     ])
-                ], className="text-muted small")
+                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=12, className="mb-3")
         ]),
         
-        # Optimization Controls - Simplified (no number selection)
+        # ============================================
+        # BAYESIAN OPTIMIZATION CONFIGURATION CARD
+        # ============================================
         dbc.Row([
             dbc.Col([
                 dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.I(className="bi bi-gear-fill me-2", style={"color": "#6366f1"}),
+                            html.H5("Bayesian Optimization Configuration", className="d-inline mb-0", style={"fontWeight": "600"}),
+                        ])
+                    ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        html.H5("Bayesian Optimization", className="mb-3", style={"fontWeight": "600"}),
+                        # Basic Settings
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label("Number of Suggestions", className="form-label small fw-bold text-muted mb-2"),
+                                dbc.Input(
+                                    id="bo-n-candidates",
+                                    type="number",
+                                    value=1,
+                                    min=1,
+                                    max=10,
+                                    size="sm",
+                                    style={"borderRadius": "6px"}
+                                ),
+                                html.Small("How many experiments to suggest per iteration", className="text-muted")
+                            ], md=4, className="mb-3"),
+                            
+                            dbc.Col([
+                                html.Label("Acquisition Function", className="form-label small fw-bold text-muted mb-2"),
+                                dcc.Dropdown(
+                                    id="bo-acquisition-function",
+                                    options=[
+                                        {"label": "qLogNEI (Recommended)", "value": "qLogNEI"},
+                                        {"label": "qLogNEHVI (Multi-objective)", "value": "qLogNEHVI"},
+                                        {"label": "qEI (Expected Improvement)", "value": "qEI"},
+                                        {"label": "qUCB (Upper Confidence Bound)", "value": "qUCB"},
+                                    ],
+                                    value="qLogNEI",
+                                    clearable=False,
+                                    style={"fontSize": "0.875rem"}
+                                ),
+                                html.Small("Strategy for selecting next experiments", className="text-muted")
+                            ], md=4, className="mb-3"),
+                            
+                            dbc.Col([
+                                html.Label("Optimization Strategy", className="form-label small fw-bold text-muted mb-2"),
+                                dcc.Dropdown(
+                                    id="bo-strategy-type",
+                                    options=[
+                                        {"label": "Auto (Recommended)", "value": "auto"},
+                                        {"label": "SOBO (Single Objective)", "value": "sobo"},
+                                        {"label": "MOBO (Multi Objective)", "value": "mobo"},
+                                    ],
+                                    value="auto",
+                                    clearable=False,
+                                    style={"fontSize": "0.875rem"}
+                                ),
+                                html.Small("Automatically selected based on objectives", className="text-muted")
+                            ], md=4, className="mb-3"),
+                        ]),
+                        
+                        # Advanced Settings (Collapsible)
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Button([
+                                    html.I(className="bi bi-sliders me-2"),
+                                    "Advanced Settings"
+                                ],
+                                id="toggle-bo-advanced",
+                                outline=True,
+                                color="secondary",
+                                size="sm",
+                                className="mb-3",
+                                style={"borderRadius": "6px"}
+                                ),
+                                
+                                dbc.Collapse([
+                                    dbc.Card([
+                                        dbc.CardBody([
+                                            dbc.Row([
+                                                dbc.Col([
+                                                    html.Label("UCB Beta", className="form-label small fw-bold text-muted mb-2"),
+                                                    dbc.Input(
+                                                        id="bo-ucb-beta",
+                                                        type="number",
+                                                        value=2.0,
+                                                        step=0.1,
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    ),
+                                                    html.Small("Exploration-exploitation trade-off (only for UCB)", className="text-muted")
+                                                ], md=6, className="mb-3"),
+                                                
+                                                dbc.Col([
+                                                    html.Label("Num Restarts", className="form-label small fw-bold text-muted mb-2"),
+                                                    dbc.Input(
+                                                        id="bo-num-restarts",
+                                                        type="number",
+                                                        value=20,
+                                                        min=1,
+                                                        max=100,
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    ),
+                                                    html.Small("Number of optimization restarts", className="text-muted")
+                                                ], md=6, className="mb-3"),
+                                            ]),
+                                            
+                                            dbc.Row([
+                                                dbc.Col([
+                                                    html.Label("Raw Samples", className="form-label small fw-bold text-muted mb-2"),
+                                                    dbc.Input(
+                                                        id="bo-raw-samples",
+                                                        type="number",
+                                                        value=512,
+                                                        min=128,
+                                                        max=2048,
+                                                        step=128,
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    ),
+                                                    html.Small("Initial samples for acquisition optimization", className="text-muted")
+                                                ], md=6, className="mb-3"),
+                                                
+                                                dbc.Col([
+                                                    dbc.Checklist(
+                                                        options=[
+                                                            {"label": " Use sequential optimization", "value": "sequential"}
+                                                        ],
+                                                        value=[],
+                                                        id="bo-sequential",
+                                                        className="mt-4"
+                                                    ),
+                                                ], md=6),
+                                            ]),
+                                        ], style={"backgroundColor": "#f8f9fa", "padding": "1rem"})
+                                    ], style={"border": "1px solid #e0e0e0", "borderRadius": "8px"})
+                                ], id="bo-advanced-collapse", is_open=False),
+                            ], md=12)
+                        ]),
+                        
+                        # Run BO Button
+                        html.Hr(className="my-3"),
                         dbc.Button([
                             html.I(className="bi bi-lightning-charge me-2"),
-                            "Get New Experiment"
+                            "Generate AI Suggestions"
                         ],
                         id="run-bo-btn",
                         color="success",
@@ -189,15 +265,23 @@ def create_opti_run_layout():
                         disabled=True,
                         style={
                             "borderRadius": "8px",
-                            "fontWeight": "500"
+                            "fontWeight": "600",
+                            "boxShadow": "0 2px 8px rgba(16, 185, 129, 0.2)"
                         }
-                        )
-                    ], style={"padding": "1.25rem"})
+                        ),
+                        
+                        # Info text
+                        html.Div([
+                            html.I(className="bi bi-info-circle me-2", style={"color": "#6366f1"}),
+                            html.Small("Complete at least 2 experiments with results to enable optimization", 
+                                      className="text-muted")
+                        ], className="mt-3 text-center")
+                        
+                    ], style={"padding": "1.5rem"})
                 ], style={
                     "borderRadius": "12px",
-                    "border": "1px solid #e0e0e0",
-                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
-                    "backgroundColor": "white"
+                    "border": "2px solid #6366f1",
+                    "boxShadow": "0 4px 12px rgba(99, 102, 241, 0.15)"
                 })
             ], md=12, className="mb-3")
         ]),
@@ -232,7 +316,7 @@ def create_opti_run_layout():
             ], md=6, className="mx-auto")
         ], className="mt-4"),
         
-        # Modal for adding column
+        # Modals for adding/deleting columns
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Add New Column")),
             dbc.ModalBody([
@@ -247,7 +331,6 @@ def create_opti_run_layout():
             ])
         ], id="opti-add-column-modal", is_open=False),
         
-        # Modal for deleting column
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Delete Column")),
             dbc.ModalBody([
@@ -260,6 +343,9 @@ def create_opti_run_layout():
                 dbc.Button("Delete Column", id="opti-confirm-delete-column", color="danger")
             ])
         ], id="opti-delete-column-modal", is_open=False),
+        
+        # Hidden store for BO configuration
+        dcc.Store(id='bo-config-store', storage_type='session'),
         
     ], fluid=True, style={
         "maxWidth": "1400px",
