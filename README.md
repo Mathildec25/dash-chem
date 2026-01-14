@@ -1,6 +1,6 @@
 # MET - Molecular Experimental Toolkit
 
-![Logo](assets/Logo.svg)
+![Logo](assets/REACTO_logo.png)
 
 ## Overview
 
