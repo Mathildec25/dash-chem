@@ -15,7 +15,7 @@ from callbacks.opti_param_callbacks import parameter_part, domain_creation
 from callbacks.opti_run_callbacks import run_optimization
 from callbacks.opti_results_callbacks import results_analysis
 from components.sidebar import generate_sidebar 
-from callbacks import table_callbacks, visu_callbacks, carac_callbacks, home_callbacks, advanced_bo_callbacks
+from callbacks import advanced_bo_callbacks
 
 
 # Initialisation of the Dash app 

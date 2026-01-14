@@ -42,15 +42,16 @@ def create_opti_home_layout():
         # Header
         dbc.Row([
             dbc.Col([
-                html.H1("Bayesian Optimization", 
-                       style={
-                           "color": "#1a1a1a", 
-                           "fontWeight": "700",
-                           "fontSize": "2.5rem",
-                           "letterSpacing": "-0.02em",
-                           "textAlign": "center"
+                html.Img(
+                    src="/assets/REACTO_logo.png",
+                    style={
+                        "maxWidth": "400px",  # Ajustez cette taille selon vos besoins
+                        "width": "100%",
+                        "height": "auto",
+                        "display": "block",
+                        "margin": "0 auto 2rem auto"
                        }),
-                html.P("Design and optimize your experiments with AI-powered suggestions",
+                html.P("Design and optimize your experiments with Bayesian Optimization ",
                       style={
                           "fontSize": "1.1rem",
                           "color": "#6c757d",
