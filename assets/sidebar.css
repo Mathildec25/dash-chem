@@ -26,17 +26,12 @@
   margin-bottom: 2rem;
 }
 
-/* Show icon by default, hide text */
 .icon-logo {
   display: inline-block;
-  width: 3rem;
+  width: 3rem;  /* Ajustez cette taille si nécessaire */
+  height: auto; /* Ajoutez cette ligne pour garder les proportions */
 }
 
-.text-logo {
-  display: none;
-  font-size: 3rem;
-  white-space: nowrap;
-}
 
 .sidebar-icon {
   height: 22px;
@@ -44,14 +39,7 @@
   filter: brightness(0) invert(1); /* makes black → white */
 }
 
-/* On sidebar hover, hide icon and show text */
-.sidebar:hover .icon-logo {
-  display: none;
-}
 
-.sidebar:hover .text-logo {
-  display: block;
-}
 
 /* Default collapsed state */
 #dropdown-container {
