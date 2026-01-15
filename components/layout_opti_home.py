@@ -51,13 +51,6 @@ def create_opti_home_layout():
                         "display": "block",
                         "margin": "0 auto 2rem auto"
                        }),
-                html.P("Design and optimize your experiments with Bayesian Optimization ",
-                      style={
-                          "fontSize": "1.1rem",
-                          "color": "#6c757d",
-                          "textAlign": "center",
-                          "marginBottom": "2rem"
-                      })
             ], md=12)
         ], className="mb-4"),
         
