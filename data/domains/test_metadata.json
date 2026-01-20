@@ -1,0 +1,76 @@
+{
+  "excel_name": "test.xlsx",
+  "parameters": [
+    {
+      "id": "2a00ef72-7ceb-4f8e-804e-7c293b2aa469",
+      "name": "Temperature (°C)",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          100.0
+        ]
+      }
+    },
+    {
+      "id": "9e2ab79f-4578-4fdf-91c9-75b8db074633",
+      "name": "Concentration",
+      "type": "int",
+      "type_info": {
+        "range": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "id": "fdc52124-ca9a-4390-93e0-b83597ecf759",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "EtOH",
+          "MeOH"
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "23f04037-884c-4e96-bb71-c8f28056aab5",
+      "name": "Yield (%)",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "db252bcb-8345-4c4f-ab11-93029775dfc6",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 6,
+    "column_order": [
+      "Point type",
+      "Temperature (°C)",
+      "Concentration",
+      "Solvent",
+      "Yield (%)"
+    ],
+    "parameter_names": [
+      "Temperature (°C)",
+      "Concentration",
+      "Solvent"
+    ],
+    "objective_names": [
+      "Yield (%)"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ]
+  }
+}
