@@ -23,6 +23,10 @@ from bofire.data_models.features.api import (
 from bofire.data_models.objectives.api import MinimizeObjective, MaximizeObjective
 from bofire.data_models.strategies.api import RandomStrategy, SoboStrategy, MoboStrategy
 
+import pydantic
+import bofire
+print(f"Pydantic: {pydantic.__version__}")
+print(f"BoFire: {bofire.__version__}")
 
 def get_descriptor_values(categories, descriptors, descriptor_type='solvent'):
     """
@@ -406,16 +410,15 @@ def create_bofire_domain_from_store(parameter_data, objective_data=None, solvent
                     print(f"   Categories: {categories}")
                     print(f"   Descriptors: {descriptors}")
                     
-                    # Create descriptor values matrix
                     descriptor_values = get_descriptor_values(categories, descriptors, 'solvent')
                     print(f"   Values matrix: {descriptor_values}")
                     
-                    # Create CategoricalDescriptorInput directly (not using from_df)
+                    
                     input_features.append(
-                        CategoricalDescriptorInput.model_construct(
-                            key=name.strip(),
+                        CategoricalDescriptorInput(
+                            key=name,
                             categories=categories,
-                            allowed=[True] * len(categories),  # ← IMPORTANT: ajouter ce champ
+                            allowed=[True] * len(categories),
                             descriptors=descriptors,
                             values=descriptor_values
                         )
@@ -601,6 +604,24 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
 
     # Initialize strategy
     strat = strategies.map(data_model)
+    
+    # ===== DEBUGGING =====
+    print("🔍 DEBUG - Domain features:")
+    for feat in domain.inputs.features:
+        print(f"   - {feat.key}: {type(feat).__name__}")
+        if hasattr(feat, 'categories'):
+            print(f"     Categories: {feat.categories}")
+        if hasattr(feat, 'descriptors'):
+            print(f"     Descriptors: {feat.descriptors}")
+            print(f"     Values: {feat.values}")
+    
+    print("🔍 DEBUG - Experiments DataFrame:")
+    print(experiments)
+    print("\n🔍 DEBUG - Unique values per column:")
+    for col in experiments.columns:
+        unique_vals = experiments[col].unique()
+        print(f"   - {col}: {len(unique_vals)} unique values → {list(unique_vals)[:5]}")
+    # ===== END DEBUGGING =====
     
     # Provide past experiments
     strat.tell(experiments=experiments)

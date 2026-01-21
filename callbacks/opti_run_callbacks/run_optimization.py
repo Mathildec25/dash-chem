@@ -393,7 +393,7 @@ def validate_for_optimization(table_data, excel_file):
     Input('run-bo-btn', 'n_clicks'),
     [State('experiment-datatable', 'data'),
      State('current-excel-file', 'data'),
-     State('advanced-bo-settings-store', 'data')],  # ← PARAMÈTRES AVANCÉS
+     State('advanced-bo-settings-store', 'data')],
     prevent_initial_call=True,
     running=[
         (Output('run-bo-btn', 'disabled'), True, False),
@@ -441,8 +441,15 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         # Load and clean data
         df = pd.read_excel(file_path, engine='openpyxl')
         
-        # Prepare experiments
-        experiments = df.copy()
+        # ===== FILTRER UNIQUEMENT LES COLONNES DU DOMAINE =====
+        valid_columns = param_names + obj_names
+        missing_cols = [col for col in valid_columns if col not in df.columns]
+        if missing_cols:
+            return no_update, f"❌ Missing columns: {missing_cols}", True, "danger", default_btn, False
+        
+        # Prepare experiments - GARDER UNIQUEMENT LES COLONNES DU DOMAINE
+        experiments = df[valid_columns].copy()
+        print(f"🔍 Filtered experiments to domain columns: {list(experiments.columns)}")
         
         param_definitions = {p['name']: p for p in parameters}
         

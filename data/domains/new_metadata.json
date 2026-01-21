@@ -1,68 +1,68 @@
 {
-  "excel_name": "TestMathilde.xlsx",
+  "excel_name": "new.xlsx",
   "parameters": [
     {
-      "id": "ce2bc887-2f92-49d4-835e-afed5a16dcf6",
+      "id": "96d2ee26-f3d4-4788-beb3-f0633df1a7b9",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
-          "Methanol",
-          "Ethanol"
+          "DMSO",
+          "DMF"
         ]
       }
     },
     {
-      "id": "834e2882-5697-4526-a339-e64d0eee9c3a",
-      "name": "temp",
+      "id": "7759ce6f-e1a0-44fe-964e-b22c67c840e1",
+      "name": "POP",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          20.0
+          10.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "7f0f15d4-8ae6-4031-bcc8-7de0858b8dba",
-      "name": "IL",
+      "id": "f36e0a1d-5c9e-42cd-9ab3-4d5c475ab94d",
+      "name": "YI",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 29
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "b36aa25b-c489-4d6e-9c83-eac244b4b5c2",
+      "id": "7c0dfb2e-6c15-4abf-aa06-0aa926fd0a4e",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 10,
+    "nb_points": 4,
     "column_order": [
       "Point type",
       "Solvent",
-      "temp",
-      "IL"
+      "POP",
+      "YI"
     ],
     "parameter_names": [
       "Solvent",
-      "temp"
+      "POP"
     ],
     "objective_names": [
-      "IL"
+      "YI"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "ce2bc887-2f92-49d4-835e-afed5a16dcf6",
+      "param_id": "96d2ee26-f3d4-4788-beb3-f0633df1a7b9",
       "solvents": [
-        "Methanol",
-        "Ethanol"
+        "DMSO",
+        "DMF"
       ],
       "descriptors": [
         "Boiling point"
