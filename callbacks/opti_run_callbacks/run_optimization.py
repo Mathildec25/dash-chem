@@ -431,7 +431,12 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         objectives = domain_data.get('objectives', [])
         
         # Create domain
-        domain = create_bofire_domain_from_store(parameters, objectives)
+        domain = create_bofire_domain_from_store(
+            parameters, 
+            objectives,
+            solvent_config=domain_data.get('metadata', {}).get('solvent_config'),
+            base_config=domain_data.get('metadata', {}).get('base_config')
+        )
         
         # Load and clean data
         df = pd.read_excel(file_path, engine='openpyxl')

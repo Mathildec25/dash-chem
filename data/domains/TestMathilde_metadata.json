@@ -1,0 +1,74 @@
+{
+  "excel_name": "TestMathilde.xlsx",
+  "parameters": [
+    {
+      "id": "1cb15f06-384e-4151-95d6-d26b6c81519e",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Methanol",
+          "Water"
+        ]
+      }
+    },
+    {
+      "id": "82aae9d3-2547-478b-ad09-dc6087ef6c3a",
+      "name": "temp",
+      "type": "float",
+      "type_info": {
+        "range": [
+          1.0,
+          23.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "0fb9b15b-1597-48e7-bcab-89cbfaa577eb",
+      "name": "I",
+      "direction": "min",
+      "lower_bound": 0,
+      "upper_bound": 9
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "5c2c2d0e-8567-43f9-a970-4c1f3ec8ef73",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 10,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "temp",
+      "I"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "temp"
+    ],
+    "objective_names": [
+      "I"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "1cb15f06-384e-4151-95d6-d26b6c81519e",
+      "solvents": [
+        "Methanol",
+        "Water"
+      ],
+      "descriptors": [
+        "Boiling point"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": null
+  }
+}

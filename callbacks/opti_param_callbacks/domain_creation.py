@@ -68,7 +68,9 @@ def enable_button(param_names, obj_names, project_name):
      State({'type': 'extra-column-name', 'index': ALL}, 'id'),
      State({'type': 'extra-column-name', 'index': ALL}, 'value'),
      State('starting-sampling-DD', 'value'),
-     State('nb-sampling-points', 'value')],
+     State('nb-sampling-points', 'value'),
+     State('solvent-config-store', 'data'),
+     State('base-config-store', 'data')],
     prevent_initial_call=True
 )
 def create_domain_and_excel(n_clicks, project_name, 
@@ -77,7 +79,8 @@ def create_domain_and_excel(n_clicks, project_name,
                            cat_ids, param_cats,
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
-                           sampling_method, nb_points):
+                           sampling_method, nb_points,
+                           solvent_config, base_config):
     """
     Main callback: Create domain, generate Excel with sampling, and redirect
     """
@@ -99,6 +102,8 @@ def create_domain_and_excel(n_clicks, project_name,
         print(f"🔍 param_maxs: {param_maxs}")
         print(f"🔍 cat_ids: {[c['index'] for c in cat_ids] if cat_ids else []}")
         print(f"🔍 param_cats: {param_cats}")
+        print(f"🔍 solvent_config: {solvent_config}")
+        print(f"🔍 base_config: {base_config}")
         
         # Create dictionaries using the actual IDs of each component
         cats_dict = {}
@@ -250,9 +255,15 @@ def create_domain_and_excel(n_clicks, project_name,
         
         print(f"✅ Built {len(extra_columns)} extra columns")
         
-        # ===== 4. CREATE BOFIRE DOMAIN =====
-        domain = create_bofire_domain_from_store(parameters, objectives)
+# ===== 4. CREATE BOFIRE DOMAIN =====
+        domain = create_bofire_domain_from_store(
+            parameters, 
+            objectives,
+            solvent_config=solvent_config,
+            base_config=base_config
+        )
         print("✅ BoFire domain created")
+
         
         # ===== 5. GENERATE EXCEL FILENAME =====
         excel_name = project_name.strip()
@@ -393,7 +404,9 @@ def create_domain_and_excel(n_clicks, project_name,
                 'column_order': [col['name'] for col in all_columns],
                 'parameter_names': [p['name'] for p in parameters],
                 'objective_names': [o['name'] for o in objectives],
-                'extra_column_names': [c['name'] for c in extra_columns]
+                'extra_column_names': [c['name'] for c in extra_columns],
+                'solvent_config': solvent_config,
+                'base_config': base_config,
             }
         )
         
