@@ -1,4 +1,15 @@
 # Global imports (libraries)
+
+print("=" * 60)
+print("DÉMARRAGE APP - app.py")
+print("=" * 60)
+
+import sys
+print(f"Modules au démarrage: {len(sys.modules)}")
+
+from utils.BoFire import create_bofire_domain_from_store  # Import tôt!
+
+
 import dash 
 import dash._utils
 import dash_bootstrap_components as dbc
@@ -16,7 +27,6 @@ from callbacks.opti_run_callbacks import run_optimization
 from callbacks.opti_results_callbacks import results_analysis
 from components.sidebar import generate_sidebar 
 from callbacks import advanced_bo_callbacks
-
 
 # Initialisation of the Dash app 
 app = dash.Dash(

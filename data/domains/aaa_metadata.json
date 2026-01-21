@@ -1,0 +1,51 @@
+{
+  "excel_name": "aaa.xlsx",
+  "parameters": [
+    {
+      "id": "4bd1581e-30e0-4dde-8c98-4b8a168660a5",
+      "name": "temp",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          100.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "e2754fcd-45f4-491e-8e2f-c89a623e1e42",
+      "name": "O",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 200
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "89aa49b1-2435-4028-8cd6-a724c8c66445",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 10,
+    "column_order": [
+      "Point type",
+      "temp",
+      "O"
+    ],
+    "parameter_names": [
+      "temp"
+    ],
+    "objective_names": [
+      "O"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": null,
+    "base_config": null
+  }
+}
