@@ -457,6 +457,115 @@ def create_opti_param_layout():
         is_open=False,
         ),
         
+    # Modal for Bases
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Base Configuration")),
+            dbc.ModalBody([
+                # Choose Bases section with buttons
+                html.Div([
+                    html.H6("Choose Bases", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
+                    html.Div([
+                        dbc.Button([
+                            html.I(className="bi bi-flask me-2"),
+                            "Create Custom Base"
+                        ],
+                        id="toggle-custom-base",
+                        outline=True,
+                        color="secondary",
+                        size="sm",
+                        className="me-2",
+                        style={"borderRadius": "6px", "padding": "0.25rem 0.75rem"}
+                        ),
+                        dbc.Button([
+                            html.I(className="bi bi-plus-lg")
+                        ],
+                        id="add-base-row-btn",
+                        color="primary",
+                        size="sm",
+                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                        ),
+                    ], className="float-end"),
+                ], className="mb-3"),
+                
+                # Collapsible custom base form
+                dbc.Collapse([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6("Create Custom Base", className="mb-3", style={"fontWeight": "600"}),
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Base Name", className="form-label small text-muted"),
+                                    dbc.Input(
+                                        id="custom-base-name",
+                                        placeholder="e.g., My Custom Base",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    ),
+                                ], md=6),
+                                dbc.Col([
+                                    html.Label("SMILES", className="form-label small text-muted"),
+                                    dbc.Input(
+                                        id="custom-base-smiles",
+                                        placeholder="e.g., C1=CC=NC=C1",
+                                        size="sm",
+                                        style={"borderRadius": "6px"}
+                                    ),
+                                ], md=6),
+                            ]),
+                            dbc.Button(
+                                "Add to List",
+                                id="confirm-custom-base-btn",
+                                color="primary",
+                                size="sm",
+                                className="mt-3",
+                                style={"borderRadius": "6px"}
+                            )
+                        ], style={"padding": "1rem"})
+                    ], style={
+                        "borderRadius": "8px",
+                        "border": "1px solid #e0e0e0",
+                        "backgroundColor": "#f8f9fa"
+                    })
+                ], id="custom-base-collapse", is_open=False, className="mb-3"),
+                
+                html.Div(id="base-rows-container", children=[]),
+                
+                html.Hr(className="my-4"),
+                
+                # Choose Descriptors section
+                html.Div([
+                    html.H6("Choose Descriptors", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
+                    dbc.Button([
+                        html.I(className="bi bi-plus-lg")
+                    ],
+                    id="add-base-descriptor-row-btn",
+                    color="success",
+                    size="sm",
+                    className="float-end",
+                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                    ),
+                ], className="mb-3"),
+                html.Div(id="base-descriptor-rows-container", children=[]),
+            ]),
+            dbc.ModalFooter([
+                dbc.Button(
+                    "Save",
+                    id="save-bases-btn",
+                    color="primary",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ]),
+        ],
+        id="base-modal",
+        size="lg",
+        is_open=False,
+        ),
+    
+    # Stores for solvent and base configurations
+        dcc.Store(id='solvent-config-store', data=None),
+        dcc.Store(id='base-config-store', data=None),
+            
     ], fluid=True, style={
         "maxWidth": "1400px",
         "backgroundColor": "#f8f9fa",

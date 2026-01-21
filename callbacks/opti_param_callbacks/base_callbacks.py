@@ -1,6 +1,6 @@
 """
-Solvents and descriptors configuration callbacks
-Handles solvent selection modal and related functionality
+Bases and descriptors configuration callbacks
+Handles base selection modal and related functionality
 """
 
 from dash import callback, Input, Output, State, ALL, ctx, html, dcc, no_update
@@ -9,33 +9,32 @@ import dash_bootstrap_components as dbc
 import uuid
 
 
-# Common solvents list (mutable to allow adding custom solvents)
-COMMON_SOLVENTS = [
-    "Water", "Methanol", "Ethanol", "Acetone", "DMSO", "DMF", 
-    "Acetonitrile", "THF", "Dichloromethane", "Chloroform",
-    "Toluene", "Hexane", "Diethyl ether", "Ethyl acetate"
+# Common bases list (mutable to allow adding custom bases)
+COMMON_BASES = [
+    "Triethylamine", "Pyridine", "DIPEA", "DBU", "Sodium hydroxide",
+    "Potassium carbonate", "Cesium carbonate", "Sodium bicarbonate",
+    "DMAP", "Imidazole", "Potassium tert-butoxide", "Lithium diisopropylamide"
 ]
 
 # Common descriptors list
-COMMON_DESCRIPTORS = [
-    "Polarity", "Boiling point", "Viscosity", "Dielectric constant",
-    "Dipole moment", "Hydrogen bond donor", "Hydrogen bond acceptor",
-    "Surface tension", "Refractive index", "Density"
+COMMON_BASE_DESCRIPTORS = [
+    "pKa", "Basicity", "Nucleophilicity", "Steric hindrance",
+    "Solubility", "Boiling point", "Molecular weight", "Dipole moment"
 ]
 
-# Store custom solvents with their SMILES
-CUSTOM_SOLVENTS = {}
+# Store custom bases with their SMILES
+CUSTOM_BASES = {}
 
 
-def create_solvent_row(row_id):
-    """Create a single solvent selection row"""
+def create_base_row(row_id):
+    """Create a single base selection row"""
     return html.Div([
         dbc.Row([
             dbc.Col([
                 dcc.Dropdown(
-                    id={'type': 'solvent-select', 'index': row_id},
-                    options=[{"label": s, "value": s} for s in COMMON_SOLVENTS],
-                    placeholder="Select solvent",
+                    id={'type': 'base-select', 'index': row_id},
+                    options=[{"label": b, "value": b} for b in COMMON_BASES],
+                    placeholder="Select base",
                     clearable=True,
                     style={"fontSize": "0.875rem"}
                 )
@@ -43,7 +42,7 @@ def create_solvent_row(row_id):
             dbc.Col([
                 dbc.Button(
                     html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-solvent-row', 'index': row_id},
+                    id={'type': 'delete-base-row', 'index': row_id},
                     color="danger",
                     outline=True,
                     size="sm",
@@ -51,17 +50,17 @@ def create_solvent_row(row_id):
                 )
             ], width=2),
         ], className="mb-2 align-items-center"),
-    ], id={'type': 'solvent-row', 'index': row_id})
+    ], id={'type': 'base-row', 'index': row_id})
 
 
-def create_descriptor_row(row_id):
-    """Create a single descriptor selection row"""
+def create_base_descriptor_row(row_id):
+    """Create a single descriptor selection row for bases"""
     return html.Div([
         dbc.Row([
             dbc.Col([
                 dcc.Dropdown(
-                    id={'type': 'descriptor-select', 'index': row_id},
-                    options=[{"label": d, "value": d} for d in COMMON_DESCRIPTORS],
+                    id={'type': 'base-descriptor-select', 'index': row_id},
+                    options=[{"label": d, "value": d} for d in COMMON_BASE_DESCRIPTORS],
                     placeholder="Select descriptor",
                     clearable=True,
                     style={"fontSize": "0.875rem"}
@@ -70,7 +69,7 @@ def create_descriptor_row(row_id):
             dbc.Col([
                 dbc.Button(
                     html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-descriptor-row', 'index': row_id},
+                    id={'type': 'delete-base-descriptor-row', 'index': row_id},
                     color="danger",
                     outline=True,
                     size="sm",
@@ -78,74 +77,74 @@ def create_descriptor_row(row_id):
                 )
             ], width=2),
         ], className="mb-2 align-items-center"),
-    ], id={'type': 'descriptor-row', 'index': row_id})
+    ], id={'type': 'base-descriptor-row', 'index': row_id})
 
 
 # ===== OPEN/CLOSE MAIN MODAL =====
 
 @callback(
-    Output("solvent-modal", "is_open"),
-    [Input("add-solvent-button", "n_clicks"),
-     Input("save-solvents-btn", "n_clicks")],
-    State("solvent-modal", "is_open"),
+    Output("base-modal", "is_open"),
+    [Input("add-base-button", "n_clicks"),
+     Input("save-bases-btn", "n_clicks")],
+    State("base-modal", "is_open"),
     prevent_initial_call=True
 )
-def toggle_solvent_modal(open_clicks, save_clicks, is_open):
-    """Open modal when Solvant button clicked, close when Save clicked"""
-    if ctx.triggered_id == "add-solvent-button":
+def toggle_base_modal(open_clicks, save_clicks, is_open):
+    """Open modal when Base button clicked, close when Save clicked"""
+    if ctx.triggered_id == "add-base-button":
         return True
-    elif ctx.triggered_id == "save-solvents-btn":
+    elif ctx.triggered_id == "save-bases-btn":
         return False
     return is_open
 
 
-# ===== TOGGLE CUSTOM SOLVENT COLLAPSE =====
+# ===== TOGGLE CUSTOM BASE COLLAPSE =====
 
 @callback(
-    [Output("custom-solvent-collapse", "is_open"),
-     Output("toggle-custom-solvent", "children")],
-    Input("toggle-custom-solvent", "n_clicks"),
-    State("custom-solvent-collapse", "is_open"),
+    [Output("custom-base-collapse", "is_open"),
+     Output("toggle-custom-base", "children")],
+    Input("toggle-custom-base", "n_clicks"),
+    State("custom-base-collapse", "is_open"),
     prevent_initial_call=True
 )
-def toggle_custom_solvent_collapse(n_clicks, is_open):
-    """Toggle custom solvent form"""
+def toggle_custom_base_collapse(n_clicks, is_open):
+    """Toggle custom base form"""
     if n_clicks:
         new_state = not is_open
         button_text = [
             html.I(className="bi bi-flask me-2"),
-            "Create Custom Solvent"
+            "Create Custom Base"
         ]
         return new_state, button_text
     raise PreventUpdate
 
 
-# ===== ADD CUSTOM SOLVENT =====
+# ===== ADD CUSTOM BASE =====
 
 @callback(
-    [Output("solvent-rows-container", "children", allow_duplicate=True),
-     Output({'type': 'solvent-select', 'index': ALL}, 'options'),
-     Output("custom-solvent-name", "value"),
-     Output("custom-solvent-smiles", "value"),
-     Output("custom-solvent-collapse", "is_open", allow_duplicate=True),
-     Output("toggle-custom-solvent", "children", allow_duplicate=True),
+    [Output("base-rows-container", "children", allow_duplicate=True),
+     Output({'type': 'base-select', 'index': ALL}, 'options'),
+     Output("custom-base-name", "value"),
+     Output("custom-base-smiles", "value"),
+     Output("custom-base-collapse", "is_open", allow_duplicate=True),
+     Output("toggle-custom-base", "children", allow_duplicate=True),
      Output("validation-alert", "children", allow_duplicate=True),
      Output("validation-alert", "is_open", allow_duplicate=True)],
-    Input("confirm-custom-solvent-btn", "n_clicks"),
-    [State("custom-solvent-name", "value"),
-     State("custom-solvent-smiles", "value"),
-     State("solvent-rows-container", "children"),
-     State({'type': 'solvent-select', 'index': ALL}, 'options')],
+    Input("confirm-custom-base-btn", "n_clicks"),
+    [State("custom-base-name", "value"),
+     State("custom-base-smiles", "value"),
+     State("base-rows-container", "children"),
+     State({'type': 'base-select', 'index': ALL}, 'options')],
     prevent_initial_call=True
 )
-def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
-    """Add a custom solvent to the list and create a new row with it selected"""
+def add_custom_base(n_clicks, name, smiles, current_rows, current_options):
+    """Add a custom base to the list and create a new row with it selected"""
     if not n_clicks:
         raise PreventUpdate
     
     # Validate inputs
     if not name or not name.strip():
-        alert = dbc.Alert("❌ Solvent name is required", color="danger")
+        alert = dbc.Alert("❌ Base name is required", color="danger")
         return no_update, no_update, no_update, no_update, no_update, no_update, alert, True
     
     if not smiles or not smiles.strip():
@@ -153,25 +152,25 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
         return no_update, no_update, no_update, no_update, no_update, no_update, alert, True
     
     # Add to global lists
-    solvent_name = name.strip()
-    if solvent_name not in COMMON_SOLVENTS:
-        COMMON_SOLVENTS.append(solvent_name)
-        CUSTOM_SOLVENTS[solvent_name] = smiles.strip()
+    base_name = name.strip()
+    if base_name not in COMMON_BASES:
+        COMMON_BASES.append(base_name)
+        CUSTOM_BASES[base_name] = smiles.strip()
     
     # Update all dropdown options
-    new_options = [{"label": s, "value": s} for s in COMMON_SOLVENTS]
+    new_options = [{"label": b, "value": b} for b in COMMON_BASES]
     updated_options = [new_options] * len(current_options)
     
-    # Create a new row with the custom solvent already selected
+    # Create a new row with the custom base already selected
     new_id = str(uuid.uuid4())
     new_row = html.Div([
         dbc.Row([
             dbc.Col([
                 dcc.Dropdown(
-                    id={'type': 'solvent-select', 'index': new_id},
+                    id={'type': 'base-select', 'index': new_id},
                     options=new_options,
-                    value=solvent_name,  # Pre-select the new solvent
-                    placeholder="Select solvent",
+                    value=base_name,  # Pre-select the new base
+                    placeholder="Select base",
                     clearable=True,
                     style={"fontSize": "0.875rem"}
                 )
@@ -179,7 +178,7 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
             dbc.Col([
                 dbc.Button(
                     html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-solvent-row', 'index': new_id},
+                    id={'type': 'delete-base-row', 'index': new_id},
                     color="danger",
                     outline=True,
                     size="sm",
@@ -187,7 +186,7 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
                 )
             ], width=2),
         ], className="mb-2 align-items-center"),
-    ], id={'type': 'solvent-row', 'index': new_id})
+    ], id={'type': 'base-row', 'index': new_id})
     
     # Add the new row to current rows
     updated_rows = current_rows + [new_row]
@@ -195,66 +194,66 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
     # Reset button text
     button_text = [
         html.I(className="bi bi-flask me-2"),
-        "Create Custom Solvent"
+        "Create Custom Base"
     ]
     
     alert = dbc.Alert([
         html.I(className="bi bi-check-circle-fill me-2"),
-        f"✅ Added custom solvent: {solvent_name}"
+        f"✅ Added custom base: {base_name}"
     ], color="success")
     
-    # Return: updated rows, updated options for ALL dropdowns, clear inputs, close collapse, reset button, show alert
     return updated_rows, updated_options, "", "", False, button_text, alert, True
+
 
 # ===== INITIALIZE MODAL WITH DEFAULT ROWS =====
 
 @callback(
-    [Output("solvent-rows-container", "children", allow_duplicate=True),
-     Output("descriptor-rows-container", "children", allow_duplicate=True)],
-    Input("solvent-modal", "is_open"),
+    [Output("base-rows-container", "children", allow_duplicate=True),
+     Output("base-descriptor-rows-container", "children", allow_duplicate=True)],
+    Input("base-modal", "is_open"),
     prevent_initial_call=True
 )
-def initialize_modal_content(is_open):
-    """Initialize modal with one solvent row and one descriptor row when opened via button"""
-    # Only initialize if modal was opened by the "Solvent" button, not by the "Edit" button
+def initialize_base_modal_content(is_open):
+    """Initialize modal with one base row and one descriptor row when opened via button"""
+    # Only initialize if modal was opened by the "Base" button, not by the "Edit" button
     triggered_id = ctx.triggered_id
     
-    # If opened by edit button, don't reinitialize (it's already filled by edit_solvent_parameter)
-    if triggered_id != "add-solvent-button":
+    # If opened by edit button, don't reinitialize (it's already filled by edit_base_parameter)
+    if triggered_id != "add-base-button":
         raise PreventUpdate
     
     if is_open:
-        solvent_id = str(uuid.uuid4())
+        base_id = str(uuid.uuid4())
         descriptor_id = str(uuid.uuid4())
         
-        return [create_solvent_row(solvent_id)], [create_descriptor_row(descriptor_id)]
+        return [create_base_row(base_id)], [create_base_descriptor_row(descriptor_id)]
     
     raise PreventUpdate
 
-# ===== MANAGE SOLVENT ROWS =====
+# ===== MANAGE BASE ROWS =====
 
 @callback(
-    Output("solvent-rows-container", "children", allow_duplicate=True),
-    [Input("add-solvent-row-btn", "n_clicks"),
-     Input({'type': 'delete-solvent-row', 'index': ALL}, 'n_clicks')],
-    State("solvent-rows-container", "children"),
+    Output("base-rows-container", "children", allow_duplicate=True),
+    [Input("add-base-row-btn", "n_clicks"),
+     Input({'type': 'delete-base-row', 'index': ALL}, 'n_clicks')],
+    State("base-rows-container", "children"),
     prevent_initial_call=True
 )
-def manage_solvent_rows(add_clicks, delete_clicks, current_rows):
-    """Handle adding and deleting solvent rows"""
+def manage_base_rows(add_clicks, delete_clicks, current_rows):
+    """Handle adding and deleting base rows"""
     triggered = ctx.triggered_id
     
-    if triggered == "add-solvent-row-btn":
-        # Add new solvent row
+    if triggered == "add-base-row-btn":
+        # Add new base row
         if not add_clicks:
             raise PreventUpdate
         
         new_id = str(uuid.uuid4())
-        new_row = create_solvent_row(new_id)
+        new_row = create_base_row(new_id)
         return current_rows + [new_row]
     
-    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-solvent-row':
-        # Delete solvent row
+    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-base-row':
+        # Delete base row
         if not any(delete_clicks):
             raise PreventUpdate
         
@@ -270,36 +269,36 @@ def manage_solvent_rows(add_clicks, delete_clicks, current_rows):
         # Keep at least one row
         if not new_rows:
             new_id = str(uuid.uuid4())
-            new_rows = [create_solvent_row(new_id)]
+            new_rows = [create_base_row(new_id)]
         
         return new_rows
     
     raise PreventUpdate
 
 
-# ===== MANAGE DESCRIPTOR ROWS =====
+# ===== MANAGE BASE DESCRIPTOR ROWS =====
 
 @callback(
-    Output("descriptor-rows-container", "children", allow_duplicate=True),
-    [Input("add-descriptor-row-btn", "n_clicks"),
-     Input({'type': 'delete-descriptor-row', 'index': ALL}, 'n_clicks')],
-    State("descriptor-rows-container", "children"),
+    Output("base-descriptor-rows-container", "children", allow_duplicate=True),
+    [Input("add-base-descriptor-row-btn", "n_clicks"),
+     Input({'type': 'delete-base-descriptor-row', 'index': ALL}, 'n_clicks')],
+    State("base-descriptor-rows-container", "children"),
     prevent_initial_call=True
 )
-def manage_descriptor_rows(add_clicks, delete_clicks, current_rows):
-    """Handle adding and deleting descriptor rows"""
+def manage_base_descriptor_rows(add_clicks, delete_clicks, current_rows):
+    """Handle adding and deleting base descriptor rows"""
     triggered = ctx.triggered_id
     
-    if triggered == "add-descriptor-row-btn":
+    if triggered == "add-base-descriptor-row-btn":
         # Add new descriptor row
         if not add_clicks:
             raise PreventUpdate
         
         new_id = str(uuid.uuid4())
-        new_row = create_descriptor_row(new_id)
+        new_row = create_base_descriptor_row(new_id)
         return current_rows + [new_row]
     
-    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-descriptor-row':
+    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-base-descriptor-row':
         # Delete descriptor row
         if not any(delete_clicks):
             raise PreventUpdate
@@ -316,87 +315,87 @@ def manage_descriptor_rows(add_clicks, delete_clicks, current_rows):
         # Keep at least one row
         if not new_rows:
             new_id = str(uuid.uuid4())
-            new_rows = [create_descriptor_row(new_id)]
+            new_rows = [create_base_descriptor_row(new_id)]
         
         return new_rows
     
     raise PreventUpdate
 
 
-# ===== SAVE SOLVENT CONFIGURATION =====
+# ===== SAVE BASE CONFIGURATION =====
 
 @callback(
     [Output("parameter-container", "children", allow_duplicate=True),
-     Output("solvent-config-store", "data"),
+     Output("base-config-store", "data"),
      Output("validation-alert", "children", allow_duplicate=True),
      Output("validation-alert", "is_open", allow_duplicate=True)],
-    Input("save-solvents-btn", "n_clicks"),
-    [State({'type': 'solvent-select', 'index': ALL}, 'value'),
-     State({'type': 'descriptor-select', 'index': ALL}, 'value'),
+    Input("save-bases-btn", "n_clicks"),
+    [State({'type': 'base-select', 'index': ALL}, 'value'),
+     State({'type': 'base-descriptor-select', 'index': ALL}, 'value'),
      State("parameter-container", "children"),
-     State("solvent-config-store", "data")],
+     State("base-config-store", "data")],
     prevent_initial_call=True
 )
-def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, current_config):
-    """Save the selected solvents and descriptors as a categorical parameter"""
+def save_base_configuration(n_clicks, bases, descriptors, current_params, current_config):
+    """Save the selected bases and descriptors as a categorical parameter"""
     if not n_clicks:
         raise PreventUpdate
     
     # Filter out None/empty values
-    selected_solvents = [s for s in solvents if s]
+    selected_bases = [b for b in bases if b]
     selected_descriptors = [d for d in descriptors if d]
     
-    if not selected_solvents:
-        alert = dbc.Alert("❌ Please select at least one solvent", color="danger")
+    if not selected_bases:
+        alert = dbc.Alert("❌ Please select at least one base", color="danger")
         return no_update, no_update, alert, True
     
-    print(f"✅ Saved solvents: {selected_solvents}")
+    print(f"✅ Saved bases: {selected_bases}")
     print(f"✅ Saved descriptors: {selected_descriptors}")
     
-    # Print SMILES for custom solvents
-    for solvent in selected_solvents:
-        if solvent in CUSTOM_SOLVENTS:
-            print(f"   - {solvent}: {CUSTOM_SOLVENTS[solvent]}")
+    # Print SMILES for custom bases
+    for base in selected_bases:
+        if base in CUSTOM_BASES:
+            print(f"   - {base}: {CUSTOM_BASES[base]}")
     
-    # Get existing solvent parameter ID if it exists
-    solvent_param_id = None
+    # Get existing base parameter ID if it exists
+    base_param_id = None
     if current_config and 'param_id' in current_config:
-        solvent_param_id = current_config['param_id']
+        base_param_id = current_config['param_id']
     
     # If no existing ID, create new one
-    if solvent_param_id is None:
-        solvent_param_id = str(uuid.uuid4())
+    if base_param_id is None:
+        base_param_id = str(uuid.uuid4())
     
     # Store configuration with parameter ID
     config_data = {
-        'param_id': solvent_param_id,
-        'solvents': selected_solvents,
+        'param_id': base_param_id,
+        'bases': selected_bases,
         'descriptors': selected_descriptors,
-        'custom_solvents': {s: CUSTOM_SOLVENTS[s] for s in selected_solvents if s in CUSTOM_SOLVENTS}
+        'custom_bases': {b: CUSTOM_BASES[b] for b in selected_bases if b in CUSTOM_BASES}
     }
     
-    # Remove existing Solvent parameter if it exists (using the stored ID)
+    # Remove existing Base parameter if it exists (using the stored ID)
     updated_params = []
     for param in current_params:
         try:
             param_row_id = param['props']['id']
-            if param_row_id['type'] == 'parameter-row' and param_row_id['index'] == solvent_param_id:
+            if param_row_id['type'] == 'parameter-row' and param_row_id['index'] == base_param_id:
                 # Skip this parameter, we'll recreate it
                 continue
         except:
             pass
         updated_params.append(param)
     
-    # Create solvent parameter row
-    solvent_values = ", ".join(selected_solvents)
+    # Create base parameter row
+    base_values = ", ".join(selected_bases)
     descriptor_info = f"Descriptors: {', '.join(selected_descriptors)}" if selected_descriptors else "No descriptors selected"
     
     new_row = html.Div([
         dbc.Row([
             dbc.Col([
                 dbc.Input(
-                    id={'type': 'parameter-name', 'index': solvent_param_id},
-                    value="Solvent",
+                    id={'type': 'parameter-name', 'index': base_param_id},
+                    value="Base",
                     size="sm",
                     style={"borderRadius": "6px"},
                     disabled=True  # Can't edit the name
@@ -404,7 +403,7 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
             ], width=3),
             dbc.Col([
                 dcc.Dropdown(
-                    id={'type': 'parameter-type', 'index': solvent_param_id},
+                    id={'type': 'parameter-type', 'index': base_param_id},
                     options=[
                         {"label": "Continuous", "value": "float"},
                         {"label": "Discrete", "value": "int"},
@@ -418,11 +417,11 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
                 )
             ], width=2),
             dbc.Col([
-                html.Div(id={'type': 'parameter-inputs', 'index': solvent_param_id}, children=[
+                html.Div(id={'type': 'parameter-inputs', 'index': base_param_id}, children=[
                     html.Div([
                         dbc.Input(
-                            id={'type': 'parameter-categories', 'index': solvent_param_id},
-                            value=solvent_values,
+                            id={'type': 'parameter-categories', 'index': base_param_id},
+                            value=base_values,
                             type="text",
                             size="sm",
                             disabled=True,  # Can't edit directly
@@ -430,7 +429,7 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
                         ),
                         dbc.Tooltip(
                             descriptor_info,
-                            target={'type': 'parameter-categories', 'index': solvent_param_id},
+                            target={'type': 'parameter-categories', 'index': base_param_id},
                             placement="top"
                         ) if selected_descriptors else None
                     ])
@@ -439,7 +438,7 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
             dbc.Col([
                 dbc.Button(
                     html.I(className="bi bi-pencil-square", style={"fontSize": "0.875rem"}),
-                    id={'type': 'edit-solvent', 'index': solvent_param_id},
+                    id={'type': 'edit-base', 'index': base_param_id},
                     color="primary",
                     outline=True,
                     size="sm",
@@ -449,7 +448,7 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
             dbc.Col([
                 dbc.Button(
                     html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-parameter', 'index': solvent_param_id},
+                    id={'type': 'delete-parameter', 'index': base_param_id},
                     color="danger",
                     outline=True,
                     size="sm",
@@ -457,55 +456,55 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
                 )
             ], width=1),
         ], className="mb-2 align-items-center"),
-    ], id={'type': 'parameter-row', 'index': solvent_param_id})
+    ], id={'type': 'parameter-row', 'index': base_param_id})
     
     # Add to beginning of parameters list
     updated_params = [new_row] + updated_params
     
     alert = dbc.Alert([
         html.I(className="bi bi-check-circle-fill me-2"),
-        f"Saved {len(selected_solvents)} solvent(s) as parameter"
+        f"Saved {len(selected_bases)} base(s) as parameter"
     ], color="success")
     
     return updated_params, config_data, alert, True
 
-# ===== EDIT SOLVENT - REOPEN MODAL WITH CURRENT VALUES =====
+# ===== EDIT BASE - REOPEN MODAL WITH CURRENT VALUES =====
 
 @callback(
-    [Output("solvent-modal", "is_open", allow_duplicate=True),
-     Output("solvent-rows-container", "children", allow_duplicate=True),
-     Output("descriptor-rows-container", "children", allow_duplicate=True)],
-    Input({'type': 'edit-solvent', 'index': ALL}, 'n_clicks'),
-    State("solvent-config-store", "data"),
+    [Output("base-modal", "is_open", allow_duplicate=True),
+     Output("base-rows-container", "children", allow_duplicate=True),
+     Output("base-descriptor-rows-container", "children", allow_duplicate=True)],
+    Input({'type': 'edit-base', 'index': ALL}, 'n_clicks'),
+    State("base-config-store", "data"),
     prevent_initial_call=True
 )
-def edit_solvent_parameter(n_clicks, config_data):
-    """Reopen modal with current solvent configuration"""
+def edit_base_parameter(n_clicks, config_data):
+    """Reopen modal with current base configuration"""
     if not any(n_clicks) or not config_data:
         raise PreventUpdate
     
-    selected_solvents = config_data.get('solvents', [])
+    selected_bases = config_data.get('bases', [])
     selected_descriptors = config_data.get('descriptors', [])
-    custom_solvents = config_data.get('custom_solvents', {})
+    custom_bases = config_data.get('custom_bases', {})
     
-    # Add custom solvents back to COMMON_SOLVENTS if needed
-    for solvent_name, smiles in custom_solvents.items():
-        if solvent_name not in COMMON_SOLVENTS:
-            COMMON_SOLVENTS.append(solvent_name)
-            CUSTOM_SOLVENTS[solvent_name] = smiles
+    # Add custom bases back to COMMON_BASES if needed
+    for base_name, smiles in custom_bases.items():
+        if base_name not in COMMON_BASES:
+            COMMON_BASES.append(base_name)
+            CUSTOM_BASES[base_name] = smiles
     
-    # Recreate solvent rows with selected values
-    solvent_rows = []
-    for solvent in selected_solvents:
+    # Recreate base rows with selected values
+    base_rows = []
+    for base in selected_bases:
         row_id = str(uuid.uuid4())
-        solvent_rows.append(html.Div([
+        base_rows.append(html.Div([
             dbc.Row([
                 dbc.Col([
                     dcc.Dropdown(
-                        id={'type': 'solvent-select', 'index': row_id},
-                        options=[{"label": s, "value": s} for s in COMMON_SOLVENTS],
-                        value=solvent,
-                        placeholder="Select solvent",
+                        id={'type': 'base-select', 'index': row_id},
+                        options=[{"label": b, "value": b} for b in COMMON_BASES],
+                        value=base,
+                        placeholder="Select base",
                         clearable=True,
                         style={"fontSize": "0.875rem"}
                     )
@@ -513,7 +512,7 @@ def edit_solvent_parameter(n_clicks, config_data):
                 dbc.Col([
                     dbc.Button(
                         html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                        id={'type': 'delete-solvent-row', 'index': row_id},
+                        id={'type': 'delete-base-row', 'index': row_id},
                         color="danger",
                         outline=True,
                         size="sm",
@@ -521,12 +520,12 @@ def edit_solvent_parameter(n_clicks, config_data):
                     )
                 ], width=2),
             ], className="mb-2 align-items-center"),
-        ], id={'type': 'solvent-row', 'index': row_id}))
+        ], id={'type': 'base-row', 'index': row_id}))
     
-    # If no solvents, add empty row
-    if not solvent_rows:
+    # If no bases, add empty row
+    if not base_rows:
         row_id = str(uuid.uuid4())
-        solvent_rows = [create_solvent_row(row_id)]
+        base_rows = [create_base_row(row_id)]
     
     # Recreate descriptor rows with selected values
     descriptor_rows = []
@@ -536,8 +535,8 @@ def edit_solvent_parameter(n_clicks, config_data):
             dbc.Row([
                 dbc.Col([
                     dcc.Dropdown(
-                        id={'type': 'descriptor-select', 'index': row_id},
-                        options=[{"label": d, "value": d} for d in COMMON_DESCRIPTORS],
+                        id={'type': 'base-descriptor-select', 'index': row_id},
+                        options=[{"label": d, "value": d} for d in COMMON_BASE_DESCRIPTORS],
                         value=descriptor,
                         placeholder="Select descriptor",
                         clearable=True,
@@ -547,7 +546,7 @@ def edit_solvent_parameter(n_clicks, config_data):
                 dbc.Col([
                     dbc.Button(
                         html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                        id={'type': 'delete-descriptor-row', 'index': row_id},
+                        id={'type': 'delete-base-descriptor-row', 'index': row_id},
                         color="danger",
                         outline=True,
                         size="sm",
@@ -555,11 +554,11 @@ def edit_solvent_parameter(n_clicks, config_data):
                     )
                 ], width=2),
             ], className="mb-2 align-items-center"),
-        ], id={'type': 'descriptor-row', 'index': row_id}))
+        ], id={'type': 'base-descriptor-row', 'index': row_id}))
     
     # If no descriptors, add empty row
     if not descriptor_rows:
         row_id = str(uuid.uuid4())
-        descriptor_rows = [create_descriptor_row(row_id)]
+        descriptor_rows = [create_base_descriptor_row(row_id)]
     
-    return True, solvent_rows, descriptor_rows
+    return True, base_rows, descriptor_rows
