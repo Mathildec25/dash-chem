@@ -145,6 +145,40 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
     for col in experiments.columns:
         unique_vals = experiments[col].unique()
         print(f"   - {col}: {len(unique_vals)} unique values → {list(unique_vals)[:5]}")
+    
+    # ===== CHECK ENCODING TRANSFORMATION =====
+    print("\n🔍 DEBUG - Checking data transformation:")
+    
+    from bofire.data_models.enum import CategoricalEncodingEnum
+    
+    # Build encoding specs for CategoricalDescriptorInput features
+    specs = {}
+    for feat in domain.inputs.features:
+        if hasattr(feat, 'descriptors') and feat.descriptors:  # CategoricalDescriptorInput
+            specs[feat.key] = CategoricalEncodingEnum.DESCRIPTOR
+            print(f"   Setting {feat.key} encoding to DESCRIPTOR")
+    
+    # Get parameter names (exclude objectives)
+    param_names = [feat.key for feat in domain.inputs.features]
+    
+    # Transform and check
+    if specs:
+        try:
+            X_transformed = domain.inputs.transform(experiments[param_names], specs=specs)
+            print(f"   Transformed columns: {list(X_transformed.columns)}")
+            print(f"   Transformed shape: {X_transformed.shape}")
+            print(f"   Transformed dtypes:\n{X_transformed.dtypes}")
+            print(f"   First few rows:\n{X_transformed.head()}")
+            
+            # Check for cardinality issues
+            for col in X_transformed.columns:
+                n_unique = X_transformed[col].nunique()
+                print(f"   Column '{col}': {n_unique} unique values")
+                if n_unique == 1:
+                    print(f"   ⚠️ WARNING: Column '{col}' has only 1 unique value!")
+        except Exception as e:
+            print(f"   ⚠️ Error during transformation test: {e}")
+    
     # ===== END DEBUGGING =====
     
     # Provide past experiments
@@ -152,6 +186,7 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
     
     # Ask for next candidates
     return strat.ask(candidate_count=n_candidates)
+
 
 
 def get_optimization_type(domain):

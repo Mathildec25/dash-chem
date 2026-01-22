@@ -2,40 +2,40 @@
   "excel_name": "TestMathilde.xlsx",
   "parameters": [
     {
-      "id": "ce2bc887-2f92-49d4-835e-afed5a16dcf6",
+      "id": "daeca741-6383-47a7-8436-3d406da2d3cc",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
           "Methanol",
-          "Ethanol"
+          "DMSO"
         ]
       }
     },
     {
-      "id": "834e2882-5697-4526-a339-e64d0eee9c3a",
+      "id": "97ef27ed-dbec-48af-b767-b41e95785982",
       "name": "temp",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          20.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "7f0f15d4-8ae6-4031-bcc8-7de0858b8dba",
-      "name": "IL",
+      "id": "b3569648-8da8-4e44-9ab6-98f9db9be8f2",
+      "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 29
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "b36aa25b-c489-4d6e-9c83-eac244b4b5c2",
+      "id": "4772d5ca-7b4a-4b24-bae8-20f5dfc7fb5a",
       "name": "Point type"
     }
   ],
@@ -46,23 +46,23 @@
       "Point type",
       "Solvent",
       "temp",
-      "IL"
+      "YIELD"
     ],
     "parameter_names": [
       "Solvent",
       "temp"
     ],
     "objective_names": [
-      "IL"
+      "YIELD"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "ce2bc887-2f92-49d4-835e-afed5a16dcf6",
+      "param_id": "daeca741-6383-47a7-8436-3d406da2d3cc",
       "solvents": [
         "Methanol",
-        "Ethanol"
+        "DMSO"
       ],
       "descriptors": [
         "Boiling point"

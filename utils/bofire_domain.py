@@ -27,33 +27,35 @@ _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='bofire_creator
 def _create_categorical_descriptor_safely(name, categories, descriptors, values):
     """
     Creates a CategoricalDescriptorInput in a separate thread.
-    
-    IMPORTANT: The 'allowed' list must be created as a literal list, not using
-    expressions like [True] * len(categories), as Pydantic validators have issues
-    with expressions even in threads.
-    
-    Args:
-        name: Parameter name
-        categories: List of category names
-        descriptors: List of descriptor names
-        values: List of lists with descriptor values
-        
-    Returns:
-        CategoricalDescriptorInput: Properly initialized feature
     """
     print(f"   🧵 Thread {threading.current_thread().name}: Creating CategoricalDescriptorInput")
     
-    # Create allowed list explicitly BEFORE constructor (not as expression!)
-    # This avoids Pydantic validation issues
+    # Create allowed list explicitly
     allowed_list = [True for _ in categories]
     
-    return CategoricalDescriptorInput(
-        key=name,
-        categories=categories,
-        allowed=allowed_list,
-        descriptors=descriptors,
-        values=values
-    )
+    # Try normal constructor FIRST (like test.py does)
+    try:
+        feature = CategoricalDescriptorInput(
+            key=name,
+            categories=categories,
+            allowed=allowed_list,
+            descriptors=descriptors,
+            values=values
+        )
+        print(f"   ✅ Created with normal constructor")
+        return feature
+    except KeyError as e:
+        # Only if normal constructor fails, use model_construct as fallback
+        print(f"   ⚠️ Normal constructor failed ({e}), trying model_construct...")
+        feature = CategoricalDescriptorInput.model_construct(
+            key=name,
+            categories=categories,
+            allowed=allowed_list,
+            descriptors=descriptors,
+            values=values
+        )
+        print(f"   ✅ Created with model_construct")
+        return feature
 
 
 def create_bofire_domain_from_store(parameter_data, objective_data=None, solvent_config=None, base_config=None):

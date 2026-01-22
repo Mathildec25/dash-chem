@@ -1,11 +1,7 @@
 # Global imports (libraries)
 
-print("=" * 60)
-print("DÉMARRAGE APP - app.py")
-print("=" * 60)
-
-import sys
-print(f"Modules au démarrage: {len(sys.modules)}")
+import bofire
+print(bofire.__version__)
 
 from utils.BoFire import create_bofire_domain_from_store  # Import tôt!
 
