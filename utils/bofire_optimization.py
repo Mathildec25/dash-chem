@@ -184,6 +184,12 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
     # Provide past experiments
     strat.tell(experiments=experiments)
     
+        # Inspecte le modèle BoTorch sous-jacent
+    if hasattr(strat, 'model'):
+        print("🔍 Model type:", type(strat.model))
+        print("🔍 Input transform:", getattr(strat.model, 'input_transform', 'NONE'))
+        print("🔍 Outcome transform:", getattr(strat.model, 'outcome_transform', 'NONE'))
+    
     # Ask for next candidates
     return strat.ask(candidate_count=n_candidates)
 
