@@ -1,8 +1,8 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "DF.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "6a1a12bb-bdeb-4c2f-8bda-031ac3943f47",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
@@ -13,29 +13,29 @@
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "075e5cb0-b216-4ac7-8a5b-c3e7ae53040e",
+      "name": "FDFDFD",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
+      "id": "498f4849-564d-47c8-8d4a-f6917d18952a",
+      "name": "ZE",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "891185cc-5092-429b-bc59-5ca53e458a37",
       "name": "Point type"
     }
   ],
@@ -45,21 +45,21 @@
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "FDFDFD",
+      "ZE"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "FDFDFD"
     ],
     "objective_names": [
-      "RR"
+      "ZE"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "6a1a12bb-bdeb-4c2f-8bda-031ac3943f47",
       "solvents": [
         "Methanol",
         "Ethanol"

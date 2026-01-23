@@ -1,8 +1,8 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "SSD.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "918a064a-022b-4637-8db2-e965fee6e1a4",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
@@ -13,53 +13,54 @@
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
-      "type": "float",
+      "id": "c341ea30-a058-4a09-ac14-cd888f9bf22e",
+      "name": "SDSD",
+      "type": "int",
       "type_info": {
         "range": [
-          0.0,
-          90.0
+          1,
+          22,
+          45
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
+      "id": "e94c8951-e039-46a5-887e-ab0f637d6a0e",
+      "name": "TRTR",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "3c7030ac-3ec7-4371-a58d-63a8a78a0252",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "nb_points": 2,
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "SDSD",
+      "TRTR"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "SDSD"
     ],
     "objective_names": [
-      "RR"
+      "TRTR"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "918a064a-022b-4637-8db2-e965fee6e1a4",
       "solvents": [
         "Methanol",
         "Ethanol"

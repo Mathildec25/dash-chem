@@ -1,41 +1,41 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "pareil.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "ba0b1209-0fec-42d7-adaf-0116855c65ab",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
           "Methanol",
-          "Ethanol"
+          "Acetone"
         ]
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "698346bb-4ee1-4abc-bfb7-266c4ecd7d62",
+      "name": "tmp",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
+      "id": "10f88268-1bdb-41f0-a21a-5e428d96d7c5",
+      "name": "YIEDL",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "3cd77bca-2c05-4e5d-a5cf-c4bc56012a17",
       "name": "Point type"
     }
   ],
@@ -45,27 +45,27 @@
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "tmp",
+      "YIEDL"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "tmp"
     ],
     "objective_names": [
-      "RR"
+      "YIEDL"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "ba0b1209-0fec-42d7-adaf-0116855c65ab",
       "solvents": [
         "Methanol",
-        "Ethanol"
+        "Acetone"
       ],
       "descriptors": [
-        "Boiling point"
+        "Polarity"
       ],
       "custom_solvents": {}
     },

@@ -1,8 +1,8 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "PLEASE.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "1d3e9035-7779-464c-bf1a-3e6d4bfad0f0",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
@@ -13,53 +13,53 @@
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "fda08a50-c5e2-448b-b688-f54abc7f6880",
+      "name": "RE",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
+      "id": "4cba7f47-7583-4ec9-bb08-63e52c5e8815",
+      "name": "YIEDL",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "fc9937ad-ed28-4d3d-96e7-b35fad2deb1d",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "nb_points": 4,
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "RE",
+      "YIEDL"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "RE"
     ],
     "objective_names": [
-      "RR"
+      "YIEDL"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "1d3e9035-7779-464c-bf1a-3e6d4bfad0f0",
       "solvents": [
         "Methanol",
         "Ethanol"

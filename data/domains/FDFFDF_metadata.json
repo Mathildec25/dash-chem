@@ -1,41 +1,41 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "FDFFDF.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "92c47d07-1c04-45a8-a4de-6a2454b6b21b",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
-          "Methanol",
-          "Ethanol"
+          "Water",
+          "Methanol"
         ]
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "875b982b-a4b3-40dd-ad08-98cd838c0019",
+      "name": "DFFDFF",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          1000.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
-      "direction": "max",
+      "id": "ebb2842f-b5d1-40e4-878f-7f1ec5dfead4",
+      "name": "ERERERE",
+      "direction": "min",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "76f0ee4e-c25e-4eb4-9a5d-fab0c94484de",
       "name": "Point type"
     }
   ],
@@ -45,24 +45,24 @@
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "DFFDFF",
+      "ERERERE"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "DFFDFF"
     ],
     "objective_names": [
-      "RR"
+      "ERERERE"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "92c47d07-1c04-45a8-a4de-6a2454b6b21b",
       "solvents": [
-        "Methanol",
-        "Ethanol"
+        "Water",
+        "Methanol"
       ],
       "descriptors": [
         "Boiling point"

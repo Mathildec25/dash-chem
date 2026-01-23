@@ -1,41 +1,42 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "pou.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "4c147e7d-25a3-4433-bb61-e18508206e79",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
+          "DMSO",
           "Methanol",
-          "Ethanol"
+          "Water"
         ]
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "568951c4-9153-4f87-bf79-1d33f08dd820",
+      "name": "rrrr",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
+      "id": "52bc1540-3d19-4d75-ae9e-e79a195f8d1b",
+      "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "a3fbbc8e-bbf1-4167-bd11-3e4d559881ff",
       "name": "Point type"
     }
   ],
@@ -45,27 +46,28 @@
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "rrrr",
+      "YIELD"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "rrrr"
     ],
     "objective_names": [
-      "RR"
+      "YIELD"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "4c147e7d-25a3-4433-bb61-e18508206e79",
       "solvents": [
+        "DMSO",
         "Methanol",
-        "Ethanol"
+        "Water"
       ],
       "descriptors": [
-        "Boiling point"
+        "Polarity"
       ],
       "custom_solvents": {}
     },

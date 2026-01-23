@@ -1,71 +1,71 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "ds.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "849bdcbe-6ddb-4745-b532-a0c99561b4ea",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
           "Methanol",
-          "Ethanol"
+          "DMSO"
         ]
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "96fc5fa2-26bc-4903-94a8-d9550153403a",
+      "name": "sd",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
+      "id": "470467cb-b9c2-41f8-affb-fa78750cdeee",
+      "name": "12",
       "direction": "max",
-      "lower_bound": 0,
-      "upper_bound": 10
+      "lower_bound": 12,
+      "upper_bound": 2222
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "ad3a0e73-673e-4574-9b5e-dd01ccfde924",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "nb_points": 2,
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "sd",
+      "12"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "sd"
     ],
     "objective_names": [
-      "RR"
+      "12"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "849bdcbe-6ddb-4745-b532-a0c99561b4ea",
       "solvents": [
         "Methanol",
-        "Ethanol"
+        "DMSO"
       ],
       "descriptors": [
-        "Boiling point"
+        "Polarity"
       ],
       "custom_solvents": {}
     },

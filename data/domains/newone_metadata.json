@@ -1,41 +1,42 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "newone.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "e5aa9a39-ebbe-4a0c-af5a-cf3e1208a60b",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
           "Methanol",
-          "Ethanol"
+          "Acetone",
+          "DMSO"
         ]
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "2f66efb1-f0b4-41e8-b170-ebce39226315",
+      "name": "temprature",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
-      "direction": "max",
+      "id": "41956501-69b0-4c4b-988b-f31e0d01ae7d",
+      "name": "YIELD",
+      "direction": "min",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "242643f3-5895-4982-9183-6808d832ae42",
       "name": "Point type"
     }
   ],
@@ -45,27 +46,28 @@
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "temprature",
+      "YIELD"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "temprature"
     ],
     "objective_names": [
-      "RR"
+      "YIELD"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "e5aa9a39-ebbe-4a0c-af5a-cf3e1208a60b",
       "solvents": [
         "Methanol",
-        "Ethanol"
+        "Acetone",
+        "DMSO"
       ],
       "descriptors": [
-        "Boiling point"
+        "Polarity"
       ],
       "custom_solvents": {}
     },

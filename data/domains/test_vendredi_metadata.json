@@ -1,71 +1,74 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "test_vendredi.xlsx",
   "parameters": [
     {
-      "id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "id": "cdfdf2b1-5b98-4dfe-a5d1-8ff2151755dc",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
-          "Methanol",
-          "Ethanol"
+          "Ethanol",
+          "DMSO",
+          "DMF"
         ]
       }
     },
     {
-      "id": "766991dc-d992-473b-ac4b-74c3bcb1728d",
-      "name": "FFF",
+      "id": "a1a8e44f-1076-4aca-a35f-10da5e321980",
+      "name": "temperature",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          90.0
+          100.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "e229ec33-01fb-46b6-b763-64782eaeefd9",
-      "name": "RR",
+      "id": "cc811a5e-e831-43da-806a-e983ecd4a270",
+      "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 10
+      "upper_bound": 100
     }
   ],
   "extra_columns": [
     {
-      "id": "95f3358d-80a6-401a-99bc-8f5a9c6f9531",
+      "id": "d912063d-e9bd-4c06-ad33-c2b1b56d0cdc",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "nb_points": 4,
     "column_order": [
       "Point type",
       "Solvent",
-      "FFF",
-      "RR"
+      "temperature",
+      "YIELD"
     ],
     "parameter_names": [
       "Solvent",
-      "FFF"
+      "temperature"
     ],
     "objective_names": [
-      "RR"
+      "YIELD"
     ],
     "extra_column_names": [
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "f73deb28-01fc-4a9a-8337-e059072e5df0",
+      "param_id": "cdfdf2b1-5b98-4dfe-a5d1-8ff2151755dc",
       "solvents": [
-        "Methanol",
-        "Ethanol"
+        "Ethanol",
+        "DMSO",
+        "DMF"
       ],
       "descriptors": [
-        "Boiling point"
+        "Boiling point",
+        "Polarity"
       ],
       "custom_solvents": {}
     },
