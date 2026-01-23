@@ -19,6 +19,7 @@ from utils.BoFire import (
     get_optimization_type
 )
 from config_path import EXCEL_FOLDER
+from callbacks.opti_param_callbacks.constraints_callbacks import validate_and_adjust_suggestion
 
 
 # ===== LOAD AND DISPLAY TABLE =====
@@ -530,6 +531,45 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         
         print(f"✅ Generated candidates:\n{new_candidates}")
         
+        # ===== DYNAMIC BOILING POINT CONSTRAINT =====
+        # Get constraints config from metadata
+        constraints_config = domain_data.get('metadata', {}).get('constraints_config')
+        solvent_config = domain_data.get('metadata', {}).get('solvent_config')
+        
+        # Find solvent parameter name
+        solvent_param_name = None
+        if solvent_config:
+            for param in parameters:
+                if param.get('id') == solvent_config.get('param_id'):
+                    solvent_param_name = param.get('name')
+                    break
+        
+        # Apply dynamic constraints based on suggested solvent
+        all_adjustments = []
+        if constraints_config and constraints_config.get('constraints') and solvent_param_name:
+            print(f"🔧 Checking dynamic constraints (solvent param: {solvent_param_name})")
+            
+            adjusted_rows = []
+            for idx, row in new_candidates.iterrows():
+                row_dict = row.to_dict()
+                adjusted_row, adjustments = validate_and_adjust_suggestion(
+                    row_dict, 
+                    constraints_config, 
+                    solvent_param_name
+                )
+                adjusted_rows.append(adjusted_row)
+                all_adjustments.extend(adjustments)
+            
+            # Replace candidates with adjusted version
+            new_candidates = pd.DataFrame(adjusted_rows)
+            
+            if all_adjustments:
+                print(f"⚠️ Applied {len(all_adjustments)} temperature adjustment(s):")
+                for adj in all_adjustments:
+                    print(f"   {adj['parameter']}: {adj['original']}°C → {adj['adjusted']}°C "
+                          f"(limited by {adj['solvent']} BP={adj['boiling_point']}°C)")
+        # ===== END CONSTRAINT VALIDATION =====
+        
         new_rows = []
         for _, candidate in new_candidates.iterrows():
             new_row = {}
@@ -558,7 +598,14 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         
         updated_data = table_data + new_rows
         
-        msg = f"✅ Generated {n_suggestions} new experiment(s) to test!"
+        if all_adjustments:
+            adjustment_text = ", ".join([
+                f"{adj['parameter']} → {adj['adjusted']}°C (max for {adj['solvent']})"
+                for adj in all_adjustments
+            ])
+            msg = f"✅ Generated {n_suggestions} new experiment(s)! ⚠️ Adjusted: {adjustment_text}"
+        else:
+            msg = f"✅ Generated {n_suggestions} new experiment(s) to test!"
         print(msg)
         return updated_data, msg, True, "success", default_btn, False
     

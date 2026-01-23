@@ -70,6 +70,7 @@ def enable_button(param_names, obj_names, project_name):
      State('starting-sampling-DD', 'value'),
      State('nb-sampling-points', 'value'),
      State('solvent-config-store', 'data'),
+     State('constraints-store', 'data'),
      State('base-config-store', 'data')],
     prevent_initial_call=True
 )
@@ -80,7 +81,7 @@ def create_domain_and_excel(n_clicks, project_name,
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
                            sampling_method, nb_points,
-                           solvent_config, base_config):
+                           solvent_config, base_config, constraints_config):
     """
     Main callback: Create domain, generate Excel with sampling, and redirect
     """
@@ -104,6 +105,7 @@ def create_domain_and_excel(n_clicks, project_name,
         print(f"🔍 param_cats: {param_cats}")
         print(f"🔍 solvent_config: {solvent_config}")
         print(f"🔍 base_config: {base_config}")
+        print(f"🔍 constraints_config: {constraints_config}")
         
         # Create dictionaries using the actual IDs of each component
         cats_dict = {}
@@ -407,6 +409,7 @@ def create_domain_and_excel(n_clicks, project_name,
                 'extra_column_names': [c['name'] for c in extra_columns],
                 'solvent_config': solvent_config,
                 'base_config': base_config,
+                "constraints_config": constraints_config,
             }
         )
         

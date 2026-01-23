@@ -1,11 +1,3 @@
-# Global imports (libraries)
-
-import bofire
-print(bofire.__version__)
-
-from utils.BoFire import create_bofire_domain_from_store  # Import tôt!
-
-
 import dash 
 import dash._utils
 import dash_bootstrap_components as dbc
@@ -18,7 +10,7 @@ from flask import send_from_directory
 # Local imports (modules)
 from callbacks.app_callbacks import register_app_callbacks    
 from callbacks.opti_home_callbacks import new_proj_callbacks, already_created_callbacks
-from callbacks.opti_param_callbacks import parameter_part, domain_creation, solvents_callbacks, base_callbacks
+from callbacks.opti_param_callbacks import parameter_part, domain_creation, solvents_callbacks, base_callbacks, constraints_callbacks
 from callbacks.opti_run_callbacks import run_optimization
 from callbacks.opti_results_callbacks import results_analysis
 from components.sidebar import generate_sidebar 
@@ -28,8 +20,8 @@ from callbacks import advanced_bo_callbacks
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.icons.BOOTSTRAP],
-    use_pages=True,                     # Specific architecture for multi-page apps (each file in pages is a page on the app)            
-    suppress_callback_exceptions=True,   # Allows to imbricate callbacks (Output of one callback in the Input of another)
+    use_pages=True,
+    suppress_callback_exceptions=True,
 )
 
 
@@ -48,19 +40,20 @@ register_app_callbacks(app)
 app.layout = html.Div([
     dcc.Store(id="selected-excel-store", storage_type='session'),
     dcc.Store(id="selected-sheet-store", storage_type='session'),
-    dcc.Store(id='parameter-store', data=[], storage_type="session"),       # Store parameters info for BO part 
-    dcc.Store(id='objective-store', data=[], storage_type="session"),       # Store objectives info for BO part
-    dcc.Store(id="extra-columns-store", data=[], storage_type="session"),   # Store extre-columns info for BO part
-    dcc.Store(id='project-name-store', storage_type='session'),             # Store component to save the project name on BO part
-    dcc.Store(id='selected-file-store', storage_type='session'),            # Store file selected to restrat opti
-    dcc.Store(id="current-excel-file", storage_type='session'),             # Store file created to start BO
-    dcc.Store(id="current-domain", storage_type='session'),                 # Store the domain of the current BO process
+    dcc.Store(id='parameter-store', data=[], storage_type="session"),
+    dcc.Store(id='objective-store', data=[], storage_type="session"),
+    dcc.Store(id="extra-columns-store", data=[], storage_type="session"),
+    dcc.Store(id='project-name-store', storage_type='session'),
+    dcc.Store(id='constraints-store', data=None, storage_type="session"),  # NEW: Store for boiling point constraints
+    dcc.Store(id='selected-file-store', storage_type='session'),
+    dcc.Store(id="current-excel-file", storage_type='session'),
+    dcc.Store(id="current-domain", storage_type='session'),
     dcc.Location(id="url", refresh="callback-nav"),
-    sidebar,  # Fixed + hover-based sidebar
+    sidebar,
     html.Div(
         id="main-content",
         className="main-content",
-        children=[dash.page_container],  # Will render content of the current page
+        children=[dash.page_container],
         style={
             "marginLeft": "68px",
         }
@@ -68,8 +61,6 @@ app.layout = html.Div([
 ])
 
 
-
 # Launch the app
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8088, debug=True) # Allow to update the app without restarting it (debug mode)
-  
+    app.run(host="0.0.0.0", port=8088, debug=True)

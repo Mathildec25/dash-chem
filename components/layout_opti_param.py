@@ -34,7 +34,7 @@ def create_opti_param_layout():
             ], width=True)
         ], className="mb-4 align-items-center"),
         
-        # Alert for validation errors (only shown when clicking Continue)
+        # Alert for validation errors
         dbc.Row([
             dbc.Col([
                 dbc.Alert(
@@ -134,7 +134,7 @@ def create_opti_param_layout():
                                                 ], width=6),
                                             ])
                                         ])
-                                    ], width=6),
+                                    ], width=5),
                                     dbc.Col([
                                         dbc.Button(
                                             html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
@@ -242,6 +242,73 @@ def create_opti_param_layout():
                 })
             ], md=6, className="mb-3"),
         ]),
+        
+        # ========== CONSTRAINTS CARD (NEW) ==========
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.H5([
+                                html.I(className="bi bi-sliders me-2", style={"color": "#6c757d"}),
+                                "Constraints"
+                            ], className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
+                            dbc.Button([
+                                html.I(className="bi bi-plus-lg me-1"),
+                                "Add"
+                            ],
+                            id="add-constraint-btn",
+                            color="primary",
+                            size="sm",
+                            className="float-end",
+                            style={"borderRadius": "6px", "padding": "0.25rem 0.75rem"}
+                            ),
+                        ], className="mb-3"),
+                        
+                        html.P([
+                            html.I(className="bi bi-info-circle me-2"),
+                            "Define constraints to ensure parameters stay below solvent boiling points."
+                        ], className="text-muted small mb-3"),
+                        
+                        html.Div(id="bp-info-display", className="mb-3"),
+                        
+                        html.Div([
+                            html.Label("Constraint Type", className="form-label small text-muted"),
+                            dcc.Dropdown(
+                                id="constraint-type-select",
+                                options=[
+                                    {"label": "Parameter < Minimum Boiling Point", "value": "less_than_min_bp"},
+                                ],
+                                value="less_than_min_bp",
+                                clearable=False,
+                                style={"fontSize": "0.875rem"},
+                                disabled=True
+                            )
+                        ], className="mb-3"),
+                        
+                        html.Div(id="constraint-rows-container", children=[]),
+                        
+                        html.Div([
+                            html.Hr(className="my-3"),
+                            html.Small([
+                                html.Strong("How it works: "),
+                                "When you add a constraint, the selected parameter will be ",
+                                "limited to stay below the minimum boiling point of your selected solvents."
+                            ], className="text-muted")
+                        ])
+                    ], style={"padding": "1.25rem"})
+                ], 
+                id="constraints-card",
+                style={
+                    "display": "none",
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white"
+                })
+            ], md=12)
+        ], className="mb-3"),
+        # ========== END CONSTRAINTS CARD ==========
         
         # Extra Columns Card (Collapsible)
         dbc.Row([
@@ -352,11 +419,10 @@ def create_opti_param_layout():
             ], md=6, className="mx-auto")
         ]),
         
-    # Modal for Solvents
+        # Modal for Solvents
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Solvent Configuration")),
             dbc.ModalBody([
-                # Choose Solvents section with buttons
                 html.Div([
                     html.H6("Choose Solvents", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                     html.Div([
@@ -382,7 +448,6 @@ def create_opti_param_layout():
                     ], className="float-end"),
                 ], className="mb-3"),
                 
-                # Collapsible custom solvent form
                 dbc.Collapse([
                     dbc.Card([
                         dbc.CardBody([
@@ -427,7 +492,6 @@ def create_opti_param_layout():
                 
                 html.Hr(className="my-4"),
                 
-                # Choose Descriptors section
                 html.Div([
                     html.H6("Choose Descriptors", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                     dbc.Button([
@@ -457,11 +521,10 @@ def create_opti_param_layout():
         is_open=False,
         ),
         
-    # Modal for Bases
+        # Modal for Bases
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Base Configuration")),
             dbc.ModalBody([
-                # Choose Bases section with buttons
                 html.Div([
                     html.H6("Choose Bases", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                     html.Div([
@@ -487,7 +550,6 @@ def create_opti_param_layout():
                     ], className="float-end"),
                 ], className="mb-3"),
                 
-                # Collapsible custom base form
                 dbc.Collapse([
                     dbc.Card([
                         dbc.CardBody([
@@ -532,7 +594,6 @@ def create_opti_param_layout():
                 
                 html.Hr(className="my-4"),
                 
-                # Choose Descriptors section
                 html.Div([
                     html.H6("Choose Descriptors", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                     dbc.Button([
@@ -562,7 +623,7 @@ def create_opti_param_layout():
         is_open=False,
         ),
     
-    # Stores for solvent and base configurations
+        # Stores for solvent and base configurations
         dcc.Store(id='solvent-config-store', data=None),
         dcc.Store(id='base-config-store', data=None),
             

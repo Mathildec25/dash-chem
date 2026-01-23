@@ -1,11 +1,12 @@
 """
-BoFire domain creation with descriptor support and normalization utilities
+BoFire domain creation with descriptor support, constraints, and normalization utilities
 Uses threading to avoid Flask context interference with Pydantic validators
 
 Best Practices for Bayesian Optimization in Chemistry:
 - Normalize inputs to [0, 1] for better GP performance
 - Standardize outputs (Y) for numerical stability
 - Handle different parameter scales appropriately
+- Use constraints to enforce physical limits (e.g., temperature < boiling point)
 """
 
 import pandas as pd
@@ -23,6 +24,10 @@ from bofire.data_models.features.api import (
     ContinuousOutput
 )
 from bofire.data_models.objectives.api import MinimizeObjective, MaximizeObjective
+from bofire.data_models.constraints.api import (
+    LinearInequalityConstraint,
+    Constraint
+)
 
 from utils.descriptor_data import get_descriptor_values
 
@@ -464,7 +469,8 @@ def create_bofire_domain_from_store(
     parameter_data: List[Dict],
     objective_data: Optional[List[Dict]] = None,
     solvent_config: Optional[Dict] = None,
-    base_config: Optional[Dict] = None
+    base_config: Optional[Dict] = None,
+    constraints_config: Optional[Dict] = None
 ) -> Domain:
     """
     Create a BoFire Domain using saved parameters and objectives from Dash stores.
@@ -474,6 +480,7 @@ def create_bofire_domain_from_store(
         objective_data (list of dicts): Output from objective-store.
         solvent_config (dict): Configuration for solvent parameter with descriptors.
         base_config (dict): Configuration for base parameter with descriptors.
+        constraints_config (dict): Configuration for constraints (e.g., boiling point limits).
     
     Returns:
         Domain: BoFire domain object.
@@ -483,6 +490,7 @@ def create_bofire_domain_from_store(
     
     print(f"🔍 solvent_config: {solvent_config}")
     print(f"🔍 base_config: {base_config}")
+    print(f"🔍 constraints_config: {constraints_config}")
 
     # --- Create Input features ---
     input_features = []
@@ -592,8 +600,45 @@ def create_bofire_domain_from_store(
 
     outputs = Outputs(features=output_features)
 
+    # --- Create Constraints ---
+    constraint_list = []
+    
+    if constraints_config and constraints_config.get('constraints'):
+        print(f"🔧 Processing {len(constraints_config['constraints'])} constraint(s)...")
+        
+        for constraint in constraints_config['constraints']:
+            if constraint['type'] == 'less_than_bp':
+                param_name = constraint['parameter_name']
+                limit_value = constraint['limit_value']
+                
+                # Check if parameter exists in input features
+                param_exists = any(f.key == param_name for f in input_features)
+                
+                if param_exists:
+                    # Create linear inequality constraint: param <= limit
+                    # LinearInequalityConstraint implements: sum(coef * feature) <= rhs
+                    # So: 1.0 * param <= limit_value means param <= limit_value
+                    try:
+                        lin_constraint = LinearInequalityConstraint(
+                            features=[param_name],
+                            coefficients=[1.0],
+                            rhs=limit_value
+                        )
+                        constraint_list.append(lin_constraint)
+                        print(f"   ✅ Added constraint: {param_name} <= {limit_value}°C (boiling point limit)")
+                    except Exception as e:
+                        print(f"   ❌ Failed to create constraint for {param_name}: {e}")
+                else:
+                    print(f"   ⚠️ Parameter '{param_name}' not found in inputs, skipping constraint")
+    
+    # Create Constraints object if we have any constraints
+    constraints = Constraint(constraints=constraint_list) if constraint_list else None
+    
+    if constraints:
+        print(f"🎯 Created {len(constraint_list)} constraint(s) for domain")
+
     # --- Create domain ---
-    domain = Domain(inputs=inputs, outputs=outputs)
+    domain = Domain(inputs=inputs, outputs=outputs, constraints=constraints)
     
     # --- Log scale recommendations ---
     recommendations = check_parameter_scales(domain)
