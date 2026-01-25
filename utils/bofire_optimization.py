@@ -97,18 +97,6 @@ def create_acquisition_function_from_name(acq_name, is_multi_objective=False):
 def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_function=None):
     """
     Run Bayesian optimization using the appropriate strategy based on the number of objectives.
-    
-    - Single objective: SoboStrategy (default: qLogNEI)
-    - Multiple objectives: MoboStrategy (default: qLogNEHVI)
-    
-    Args:
-        domain: BoFire Domain object
-        experiments: DataFrame with completed experiments (params + objectives)
-        n_candidates: Number of candidates to suggest (default: 1)
-        acquisition_function: Custom acquisition function instance (optional). If None, defaults are used.
-    
-    Returns:
-        DataFrame with suggested candidates
     """
     
     # Determine number of objectives
@@ -116,20 +104,24 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
     
     # Select strategy and acquisition function based on objective count
     if n_obj == 1:
-        # Single-objective optimization (SOBO)
         acq_func = acquisition_function if acquisition_function is not None else qLogNEI()
         data_model = SoboStrategy(domain=domain, acquisition_function=acq_func)
     elif n_obj >= 2:
-        # Multi-objective optimization (MOBO)
         acq_func = acquisition_function if acquisition_function is not None else qLogNEHVI()
         data_model = MoboStrategy(domain=domain, acquisition_function=acq_func)
     else:
         raise ValueError("Domain must have at least one objective")
 
-    # Initialize strategy
-    strat = strategies.map(data_model)
+    # Initialize strategy (use SoboStrategyRunner like in test.py - CRITICAL!)
+    from bofire.strategies.api import SoboStrategy as SoboStrategyRunner
+    from bofire.strategies.api import MoboStrategy as MoboStrategyRunner
     
-    # ===== DEBUGGING =====
+    if n_obj == 1:
+        strat = SoboStrategyRunner(data_model=data_model)
+    else:
+        strat = MoboStrategyRunner(data_model=data_model)
+    
+    # ===== DEBUGGING ===== (gardez votre debug actuel)
     print("🔍 DEBUG - Domain features:")
     for feat in domain.inputs.features:
         print(f"   - {feat.key}: {type(feat).__name__}")
@@ -141,58 +133,12 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
     
     print("🔍 DEBUG - Experiments DataFrame:")
     print(experiments)
-    print("\n🔍 DEBUG - Unique values per column:")
-    for col in experiments.columns:
-        unique_vals = experiments[col].unique()
-        print(f"   - {col}: {len(unique_vals)} unique values → {list(unique_vals)[:5]}")
-    
-    # ===== CHECK ENCODING TRANSFORMATION =====
-    print("\n🔍 DEBUG - Checking data transformation:")
-    
-    from bofire.data_models.enum import CategoricalEncodingEnum
-    
-    # Build encoding specs for CategoricalDescriptorInput features
-    specs = {}
-    for feat in domain.inputs.features:
-        if hasattr(feat, 'descriptors') and feat.descriptors:  # CategoricalDescriptorInput
-            specs[feat.key] = CategoricalEncodingEnum.DESCRIPTOR
-            print(f"   Setting {feat.key} encoding to DESCRIPTOR")
-    
-    # Get parameter names (exclude objectives)
-    param_names = [feat.key for feat in domain.inputs.features]
-    
-    # Transform and check
-    if specs:
-        try:
-            X_transformed = domain.inputs.transform(experiments[param_names], specs=specs)
-            print(f"   Transformed columns: {list(X_transformed.columns)}")
-            print(f"   Transformed shape: {X_transformed.shape}")
-            print(f"   Transformed dtypes:\n{X_transformed.dtypes}")
-            print(f"   First few rows:\n{X_transformed.head()}")
-            
-            # Check for cardinality issues
-            for col in X_transformed.columns:
-                n_unique = X_transformed[col].nunique()
-                print(f"   Column '{col}': {n_unique} unique values")
-                if n_unique == 1:
-                    print(f"   ⚠️ WARNING: Column '{col}' has only 1 unique value!")
-        except Exception as e:
-            print(f"   ⚠️ Error during transformation test: {e}")
-    
-    # ===== END DEBUGGING =====
     
     # Provide past experiments
     strat.tell(experiments=experiments)
     
-        # Inspecte le modèle BoTorch sous-jacent
-    if hasattr(strat, 'model'):
-        print("🔍 Model type:", type(strat.model))
-        print("🔍 Input transform:", getattr(strat.model, 'input_transform', 'NONE'))
-        print("🔍 Outcome transform:", getattr(strat.model, 'outcome_transform', 'NONE'))
-    
     # Ask for next candidates
     return strat.ask(candidate_count=n_candidates)
-
 
 
 def get_optimization_type(domain):

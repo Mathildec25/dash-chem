@@ -1,0 +1,74 @@
+{
+  "excel_name": "pok.xlsx",
+  "parameters": [
+    {
+      "id": "c2f6793c-57f4-431e-a99e-87b1db5b32db",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Water",
+          "Ethanol"
+        ]
+      }
+    },
+    {
+      "id": "29fc782c-16c6-435c-a42d-8e309ec6900f",
+      "name": "temp",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          100.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "f90924d8-bbeb-4c6b-975c-2c26bf3bb984",
+      "name": "YIRLD",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "af65e5a4-97b2-4b11-b38c-230e99b78d12",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 3,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "temp",
+      "YIRLD"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "temp"
+    ],
+    "objective_names": [
+      "YIRLD"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "c2f6793c-57f4-431e-a99e-87b1db5b32db",
+      "solvents": [
+        "Water",
+        "Ethanol"
+      ],
+      "descriptors": [
+        "Polarity"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": null
+  }
+}

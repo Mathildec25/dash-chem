@@ -1,0 +1,75 @@
+{
+  "excel_name": "diman.xlsx",
+  "parameters": [
+    {
+      "id": "6dcd9554-9343-46e7-8d14-1b664fd038ee",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Methanol",
+          "Water"
+        ]
+      }
+    },
+    {
+      "id": "ac264262-8428-4478-86fc-7e91eae683f4",
+      "name": "PPP",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          100.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "1902bafd-1b99-4fb7-9e09-d475b72001b2",
+      "name": "yield",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "a410c2f8-a69e-4417-9ff9-19822441f396",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 4,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "PPP",
+      "yield"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "PPP"
+    ],
+    "objective_names": [
+      "yield"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "6dcd9554-9343-46e7-8d14-1b664fd038ee",
+      "solvents": [
+        "Methanol",
+        "Water"
+      ],
+      "descriptors": [
+        "Polarity",
+        "Boiling point"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": null
+  }
+}

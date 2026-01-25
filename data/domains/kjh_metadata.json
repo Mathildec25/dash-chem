@@ -1,0 +1,74 @@
+{
+  "excel_name": "kjh.xlsx",
+  "parameters": [
+    {
+      "id": "ef5f053a-edd1-47d8-984d-d024dec4d9ed",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Water",
+          "Methanol"
+        ]
+      }
+    },
+    {
+      "id": "3622a482-bece-4cd0-b820-2ce9210054f9",
+      "name": "JHJH",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          6.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "ae07dd99-c8d0-4052-974f-0fd9739544f9",
+      "name": "YI",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "c0c71357-77f7-4670-85be-2acfb0b76be3",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 4,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "JHJH",
+      "YI"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "JHJH"
+    ],
+    "objective_names": [
+      "YI"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "ef5f053a-edd1-47d8-984d-d024dec4d9ed",
+      "solvents": [
+        "Water",
+        "Methanol"
+      ],
+      "descriptors": [
+        "Polarity"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": null
+  }
+}
