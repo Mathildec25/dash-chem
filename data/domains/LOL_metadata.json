@@ -1,0 +1,77 @@
+{
+  "excel_name": "LOL.xlsx",
+  "parameters": [
+    {
+      "id": "e0c34915-c6f1-4450-8f26-935d489642e5",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Acetone",
+          "DMSO",
+          "Water"
+        ]
+      }
+    },
+    {
+      "id": "c31ddfde-e368-440f-9461-4c3a021e8e60",
+      "name": "TEMP",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          200.0
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "41a72f74-a9e0-480f-b762-4b6d5f9a1708",
+      "name": "YIELD",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "9010c514-b07c-46a5-979b-16571170d820",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 4,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "TEMP",
+      "YIELD"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "TEMP"
+    ],
+    "objective_names": [
+      "YIELD"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "e0c34915-c6f1-4450-8f26-935d489642e5",
+      "solvents": [
+        "Acetone",
+        "DMSO",
+        "Water"
+      ],
+      "descriptors": [
+        "Polarity",
+        "Boiling point"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": null
+  }
+}
