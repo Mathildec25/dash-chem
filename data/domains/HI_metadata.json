@@ -1,25 +1,25 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "HI.xlsx",
   "parameters": [
     {
-      "id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "id": "8cdc8eb6-2f0e-4fe8-a295-9062c7eeb136",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
-          "Water",
-          "Ethanol"
+          "Methanol",
+          "Water"
         ]
       }
     },
     {
       "id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-      "name": "temperature",
+      "name": "TEMP",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          200.0
+          300.0
         ]
       }
     }
@@ -35,22 +35,22 @@
   ],
   "extra_columns": [
     {
-      "id": "15b0d6ee-4853-4799-a04a-1c1e5dda757d",
+      "id": "5f4abddd-f177-4987-91d4-b39dc3ab331c",
       "name": "Point type"
     }
   ],
   "metadata": {
-    "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "sampling_method": "sobol",
+    "nb_points": 4,
     "column_order": [
       "Point type",
       "Solvent",
-      "temperature",
+      "TEMP",
       "YIELD"
     ],
     "parameter_names": [
       "Solvent",
-      "temperature"
+      "TEMP"
     ],
     "objective_names": [
       "YIELD"
@@ -59,35 +59,35 @@
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "param_id": "8cdc8eb6-2f0e-4fe8-a295-9062c7eeb136",
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Methanol",
+        "Water"
       ],
       "descriptors": [
-        "Polarity",
+        "Dielectric constant",
         "Boiling point"
       ],
       "custom_solvents": {}
     },
     "base_config": {
       "boiling_points": {
-        "Water": 100,
-        "Ethanol": 78.4
+        "Methanol": 64.7,
+        "Water": 100
       },
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Methanol",
+        "Water"
       ],
-      "solvent_param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "solvent_param_id": "8cdc8eb6-2f0e-4fe8-a295-9062c7eeb136",
       "solvent_param_name": "Solvent",
       "constraints": [
         {
-          "id": "e4c094d7-04e3-463e-b250-41bea6252f2e",
+          "id": "213e456d-55f6-4d4e-97b7-541544cc6a18",
           "type": "less_than_bp",
           "parameter_id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-          "parameter_name": "temperature",
-          "description": "temperature < BP(solvent)"
+          "parameter_name": "TEMP",
+          "description": "TEMP < BP(solvent)"
         }
       ],
       "safety_margin": 10

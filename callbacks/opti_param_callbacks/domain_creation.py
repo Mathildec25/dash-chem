@@ -157,11 +157,17 @@ def create_domain_and_excel(n_clicks, project_name,
                     alert = dbc.Alert(f"❌ Parameter '{name}' needs Min and Max values", color="danger")
                     return no_update, no_update, alert, True
                 
+                # ✅ Récupérer le step
+                step_value = steps_dict.get(idx, 0)
+                
                 parameters.append({
                     'id': idx,
                     'name': name.strip(),
                     'type': 'float',
-                    'type_info': {'range': [float(pmin), float(pmax)]}
+                    'type_info': {
+                        'range': [float(pmin), float(pmax)],
+                        'step': float(step_value)  # ✅ STOCKER LE STEP
+                    }
                 })
             
             elif ptype == 'int':

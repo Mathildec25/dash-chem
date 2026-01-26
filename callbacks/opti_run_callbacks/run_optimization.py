@@ -431,6 +431,10 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         parameters = domain_data.get('parameters', [])
         objectives = domain_data.get('objectives', [])
         
+        solvent_config = domain_data.get('metadata', {}).get('solvent_config')
+        base_config = domain_data.get('metadata', {}).get('base_config')
+        constraints_config = domain_data.get('metadata', {}).get('constraints_config')
+
         # Create domain
         discretization_config = {}
     
@@ -444,16 +448,13 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
             # OR if there's a 'step' key in type_info (if you store it)
             
             # Option 1: Auto-detect based on parameter name (simple fallback)
-            if param_type == 'float':
-                # Apply default discretization for known parameters
-                if 'temperature' in param_name.lower():
-                    discretization_config[param_name] = 5.0
-                elif 'concentration' in param_name.lower() or 'conc' in param_name.lower():
-                    discretization_config[param_name] = 0.1
-                elif 'flow' in param_name.lower():
-                    discretization_config[param_name] = 0.5
-                elif 'pressure' in param_name.lower():
-                    discretization_config[param_name] = 1.0
+            if 'step' in param_type_info:
+                step_value = param_type_info.get('step', 0)
+                if step_value and step_value > 0:
+                    discretization_config[param_name] = float(step_value)
+                    print(f"   🎯 '{param_name}' discretized (stored step={step_value})")
+                    continue  # ← Important: skip auto-detection
+            
             
             # Option 2: If you stored step in type_info (better approach)
             # if param_type == 'float' and 'step' in param_type_info:
