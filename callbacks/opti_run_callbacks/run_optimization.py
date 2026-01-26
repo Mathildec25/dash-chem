@@ -432,11 +432,48 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         objectives = domain_data.get('objectives', [])
         
         # Create domain
+        discretization_config = {}
+    
+        for param in parameters:
+            param_name = param.get('name')
+            param_type = param.get('type')
+            param_type_info = param.get('type_info', {})
+            
+            # Check if this parameter was discretized
+            # We detect this by checking if type='int' but values look continuous
+            # OR if there's a 'step' key in type_info (if you store it)
+            
+            # Option 1: Auto-detect based on parameter name (simple fallback)
+            if param_type == 'float':
+                # Apply default discretization for known parameters
+                if 'temperature' in param_name.lower():
+                    discretization_config[param_name] = 5.0
+                elif 'concentration' in param_name.lower() or 'conc' in param_name.lower():
+                    discretization_config[param_name] = 0.1
+                elif 'flow' in param_name.lower():
+                    discretization_config[param_name] = 0.5
+                elif 'pressure' in param_name.lower():
+                    discretization_config[param_name] = 1.0
+            
+            # Option 2: If you stored step in type_info (better approach)
+            # if param_type == 'float' and 'step' in param_type_info:
+            #     step_value = param_type_info['step']
+            #     if step_value and step_value > 0:
+            #         discretization_config[param_name] = float(step_value)
+        
+        if discretization_config:
+            print(f"🎯 Reconstructed discretization config: {discretization_config}")
+        else:
+            print(f"ℹ️ No discretization for optimization (continuous parameters)")
+        
+        # Recreate domain WITH discretization
         domain = create_bofire_domain_from_store(
             parameters, 
             objectives,
-            solvent_config=domain_data.get('metadata', {}).get('solvent_config'),
-            base_config=domain_data.get('metadata', {}).get('base_config')
+            solvent_config=solvent_config,
+            base_config=base_config,
+            constraints_config=constraints_config,  # ✅ Passer les contraintes
+            discretization_config=discretization_config  # ✅ Passer la discrétisation
         )
         
         # Load and clean data

@@ -64,7 +64,7 @@ def manage_parameters(add_clicks, delete_clicks, current_children):
                                     size="sm",
                                     style={"borderRadius": "6px"}
                                 )
-                            ], width=6),
+                            ], width=4),  # ✅ Réduit de 6 à 4
                             dbc.Col([
                                 dbc.Input(
                                     id={'type': 'parameter-max', 'index': new_id},
@@ -74,7 +74,18 @@ def manage_parameters(add_clicks, delete_clicks, current_children):
                                     size="sm",
                                     style={"borderRadius": "6px"}
                                 )
-                            ], width=6),
+                            ], width=4),  # ✅ Réduit de 6 à 4
+                            dbc.Col([
+                                dbc.Input(
+                                    id={'type': 'parameter-step', 'index': new_id},  # ✅ NOUVEAU
+                                    placeholder="Step (opt)",
+                                    type="number",
+                                    step="any",
+                                    min=0.001,
+                                    size="sm",
+                                    style={"borderRadius": "6px"}
+                                )
+                            ], width=4),  # ✅ NOUVEAU
                         ])
                     ])
                 ], width=6),
@@ -123,7 +134,7 @@ def update_parameter_inputs(param_type):
     idx = ctx.triggered_id['index']
     
     if param_type == 'float':
-        # Continuous: Min and Max
+        # Continuous: Min, Max, and Step (for discretization)
         return dbc.Row([
             dbc.Col([
                 dbc.Input(
@@ -134,7 +145,7 @@ def update_parameter_inputs(param_type):
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
-            ], width=6),
+            ], width=4),  # ✅ Réduit de 6 à 4
             dbc.Col([
                 dbc.Input(
                     id={'type': 'parameter-max', 'index': idx},
@@ -144,8 +155,20 @@ def update_parameter_inputs(param_type):
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
-            ], width=6),
+            ], width=4),  # ✅ Réduit de 6 à 4
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'parameter-step', 'index': idx},  # ✅ NOUVEAU
+                    placeholder="Step (opt)",
+                    type="number",
+                    step="any",
+                    min=0.001,
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=4),  # ✅ NOUVEAU
         ])
+
     
     elif param_type == 'int' or param_type == 'cat':
         # Discrete or Categorical: comma-separated values
