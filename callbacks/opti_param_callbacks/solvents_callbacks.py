@@ -8,23 +8,55 @@ from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import uuid
 
+# ============================================================================
+# IMPORT DESCRIPTORS FROM AUTO-GENERATED FILES
+# ============================================================================
 
-# Common solvents list (mutable to allow adding custom solvents)
-COMMON_SOLVENTS = [
-    "Water", "Methanol", "Ethanol", "Acetone", "DMSO", "DMF", 
-    "Acetonitrile", "THF", "Dichloromethane", "Chloroform",
-    "Toluene", "Hexane", "Diethyl ether", "Ethyl acetate"
-]
+try:
+    # Try importing from utils folder
+    from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
+    from bofire_base_descriptors import BASE_DESCRIPTORS
+except ImportError:
+    try:
+        # Try importing from root folder
+        from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
+        from bofire_base_descriptors import BASE_DESCRIPTORS
+    except ImportError:
+        print("⚠️ WARNING: Could not import descriptor files!")
+        print("   Using minimal fallback. Run: python advanced_descriptor_calculator.py")
+        # Minimal fallback
+        SOLVENT_DESCRIPTORS = {
+        }
+        BASE_DESCRIPTORS = {}
 
-# Common descriptors list
-COMMON_DESCRIPTORS = [
-    "Polarity", "Boiling point", "Viscosity", "Dielectric constant",
-    "Dipole moment", "Hydrogen bond donor", "Hydrogen bond acceptor",
-    "Surface tension", "Refractive index", "Density"
-]
+# ============================================================================
+# DYNAMIC LISTS FROM IMPORTED DESCRIPTORS
+# ============================================================================
+
+# Common solvents list (now dynamic from descriptors, mutable to allow adding custom solvents)
+COMMON_SOLVENTS = sorted(list(SOLVENT_DESCRIPTORS.keys()))
+
+# Common descriptors list (extract from first solvent's descriptors)
+if SOLVENT_DESCRIPTORS:
+    first_solvent = next(iter(SOLVENT_DESCRIPTORS.values()))
+    COMMON_DESCRIPTORS = sorted([
+        key for key in first_solvent.keys() 
+        if key not in ['CAS']  # Exclude non-useful descriptors
+    ])
+else:
+    # Fallback if no descriptors available
+    COMMON_DESCRIPTORS = [
+        "Polarity", "Boiling point", "Viscosity", "Dielectric constant",
+        "Dipole moment", "Hydrogen bond donor", "Hydrogen bond acceptor",
+        "Surface tension", "Refractive index", "Density"
+    ]
 
 # Store custom solvents with their SMILES
 CUSTOM_SOLVENTS = {}
+
+# Print confirmation on import
+print(f"✓ Loaded {len(COMMON_SOLVENTS)} solvents from descriptor files")
+print(f"✓ Available descriptors: {len(COMMON_DESCRIPTORS)}")
 
 
 def create_solvent_row(row_id):
@@ -159,7 +191,7 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
         CUSTOM_SOLVENTS[solvent_name] = smiles.strip()
     
     # Update all dropdown options
-    new_options = [{"label": s, "value": s} for s in COMMON_SOLVENTS]
+    new_options = [{"label": s, "value": s} for s in sorted(COMMON_SOLVENTS)]
     updated_options = [new_options] * len(current_options)
     
     # Create a new row with the custom solvent already selected
@@ -503,7 +535,7 @@ def edit_solvent_parameter(n_clicks, config_data):
                 dbc.Col([
                     dcc.Dropdown(
                         id={'type': 'solvent-select', 'index': row_id},
-                        options=[{"label": s, "value": s} for s in COMMON_SOLVENTS],
+                        options=[{"label": s, "value": s} for s in sorted(COMMON_SOLVENTS)],
                         value=solvent,
                         placeholder="Select solvent",
                         clearable=True,

@@ -8,22 +8,52 @@ from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import uuid
 
+# ============================================================================
+# IMPORT DESCRIPTORS FROM AUTO-GENERATED FILES
+# ============================================================================
 
-# Common bases list (mutable to allow adding custom bases)
-COMMON_BASES = [
-    "Triethylamine", "Pyridine", "DIPEA", "DBU", "Sodium hydroxide",
-    "Potassium carbonate", "Cesium carbonate", "Sodium bicarbonate",
-    "DMAP", "Imidazole", "Potassium tert-butoxide", "Lithium diisopropylamide"
-]
+try:
+    # Try importing from utils folder
+    from bofire_base_descriptors import BASE_DESCRIPTORS
+except ImportError:
+    try:
+        # Try importing from root folder
+        from bofire_base_descriptors import BASE_DESCRIPTORS
+    except ImportError:
+        print("⚠️ WARNING: Could not import base descriptor files!")
+        print("   Using minimal fallback. Run: python advanced_descriptor_calculator.py")
+        # Minimal fallback
+        BASE_DESCRIPTORS = {
+            "Triethylamine": {}, "Pyridine": {}, "DBU": {}
+        }
 
-# Common descriptors list
-COMMON_BASE_DESCRIPTORS = [
-    "pKa", "Basicity", "Nucleophilicity", "Steric hindrance",
-    "Solubility", "Boiling point", "Molecular weight", "Dipole moment"
-]
+# ============================================================================
+# DYNAMIC LISTS FROM IMPORTED DESCRIPTORS
+# ============================================================================
+
+# Common bases list (now dynamic from descriptors, mutable to allow adding custom bases)
+COMMON_BASES = sorted(list(BASE_DESCRIPTORS.keys()))
+
+# Common descriptors list (extract from first base's descriptors)
+if BASE_DESCRIPTORS:
+    first_base = next(iter(BASE_DESCRIPTORS.values()))
+    COMMON_BASE_DESCRIPTORS = sorted([
+        key for key in first_base.keys() 
+        if key not in ['CAS']  # Exclude non-useful descriptors
+    ])
+else:
+    # Fallback if no descriptors available
+    COMMON_BASE_DESCRIPTORS = [
+        "pKa", "Basicity", "Nucleophilicity", "Steric hindrance",
+        "Solubility", "Boiling point", "Molecular weight", "Dipole moment"
+    ]
 
 # Store custom bases with their SMILES
 CUSTOM_BASES = {}
+
+# Print confirmation on import
+print(f"✓ Loaded {len(COMMON_BASES)} bases from descriptor files")
+print(f"✓ Available base descriptors: {len(COMMON_BASE_DESCRIPTORS)}")
 
 
 def create_base_row(row_id):
@@ -158,7 +188,7 @@ def add_custom_base(n_clicks, name, smiles, current_rows, current_options):
         CUSTOM_BASES[base_name] = smiles.strip()
     
     # Update all dropdown options
-    new_options = [{"label": b, "value": b} for b in COMMON_BASES]
+    new_options = [{"label": b, "value": b} for b in sorted(COMMON_BASES)]
     updated_options = [new_options] * len(current_options)
     
     # Create a new row with the custom base already selected
@@ -502,7 +532,7 @@ def edit_base_parameter(n_clicks, config_data):
                 dbc.Col([
                     dcc.Dropdown(
                         id={'type': 'base-select', 'index': row_id},
-                        options=[{"label": b, "value": b} for b in COMMON_BASES],
+                        options=[{"label": b, "value": b} for b in sorted(COMMON_BASES)],
                         value=base,
                         placeholder="Select base",
                         clearable=True,
