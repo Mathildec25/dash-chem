@@ -18,7 +18,7 @@ from utils.descriptor_data import SOLVENT_DESCRIPTORS
 def get_solvent_boiling_point(solvent_name: str) -> float:
     """Get boiling point for a specific solvent."""
     if solvent_name in SOLVENT_DESCRIPTORS:
-        return SOLVENT_DESCRIPTORS[solvent_name].get('Boiling point')
+        return SOLVENT_DESCRIPTORS[solvent_name].get('bp')
     return None
 
 
@@ -392,5 +392,5 @@ def save_constraints(constraint_values, solvent_config, constraint_ids, param_na
         'solvent_param_id': solvent_param_id,
         'solvent_param_name': solvent_param_name,  # ✅ ADDED
         'constraints': constraints,
-        'safety_margin': 10.0  # ✅ Configurable safety margin
+        'safety_margin': 5.0  # ✅ Configurable safety margin
     }
