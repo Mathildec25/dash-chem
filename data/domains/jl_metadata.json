@@ -1,0 +1,106 @@
+{
+  "excel_name": "jl.xlsx",
+  "parameters": [
+    {
+      "id": "b4322200-0b7b-4b12-99cc-0f1380996456",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Acetonitrile",
+          "Chloroform",
+          "DMSO",
+          "Water"
+        ]
+      }
+    },
+    {
+      "id": "317db35d-9062-4c14-9e7f-9a54580e94b7",
+      "name": "temp",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          300.0
+        ],
+        "step": 5.0
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "c2abdbab-0e48-4fe8-9d71-be169f19cd77",
+      "name": "YIELD",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "64e34754-9bcd-45d3-89c9-a2844a321c9b",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 10,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "temp",
+      "YIELD"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "temp"
+    ],
+    "objective_names": [
+      "YIELD"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "b4322200-0b7b-4b12-99cc-0f1380996456",
+      "solvents": [
+        "Acetonitrile",
+        "Chloroform",
+        "DMSO",
+        "Water"
+      ],
+      "descriptors": [
+        "bp",
+        "viscosity"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": {
+      "boiling_points": {
+        "Acetonitrile": 81.6,
+        "Chloroform": 61.2,
+        "DMSO": 189,
+        "Water": 100
+      },
+      "solvents": [
+        "Acetonitrile",
+        "Chloroform",
+        "DMSO",
+        "Water"
+      ],
+      "solvent_param_id": "b4322200-0b7b-4b12-99cc-0f1380996456",
+      "solvent_param_name": "Solvent",
+      "constraints": [
+        {
+          "id": "eb0c64d3-96e0-4887-8df1-b23d3422a8f9",
+          "type": "less_than_bp",
+          "parameter_id": "317db35d-9062-4c14-9e7f-9a54580e94b7",
+          "parameter_name": "temp",
+          "description": "temp < BP(solvent)"
+        }
+      ],
+      "safety_margin": 5
+    },
+    "constraints_config": null
+  }
+}

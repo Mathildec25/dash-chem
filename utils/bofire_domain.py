@@ -376,7 +376,7 @@ def create_bofire_domain_from_store(
     solvent_config: Optional[Dict] = None,
     base_config: Optional[Dict] = None,
     constraints_config: Optional[Dict] = None,
-    discretization_config: Optional[Dict] = None  # ✅ NEW
+    discretization_config: Optional[Dict] = None
 ) -> Domain:
     """
     Create a BoFire Domain using saved parameters and objectives from Dash stores.
@@ -401,16 +401,7 @@ def create_bofire_domain_from_store(
     print(f"🔍 solvent_config: {solvent_config}")
     print(f"🔍 base_config: {base_config}")
     print(f"🔍 constraints_config: {constraints_config}")
-    print(f"🔍 discretization_config: {discretization_config}")  # ✅ NEW
-    
-    # ✅ WORKAROUND: Read constraints from either constraints_config or base_config
-    # Sometimes the callback writes to the wrong store
-    effective_constraints_config = constraints_config
-    if not effective_constraints_config and base_config and 'constraints' in base_config:
-        print("⚠️ Reading constraints from base_config (should be in constraints_config)")
-        effective_constraints_config = base_config
-    
-    print(f"🔍 effective_constraints_config: {effective_constraints_config}")
+    print(f"🔍 discretization_config: {discretization_config}")
 
     # --- Create Input features ---
     input_features = []
@@ -533,49 +524,52 @@ def create_bofire_domain_from_store(
 
     outputs = Outputs(features=output_features)
 
-    # ===== ✅ NEW: CREATE NATIVE CONSTRAINTS =====
+    # ===== ✅ CREATE NATIVE CONSTRAINTS =====
     constraint_list = []
     
-    if effective_constraints_config and effective_constraints_config.get('constraints'):
-        print(f"🔧 Processing {len(effective_constraints_config['constraints'])} constraint(s)...")
+    # Read constraints from base_config (where constraint callback stores them)
+    if base_config and base_config.get('constraints'):
+        print(f"🔧 Processing {len(base_config['constraints'])} constraint(s)...")
         
-        # Get solvent configuration
+        # Get solvent info - ALWAYS from solvent_config
         solvent_param_name = None
-        solvents_list = []
-        bp_dict = effective_constraints_config.get('boiling_points', {})
+        bp_dict = {}
         
         if solvent_config:
-            solvent_param_name = solvent_config.get('param_name')
-            solvents_list = solvent_config.get('solvents', [])
-        
-        # ✅ Fallback: read solvent_param_name from effective_constraints_config
-        if not solvent_param_name and effective_constraints_config:
-            solvent_param_name = effective_constraints_config.get('solvent_param_name')
-        
-        # Last resort: assume it's called "Solvent"
-        if not solvent_param_name:
-            solvent_param_name = "Solvent"
-            print(f"⚠️ No solvent_param_name found, using default: 'Solvent'")
-        else:
+            from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
+            
+            solvents = solvent_config.get('solvents', [])
+            solvent_param_name = solvent_config.get('param_name', 'Solvent')
+            
+            # Calculate bp_dict from SOLVENT_DESCRIPTORS
+            bp_dict = {
+                s: SOLVENT_DESCRIPTORS[s]['bp'] 
+                for s in solvents 
+                if s in SOLVENT_DESCRIPTORS
+            }
+            
+            print(f"✅ Found {len(bp_dict)} solvents with boiling points")
             print(f"✅ Using solvent_param_name: '{solvent_param_name}'")
+        else:
+            print(f"⚠️ No solvent_config provided, cannot create constraints")
         
-        # ✅ Verify that solvent parameter exists in input features
-        solvent_feature = next((f for f in input_features if f.key == solvent_param_name), None)
+        # Verify that solvent parameter exists in input features
+        solvent_feature = next((f for f in input_features if f.key == solvent_param_name), None) if solvent_param_name else None
+        
         if not solvent_feature:
-            print(f"❌ Solvent parameter '{solvent_param_name}' not found in inputs!")
+            print(f"⚠️ Solvent parameter '{solvent_param_name}' not found in inputs!")
             print(f"   Available parameters: {[f.key for f in input_features]}")
-            print(f"   Cannot create constraints without solvent parameter")
+            print(f"   Skipping constraint creation")
+        elif not bp_dict:
+            print(f"⚠️ No boiling points available, skipping constraint creation")
         else:
             print(f"✅ Found solvent parameter: {solvent_param_name}")
-        
-        # Get safety margin from effective_constraints_config or use default
-        safety_margin = effective_constraints_config.get('safety_margin', 10.0)  # °C
-        
-        # Only create constraints if we have solvent parameter
-        if not solvent_feature:
-            print(f"⚠️ Skipping constraint creation (no solvent parameter)")
-        else:
-            for constraint in effective_constraints_config.get('constraints', []):
+            
+            # Get safety margin from base_config
+            safety_margin = base_config.get('safety_margin', 10.0)
+            
+            # Process each constraint
+            for constraint in base_config.get('constraints', []):
                 if constraint['type'] == 'less_than_bp':
                     param_name = constraint['parameter_name']
                     
@@ -586,10 +580,6 @@ def create_bofire_domain_from_store(
                         print(f"   ⚠️ Parameter '{param_name}' not found in inputs, skipping constraint")
                         continue
                     
-                    if not solvent_param_name or not bp_dict:
-                        print(f"   ⚠️ No solvent configuration, cannot create BP constraint")
-                        continue
-                    
                     # ✅ CREATE CategoricalExcludeConstraint FOR EACH SOLVENT
                     for solvent_name, bp in bp_dict.items():
                         try:
@@ -597,19 +587,13 @@ def create_bofire_domain_from_store(
                             
                             # If parameter is discrete, find the appropriate discrete threshold
                             if isinstance(param_feature, DiscreteInput):
-                                # Find the largest discrete value that's still below the limit
-                                valid_values = [v for v in param_feature.values if v < temp_limit]
-                                if valid_values:
-                                    # Threshold should be the first value >= limit
-                                    invalid_values = [v for v in param_feature.values if v >= temp_limit]
-                                    if invalid_values:
-                                        temp_limit_discrete = min(invalid_values)
-                                    else:
-                                        # All values are valid, no constraint needed for this solvent
-                                        print(f"   ℹ️ {solvent_name}: All discrete values below {temp_limit}°C, no constraint needed")
-                                        continue
+                                # Find the first value >= limit
+                                invalid_values = [v for v in param_feature.values if v >= temp_limit]
+                                if invalid_values:
+                                    temp_limit_discrete = min(invalid_values)
                                 else:
-                                    print(f"   ⚠️ {solvent_name}: No valid discrete values below {temp_limit}°C!")
+                                    # All values are valid, no constraint needed for this solvent
+                                    print(f"   ℹ️ {solvent_name}: All discrete values below {temp_limit}°C, no constraint needed")
                                     continue
                             else:
                                 temp_limit_discrete = temp_limit
@@ -631,6 +615,8 @@ def create_bofire_domain_from_store(
                             print(f"   ❌ Failed to create constraint for {solvent_name}: {e}")
                             import traceback
                             traceback.print_exc()
+    else:
+        print(f"ℹ️ No constraints configured")
     
     # Create Constraints object if we have any constraints
     if constraint_list:
@@ -653,8 +639,6 @@ def create_bofire_domain_from_store(
         print(rec)
     
     return domain
-
-
 # ==============================================================================
 # CONVENIENCE FUNCTIONS
 # ==============================================================================
