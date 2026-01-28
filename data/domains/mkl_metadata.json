@@ -1,41 +1,41 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "mkl.xlsx",
   "parameters": [
     {
-      "id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "id": "68649eff-2681-46d0-b9aa-036f9863d5a6",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
-          "Water",
-          "Ethanol"
+          "Methanol",
+          "Water"
         ]
       }
     },
     {
-      "id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-      "name": "temperature",
+      "id": "22a89b23-d7f1-4500-81e0-b5408d1e9ae9",
+      "name": "Temperature",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          200.0
+          400.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "dd112dea-432c-462d-afe7-828cfebd8f0b",
+      "id": "45754028-766a-409c-96a9-89c1d6714a7d",
       "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 100
+      "upper_bound": 300
     }
   ],
   "extra_columns": [
     {
-      "id": "15b0d6ee-4853-4799-a04a-1c1e5dda757d",
+      "id": "cc5730b5-83b6-4447-bc1a-0be033caff6e",
       "name": "Point type"
     }
   ],
@@ -45,12 +45,12 @@
     "column_order": [
       "Point type",
       "Solvent",
-      "temperature",
+      "Temperature",
       "YIELD"
     ],
     "parameter_names": [
       "Solvent",
-      "temperature"
+      "Temperature"
     ],
     "objective_names": [
       "YIELD"
@@ -59,10 +59,10 @@
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "param_id": "68649eff-2681-46d0-b9aa-036f9863d5a6",
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Methanol",
+        "Water"
       ],
       "descriptors": [
         "Polarity",
@@ -72,22 +72,22 @@
     },
     "base_config": {
       "boiling_points": {
-        "Water": 100,
-        "Ethanol": 78.4
+        "Methanol": 64.7,
+        "Water": 100
       },
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Methanol",
+        "Water"
       ],
-      "solvent_param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "solvent_param_id": "68649eff-2681-46d0-b9aa-036f9863d5a6",
       "solvent_param_name": "Solvent",
       "constraints": [
         {
-          "id": "e4c094d7-04e3-463e-b250-41bea6252f2e",
+          "id": "f10783ab-ab7e-41cb-a2eb-7e85ab9d7c28",
           "type": "less_than_bp",
-          "parameter_id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-          "parameter_name": "temperature",
-          "description": "temperature < BP(solvent)"
+          "parameter_id": "22a89b23-d7f1-4500-81e0-b5408d1e9ae9",
+          "parameter_name": "Temperature",
+          "description": "Temperature < BP(solvent)"
         }
       ],
       "safety_margin": 10

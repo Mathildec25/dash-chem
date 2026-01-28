@@ -1,0 +1,201 @@
+{
+  "excel_name": "Deepak.xlsx",
+  "parameters": [
+    {
+      "id": "f575f35b-6090-4519-837d-e2ce5c5be02d",
+      "name": "Base",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Potassium carbonate",
+          "Potassium hydroxide",
+          "Potassium tert-butoxide",
+          "Triethylamine",
+          "DBU",
+          "DBN",
+          "TBD",
+          "MTBD",
+          "TMG",
+          "LDA"
+        ]
+      }
+    },
+    {
+      "id": "0601aa74-0268-456f-8471-e1463468ff1d",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "n-Butanol",
+          "Ethanol",
+          "Acetone",
+          "Acetonitrile",
+          "Ethyl acetate",
+          "Ethylene glycol",
+          "o-Xylene",
+          "DMSO",
+          "Propylene carbonate",
+          "Glycerol carbonate"
+        ]
+      }
+    },
+    {
+      "id": "fe607f8a-193a-46f3-917a-420b051e06aa",
+      "name": "loading_I2",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.01,
+          1.0
+        ],
+        "step": 0.01
+      }
+    },
+    {
+      "id": "bdbbbb4b-1943-4b42-a64c-b7e126f74d64",
+      "name": "loading_base",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.01,
+          2.0
+        ],
+        "step": 0.01
+      }
+    },
+    {
+      "id": "5cb976fb-f239-491a-aeb4-3a008e0a5413",
+      "name": "Temperature (°C)",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          250.0
+        ],
+        "step": 5.0
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "286b9db6-7416-4981-9b80-0e880e92d5f6",
+      "name": "YIELD",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "3cd5a30c-c3ea-4c88-bd1c-2f228b421a50",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 30,
+    "column_order": [
+      "Point type",
+      "Base",
+      "Solvent",
+      "loading_I2",
+      "loading_base",
+      "Temperature (°C)",
+      "YIELD"
+    ],
+    "parameter_names": [
+      "Base",
+      "Solvent",
+      "loading_I2",
+      "loading_base",
+      "Temperature (°C)"
+    ],
+    "objective_names": [
+      "YIELD"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "0601aa74-0268-456f-8471-e1463468ff1d",
+      "solvents": [
+        "n-Butanol",
+        "Ethanol",
+        "Acetone",
+        "Acetonitrile",
+        "Ethyl acetate",
+        "Ethylene glycol",
+        "o-Xylene",
+        "DMSO",
+        "Propylene carbonate",
+        "Glycerol carbonate"
+      ],
+      "descriptors": [
+        "polarity_index",
+        "HBA",
+        "HBD",
+        "bp",
+        "dielectric"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": {
+      "boiling_points": {
+        "n-Butanol": 118,
+        "Ethanol": 78.4,
+        "Acetone": 56.1,
+        "Acetonitrile": 81.6,
+        "Ethyl acetate": 77.1,
+        "Ethylene glycol": 197,
+        "o-Xylene": 144,
+        "DMSO": 189,
+        "Propylene carbonate": 240,
+        "Glycerol carbonate": 250
+      },
+      "solvents": [
+        "n-Butanol",
+        "Ethanol",
+        "Acetone",
+        "Acetonitrile",
+        "Ethyl acetate",
+        "Ethylene glycol",
+        "o-Xylene",
+        "DMSO",
+        "Propylene carbonate",
+        "Glycerol carbonate"
+      ],
+      "solvent_param_id": "0601aa74-0268-456f-8471-e1463468ff1d",
+      "solvent_param_name": "Solvent",
+      "constraints": [
+        {
+          "id": "da68fc1d-a156-4f7b-840b-87097159f875",
+          "type": "less_than_bp",
+          "parameter_id": "5cb976fb-f239-491a-aeb4-3a008e0a5413",
+          "parameter_name": "Temperature (°C)",
+          "description": "Temperature (°C) < BP(solvent)"
+        }
+      ],
+      "safety_margin": 5
+    },
+    "constraints_config": {
+      "param_id": "f575f35b-6090-4519-837d-e2ce5c5be02d",
+      "bases": [
+        "Potassium carbonate",
+        "Potassium hydroxide",
+        "Potassium tert-butoxide",
+        "Triethylamine",
+        "DBU",
+        "DBN",
+        "TBD",
+        "MTBD",
+        "TMG",
+        "LDA"
+      ],
+      "descriptors": [
+        "pKa",
+        "nucleophilicity"
+      ],
+      "custom_bases": {}
+    }
+  }
+}

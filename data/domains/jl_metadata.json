@@ -1,32 +1,35 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "jl.xlsx",
   "parameters": [
     {
-      "id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "id": "b4322200-0b7b-4b12-99cc-0f1380996456",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
-          "Water",
-          "Ethanol"
+          "Acetonitrile",
+          "Chloroform",
+          "DMSO",
+          "Water"
         ]
       }
     },
     {
-      "id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-      "name": "temperature",
+      "id": "317db35d-9062-4c14-9e7f-9a54580e94b7",
+      "name": "temp",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          200.0
-        ]
+          300.0
+        ],
+        "step": 5.0
       }
     }
   ],
   "objectives": [
     {
-      "id": "dd112dea-432c-462d-afe7-828cfebd8f0b",
+      "id": "c2abdbab-0e48-4fe8-9d71-be169f19cd77",
       "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
@@ -35,22 +38,22 @@
   ],
   "extra_columns": [
     {
-      "id": "15b0d6ee-4853-4799-a04a-1c1e5dda757d",
+      "id": "64e34754-9bcd-45d3-89c9-a2844a321c9b",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "nb_points": 10,
     "column_order": [
       "Point type",
       "Solvent",
-      "temperature",
+      "temp",
       "YIELD"
     ],
     "parameter_names": [
       "Solvent",
-      "temperature"
+      "temp"
     ],
     "objective_names": [
       "YIELD"
@@ -59,38 +62,44 @@
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "param_id": "b4322200-0b7b-4b12-99cc-0f1380996456",
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Acetonitrile",
+        "Chloroform",
+        "DMSO",
+        "Water"
       ],
       "descriptors": [
-        "Polarity",
-        "Boiling point"
+        "bp",
+        "viscosity"
       ],
       "custom_solvents": {}
     },
     "base_config": {
       "boiling_points": {
-        "Water": 100,
-        "Ethanol": 78.4
+        "Acetonitrile": 81.6,
+        "Chloroform": 61.2,
+        "DMSO": 189,
+        "Water": 100
       },
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Acetonitrile",
+        "Chloroform",
+        "DMSO",
+        "Water"
       ],
-      "solvent_param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "solvent_param_id": "b4322200-0b7b-4b12-99cc-0f1380996456",
       "solvent_param_name": "Solvent",
       "constraints": [
         {
-          "id": "e4c094d7-04e3-463e-b250-41bea6252f2e",
+          "id": "eb0c64d3-96e0-4887-8df1-b23d3422a8f9",
           "type": "less_than_bp",
-          "parameter_id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-          "parameter_name": "temperature",
-          "description": "temperature < BP(solvent)"
+          "parameter_id": "317db35d-9062-4c14-9e7f-9a54580e94b7",
+          "parameter_name": "temp",
+          "description": "temp < BP(solvent)"
         }
       ],
-      "safety_margin": 10
+      "safety_margin": 5
     },
     "constraints_config": null
   }

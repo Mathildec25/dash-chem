@@ -1,151 +1,188 @@
 """
-Molecular descriptor calculator for solvents and bases
-Calculates common descriptors from SMILES strings
+Descriptor data utilities for BoFire domain creation
+Fetches real descriptor values from auto-generated descriptor files
 """
 
+from typing import List
+import numpy as np
+
+# ============================================================================
+# IMPORT AUTO-GENERATED DESCRIPTORS
+# ============================================================================
+
 try:
-    from rdkit import Chem
-    from rdkit.Chem import Descriptors, Crippen, Lipinski
-    RDKIT_AVAILABLE = True
-except ImportError:
-    RDKIT_AVAILABLE = False
-    print("⚠️ RDKit not available. Install with: pip install rdkit")
+    from bofire_solvent_descriptors import BOFIRE_SOLVENT_DESCRIPTORS
+    from bofire_base_descriptors import BOFIRE_BASE_DESCRIPTORS
+    print("✅ Loaded descriptor files for BoFire domain creation")
+except ImportError as e:
+    print(f"⚠️ WARNING: Could not import descriptor files: {e}")
+    print("   Using empty fallback. Run: python advanced_descriptor_calculator.py")
+    BOFIRE_SOLVENT_DESCRIPTORS = {}
+    BOFIRE_BASE_DESCRIPTORS = {}
 
 
-# Predefined descriptors for common solvents (if RDKit not available)
-PREDEFINED_SOLVENT_DESCRIPTORS = {
-    "Water": {"Polarity": 10.2, "Boiling point": 100.0, "Viscosity": 0.89, "Dielectric constant": 80.1},
-    "Methanol": {"Polarity": 6.6, "Boiling point": 64.7, "Viscosity": 0.59, "Dielectric constant": 32.7},
-    "Ethanol": {"Polarity": 5.2, "Boiling point": 78.4, "Viscosity": 1.07, "Dielectric constant": 24.5},
-    "Acetone": {"Polarity": 5.1, "Boiling point": 56.1, "Viscosity": 0.32, "Dielectric constant": 20.7},
-    "DMSO": {"Polarity": 7.2, "Boiling point": 189.0, "Viscosity": 1.99, "Dielectric constant": 46.7},
-    "DMF": {"Polarity": 6.4, "Boiling point": 153.0, "Viscosity": 0.92, "Dielectric constant": 36.7},
-    "Acetonitrile": {"Polarity": 6.2, "Boiling point": 81.6, "Viscosity": 0.37, "Dielectric constant": 37.5},
-    "THF": {"Polarity": 4.0, "Boiling point": 66.0, "Viscosity": 0.48, "Dielectric constant": 7.6},
-    "Dichloromethane": {"Polarity": 3.1, "Boiling point": 39.6, "Viscosity": 0.43, "Dielectric constant": 8.9},
-    "Chloroform": {"Polarity": 4.1, "Boiling point": 61.2, "Viscosity": 0.57, "Dielectric constant": 4.8},
-    "Toluene": {"Polarity": 2.4, "Boiling point": 110.6, "Viscosity": 0.59, "Dielectric constant": 2.4},
-    "Hexane": {"Polarity": 0.1, "Boiling point": 68.7, "Viscosity": 0.31, "Dielectric constant": 1.9},
-    "Diethyl ether": {"Polarity": 2.8, "Boiling point": 34.6, "Viscosity": 0.22, "Dielectric constant": 4.3},
-    "Ethyl acetate": {"Polarity": 4.4, "Boiling point": 77.1, "Viscosity": 0.45, "Dielectric constant": 6.0},
-}
-
-# Predefined descriptors for common bases
-PREDEFINED_BASE_DESCRIPTORS = {
-    "Triethylamine": {"pKa": 10.75, "Basicity": 10.75, "Molecular weight": 101.19},
-    "Pyridine": {"pKa": 5.25, "Basicity": 5.25, "Molecular weight": 79.10},
-    "DIPEA": {"pKa": 11.0, "Basicity": 11.0, "Molecular weight": 129.24},
-    "DBU": {"pKa": 12.0, "Basicity": 12.0, "Molecular weight": 152.24},
-    "Sodium hydroxide": {"pKa": 14.0, "Basicity": 14.0, "Molecular weight": 40.00},
-    "Potassium carbonate": {"pKa": 10.3, "Basicity": 10.3, "Molecular weight": 138.21},
-    "Cesium carbonate": {"pKa": 10.3, "Basicity": 10.3, "Molecular weight": 325.82},
-    "Sodium bicarbonate": {"pKa": 6.3, "Basicity": 6.3, "Molecular weight": 84.01},
-}
-
-
-def calculate_descriptors_from_smiles(smiles, descriptor_names):
+def get_descriptor_values(categories: List[str], descriptors: List[str], compound_type: str) -> List[List[float]]:
     """
-    Calculate molecular descriptors from SMILES string using RDKit.
+    Get descriptor values for a list of compounds.
     
     Args:
-        smiles: SMILES string
-        descriptor_names: List of descriptor names to calculate
+        categories: List of compound names (e.g., ['Ethanol', 'Acetone', ...])
+        descriptors: List of descriptor names (e.g., ['bp', 'polarity_index', ...])
+        compound_type: 'solvent' or 'base'
     
     Returns:
-        dict: Dictionary of descriptor_name -> value
+        List of lists with descriptor values, shape (n_categories, n_descriptors)
+        Example: [[78.4, 5.2, 1, 1], [56.1, 5.1, 1, 0], ...]
+    
+    Raises:
+        ValueError: If descriptor files not loaded or data missing
     """
-    if not RDKIT_AVAILABLE:
-        return {name: 0.0 for name in descriptor_names}
+    # Select appropriate descriptor dictionary
+    if compound_type == 'solvent':
+        descriptor_dict = BOFIRE_SOLVENT_DESCRIPTORS
+    elif compound_type == 'base':
+        descriptor_dict = BOFIRE_BASE_DESCRIPTORS
+    else:
+        raise ValueError(f"Unknown compound_type: '{compound_type}'. Must be 'solvent' or 'base'")
     
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is None:
-        print(f"⚠️ Invalid SMILES: {smiles}")
-        return {name: 0.0 for name in descriptor_names}
+    # Check if we have descriptor data
+    if not descriptor_dict:
+        raise ValueError(
+            f"No descriptor data available for {compound_type}s. "
+            f"Make sure bofire_{compound_type}_descriptors.py exists and is importable."
+        )
     
-    # Mapping of descriptor names to RDKit functions
-    descriptor_functions = {
-        "Polarity": lambda m: Descriptors.TPSA(m) / 10.0,  # Normalized
-        "Boiling point": lambda m: Descriptors.MolWt(m) * 0.5,  # Approximation
-        "Viscosity": lambda m: Descriptors.MolLogP(m),
-        "Dielectric constant": lambda m: Descriptors.NumHDonors(m) + Descriptors.NumHAcceptors(m),
-        "Dipole moment": lambda m: Descriptors.TPSA(m) / 20.0,
-        "Hydrogen bond donor": lambda m: Descriptors.NumHDonors(m),
-        "Hydrogen bond acceptor": lambda m: Descriptors.NumHAcceptors(m),
-        "Surface tension": lambda m: Descriptors.TPSA(m),
-        "Refractive index": lambda m: Crippen.MolMR(m) / 10.0,
-        "Density": lambda m: Descriptors.MolWt(m) / 100.0,
-        "pKa": lambda m: 7.0,  # Placeholder - requires pKa prediction model
-        "Basicity": lambda m: 7.0,  # Placeholder
-        "Nucleophilicity": lambda m: Descriptors.NumHAcceptors(m),
-        "Steric hindrance": lambda m: Descriptors.NumRotatableBonds(m),
-        "Solubility": lambda m: Crippen.MolLogP(m),
-        "Molecular weight": lambda m: Descriptors.MolWt(m),
-    }
+    # Build values matrix
+    values = []
     
-    result = {}
-    for name in descriptor_names:
-        if name in descriptor_functions:
-            try:
-                result[name] = float(descriptor_functions[name](mol))
-            except:
-                result[name] = 0.0
-        else:
-            # Unknown descriptor - return 0
-            result[name] = 0.0
+    for category in categories:
+        if category not in descriptor_dict:
+            raise ValueError(
+                f"❌ Compound '{category}' not found in {compound_type} descriptors!\n"
+                f"   Available {compound_type}s: {list(descriptor_dict.keys())[:5]}..."
+            )
+        
+        compound_data = descriptor_dict[category]
+        row = []
+        
+        for descriptor in descriptors:
+            if descriptor not in compound_data:
+                raise ValueError(
+                    f"❌ Descriptor '{descriptor}' not found for {category}!\n"
+                    f"   Available descriptors: {list(compound_data.keys())}"
+                )
+            
+            value = compound_data[descriptor]
+            
+            # Ensure value is numeric
+            if isinstance(value, (int, float)):
+                row.append(float(value))
+            else:
+                # Handle non-numeric descriptors (like nucleophilicity = 'High')
+                # Convert to numeric scale
+                if descriptor == 'nucleophilicity':
+                    nucleophilicity_map = {'High': 3.0, 'Moderate': 2.0, 'Low': 1.0, 'None': 0.0}
+                    row.append(nucleophilicity_map.get(value, 0.0))
+                else:
+                    print(f"   ⚠️ Non-numeric value for {category}.{descriptor}: {value}, using 0.0")
+                    row.append(0.0)
+        
+        values.append(row)
     
-    return result
+    # Verify we have variation in each descriptor
+    values_array = np.array(values)
+    for i, descriptor in enumerate(descriptors):
+        descriptor_values = values_array[:, i]
+        if len(set(descriptor_values)) == 1:
+            print(f"   ⚠️ WARNING: No variation in descriptor '{descriptor}' (all values = {descriptor_values[0]})")
+            print(f"      This may cause BoFire validation errors")
+    
+    print(f"   ✅ Extracted {len(values)} x {len(descriptors)} descriptor matrix")
+    print(f"      Sample values for {categories[0]}: {values[0]}")
+    
+    return values
 
 
-def get_descriptor_values(compound_name, compound_smiles, descriptor_names, predefined_dict):
+def get_available_solvents() -> List[str]:
+    """Get list of available solvent names."""
+    return sorted(list(BOFIRE_SOLVENT_DESCRIPTORS.keys()))
+
+
+def get_available_bases() -> List[str]:
+    """Get list of available base names."""
+    return sorted(list(BOFIRE_BASE_DESCRIPTORS.keys()))
+
+
+def get_available_descriptors(compound_type: str) -> List[str]:
     """
-    Get descriptor values for a compound (solvent or base).
-    
-    Priority:
-    1. Use predefined values if available
-    2. Calculate from SMILES if RDKit available
-    3. Return zeros as fallback
+    Get list of available descriptor names for a compound type.
     
     Args:
-        compound_name: Name of the compound
-        compound_smiles: SMILES string (or None)
-        descriptor_names: List of descriptor names needed
-        predefined_dict: Dictionary of predefined values
+        compound_type: 'solvent' or 'base'
     
     Returns:
-        dict: descriptor_name -> value
+        List of descriptor names
     """
-    # Try predefined values first
-    if compound_name in predefined_dict:
-        predefined = predefined_dict[compound_name]
-        result = {}
-        for name in descriptor_names:
-            result[name] = predefined.get(name, 0.0)
-        return result
+    if compound_type == 'solvent':
+        if not BOFIRE_SOLVENT_DESCRIPTORS:
+            return []
+        first_solvent = next(iter(BOFIRE_SOLVENT_DESCRIPTORS.values()))
+        return sorted([k for k in first_solvent.keys() if k != 'CAS'])
     
-    # Try calculating from SMILES
-    if compound_smiles and RDKIT_AVAILABLE:
-        return calculate_descriptors_from_smiles(compound_smiles, descriptor_names)
+    elif compound_type == 'base':
+        if not BOFIRE_BASE_DESCRIPTORS:
+            return []
+        first_base = next(iter(BOFIRE_BASE_DESCRIPTORS.values()))
+        return sorted([k for k in first_base.keys() if k != 'CAS'])
     
-    # Fallback to zeros
-    print(f"⚠️ No descriptor data for '{compound_name}', using zeros")
-    return {name: 0.0 for name in descriptor_names}
+    else:
+        raise ValueError(f"Unknown compound_type: '{compound_type}'")
 
 
-def get_solvent_descriptors(solvent_name, solvent_smiles, descriptor_names):
-    """Get descriptor values for a solvent"""
-    return get_descriptor_values(
-        solvent_name, 
-        solvent_smiles, 
-        descriptor_names, 
-        PREDEFINED_SOLVENT_DESCRIPTORS
-    )
+# ============================================================================
+# TESTING / DEBUGGING
+# ============================================================================
 
-
-def get_base_descriptors(base_name, base_smiles, descriptor_names):
-    """Get descriptor values for a base"""
-    return get_descriptor_values(
-        base_name, 
-        base_smiles, 
-        descriptor_names, 
-        PREDEFINED_BASE_DESCRIPTORS
-    )
+if __name__ == "__main__":
+    print("=" * 70)
+    print("DESCRIPTOR DATA UTILITIES - TEST")
+    print("=" * 70)
+    
+    # Test solvents
+    print("\n📊 Testing Solvents:")
+    try:
+        solvents = ['Ethanol', 'Acetone', 'DMSO']
+        descriptors = ['bp', 'polarity_index', 'HBA', 'HBD']
+        values = get_descriptor_values(solvents, descriptors, 'solvent')
+        
+        print(f"   Solvents: {solvents}")
+        print(f"   Descriptors: {descriptors}")
+        print(f"   Values matrix:")
+        for i, solvent in enumerate(solvents):
+            print(f"      {solvent}: {values[i]}")
+    except Exception as e:
+        print(f"   ❌ Error: {e}")
+    
+    # Test bases
+    print("\n📊 Testing Bases:")
+    try:
+        bases = ['Triethylamine', 'DBU', 'Pyridine']
+        descriptors = ['pKa', 'basicity', 'MW']
+        values = get_descriptor_values(bases, descriptors, 'base')
+        
+        print(f"   Bases: {bases}")
+        print(f"   Descriptors: {descriptors}")
+        print(f"   Values matrix:")
+        for i, base in enumerate(bases):
+            print(f"      {base}: {values[i]}")
+    except Exception as e:
+        print(f"   ❌ Error: {e}")
+    
+    # Test available compounds
+    print("\n📋 Available Compounds:")
+    print(f"   Solvents: {len(get_available_solvents())}")
+    print(f"   Bases: {len(get_available_bases())}")
+    
+    print("\n" + "=" * 70)
+    print("✅ Test completed")
+    print("=" * 70)

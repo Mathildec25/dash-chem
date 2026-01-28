@@ -18,7 +18,7 @@ from utils.descriptor_data import SOLVENT_DESCRIPTORS
 def get_solvent_boiling_point(solvent_name: str) -> float:
     """Get boiling point for a specific solvent."""
     if solvent_name in SOLVENT_DESCRIPTORS:
-        return SOLVENT_DESCRIPTORS[solvent_name].get('Boiling point')
+        return SOLVENT_DESCRIPTORS[solvent_name].get('bp')
     return None
 
 
@@ -325,13 +325,13 @@ def save_constraints(constraint_values, solvent_config, constraint_ids, param_na
     """
     Save constraint configuration to store.
     
+    ✅ PATCHED VERSION with solvent_param_name
+    
     The store now contains:
     - boiling_points: dict mapping solvent name -> boiling point
     - solvent_param_name: name of the solvent parameter
     - constraints: list of constraint definitions
-    
-    The actual constraint enforcement happens post-optimization using
-    validate_and_adjust_suggestion()
+    - safety_margin: configurable safety margin in °C
     """
     if not solvent_config:
         return None
@@ -343,6 +343,23 @@ def save_constraints(constraint_values, solvent_config, constraint_ids, param_na
     
     if not bp_dict:
         return None
+    
+    # ✅ GET SOLVENT PARAMETER NAME (critical for native constraints)
+    solvent_param_name = None
+    solvent_param_id = solvent_config.get('param_id')
+    
+    # Try to find the parameter name from param_ids/param_names
+    if solvent_param_id and param_ids and param_names:
+        for name, pid in zip(param_names, param_ids):
+            if pid['index'] == solvent_param_id and name:
+                solvent_param_name = name.strip()
+                break
+    
+    # Fallback: assume it's called "Solvent"
+    if not solvent_param_name:
+        solvent_param_name = "Solvent"
+    
+    print(f"🔍 Constraint store - Solvent parameter name: '{solvent_param_name}'")
     
     # Build parameter name lookup
     param_name_lookup = {}
@@ -366,9 +383,14 @@ def save_constraints(constraint_values, solvent_config, constraint_ids, param_na
                         'description': f"{param_name} < BP(solvent)"
                     })
     
+    print(f"🔍 Constraint store - {len(constraints)} constraint(s) configured")
+    
+    # ✅ RETURN WITH solvent_param_name and safety_margin
     return {
         'boiling_points': bp_dict,  # Dict: solvent -> BP
         'solvents': solvents,
-        'solvent_param_id': solvent_config.get('param_id'),
-        'constraints': constraints
+        'solvent_param_id': solvent_param_id,
+        'solvent_param_name': solvent_param_name,  # ✅ ADDED
+        'constraints': constraints,
+        'safety_margin': 5.0  # ✅ Configurable safety margin
     }

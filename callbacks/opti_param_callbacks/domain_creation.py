@@ -60,6 +60,8 @@ def enable_button(param_names, obj_names, project_name):
      State({'type': 'parameter-max', 'index': ALL}, 'value'),
      State({'type': 'parameter-categories', 'index': ALL}, 'id'),
      State({'type': 'parameter-categories', 'index': ALL}, 'value'),
+     State({'type': 'parameter-step', 'index': ALL}, 'id'), 
+     State({'type': 'parameter-step', 'index': ALL}, 'value'),
      State({'type': 'objective-name', 'index': ALL}, 'id'),
      State({'type': 'objective-name', 'index': ALL}, 'value'),
      State({'type': 'objective-direction', 'index': ALL}, 'value'),
@@ -78,6 +80,7 @@ def create_domain_and_excel(n_clicks, project_name,
                            param_ids, param_names, param_types, 
                            min_ids, param_mins, max_ids, param_maxs, 
                            cat_ids, param_cats,
+                           step_ids, param_steps,  
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
                            sampling_method, nb_points,
@@ -111,6 +114,7 @@ def create_domain_and_excel(n_clicks, project_name,
         cats_dict = {}
         mins_dict = {}
         maxs_dict = {}
+        steps_dict = {}
         
         # Build dictionaries using the IDs
         if cat_ids and param_cats:
@@ -128,9 +132,15 @@ def create_domain_and_excel(n_clicks, project_name,
                 if mval is not None:
                     maxs_dict[mid['index']] = mval
         
+        if step_ids and param_steps:
+            for sid, sval in zip(step_ids, param_steps):
+                if sval is not None:
+                    steps_dict[sid['index']] = sval
+        
         print(f"🔍 cats_dict: {cats_dict}")
         print(f"🔍 mins_dict: {mins_dict}")
         print(f"🔍 maxs_dict: {maxs_dict}")
+        print(f"🔍 steps_dict: {steps_dict}")
         
         for i, (pid, name, ptype) in enumerate(zip(param_ids, param_names, param_types)):
             if not name or not name.strip():
@@ -147,11 +157,17 @@ def create_domain_and_excel(n_clicks, project_name,
                     alert = dbc.Alert(f"❌ Parameter '{name}' needs Min and Max values", color="danger")
                     return no_update, no_update, alert, True
                 
+                # ✅ Récupérer le step
+                step_value = steps_dict.get(idx, 0)
+                
                 parameters.append({
                     'id': idx,
                     'name': name.strip(),
                     'type': 'float',
-                    'type_info': {'range': [float(pmin), float(pmax)]}
+                    'type_info': {
+                        'range': [float(pmin), float(pmax)],
+                        'step': float(step_value)  # ✅ STOCKER LE STEP
+                    }
                 })
             
             elif ptype == 'int':
@@ -257,14 +273,69 @@ def create_domain_and_excel(n_clicks, project_name,
         
         print(f"✅ Built {len(extra_columns)} extra columns")
         
-# ===== 4. CREATE BOFIRE DOMAIN =====
-        domain = create_bofire_domain_from_store(
-            parameters, 
-            objectives,
-            solvent_config=solvent_config,
-            base_config=base_config
-        )
-        print("✅ BoFire domain created")
+        # # ===== CONFIGURATION DE DISCRÉTISATION =====
+        # Définir quels paramètres doivent être discrétisés et avec quel pas
+        discretization_config = {}
+
+        # Exemple: discrétiser Temperature avec un pas de 5°C
+        for param in parameters:
+            if param['name'] == 'Temperature' and param['type'] == 'float':
+                discretization_config['Temperature'] = 5.0  # Pas de 5°C
+            elif param['name'] == 'Concentration' and param['type'] == 'float':
+                discretization_config['Concentration'] = 0.1  # Pas de 0.1 M
+
+        print(f"🎯 Discretization config: {discretization_config}")
+
+        # ===== CRÉER LE DOMAINE AVEC DISCRÉTISATION =====
+        discretization_config = {}
+        
+        for param in parameters:
+            param_id = param.get('id')
+            param_name = param.get('name')
+            param_type = param.get('type')
+            
+            # Only discretize float parameters that have a step value
+            if param_type == 'float' and param_id in steps_dict:
+                step_value = steps_dict[param_id]
+                discretization_config[param_name] = float(step_value)
+                print(f"   🎯 Will discretize '{param_name}' with step={step_value}")
+        
+        if discretization_config:
+            print(f"📊 Discretization config: {discretization_config}")
+        else:
+            print(f"ℹ️ No discretization configured (all parameters continuous)")
+        
+        # Create the domain with discretization
+        try:
+            domain = create_bofire_domain_from_store(
+                parameters, 
+                objectives,
+                solvent_config=solvent_config,
+                base_config=base_config,
+                constraints_config=constraints_config,
+                discretization_config=discretization_config  # ✅ Passer la config
+            )
+            print("✅ BoFire domain created with discretization and native constraints")
+            
+            # Afficher un résumé
+            n_discrete = sum(1 for f in domain.inputs.features if hasattr(f, 'values'))
+            n_continuous = sum(1 for f in domain.inputs.features if hasattr(f, 'bounds'))
+            n_categorical = sum(1 for f in domain.inputs.features 
+                               if not hasattr(f, 'values') and not hasattr(f, 'bounds'))
+            
+            print(f"   📊 Domain: {n_continuous} continuous, {n_discrete} discrete, "
+                  f"{n_categorical} categorical features")
+            
+            if domain.constraints:
+                n_constraints = len(domain.constraints.constraints)
+                print(f"   🔒 {n_constraints} native constraint(s) active")
+        
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"💥 Domain creation error:\n{error_trace}")
+            alert = dbc.Alert(f"❌ Failed to create domain: {str(e)}", color="danger")
+            return no_update, no_update, alert, True
 
         
         # ===== 5. GENERATE EXCEL FILENAME =====

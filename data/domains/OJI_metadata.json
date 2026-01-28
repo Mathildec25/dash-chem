@@ -1,32 +1,35 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "OJI.xlsx",
   "parameters": [
     {
-      "id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "id": "8f440318-7315-4999-9158-211a0ff76a78",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
           "Water",
-          "Ethanol"
+          "Methanol",
+          "Acetone",
+          "DMSO"
         ]
       }
     },
     {
-      "id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-      "name": "temperature",
+      "id": "10b3a7ed-2374-4484-b1d1-2d3b6becb9e8",
+      "name": "TEMP",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          200.0
-        ]
+          300.0
+        ],
+        "step": 10.0
       }
     }
   ],
   "objectives": [
     {
-      "id": "dd112dea-432c-462d-afe7-828cfebd8f0b",
+      "id": "60139084-de1c-4847-8482-7f85d2604039",
       "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
@@ -35,22 +38,22 @@
   ],
   "extra_columns": [
     {
-      "id": "15b0d6ee-4853-4799-a04a-1c1e5dda757d",
+      "id": "523dcc2f-3e40-445d-8708-94f06b8960cc",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "nb_points": 4,
     "column_order": [
       "Point type",
       "Solvent",
-      "temperature",
+      "TEMP",
       "YIELD"
     ],
     "parameter_names": [
       "Solvent",
-      "temperature"
+      "TEMP"
     ],
     "objective_names": [
       "YIELD"
@@ -59,13 +62,16 @@
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "param_id": "8f440318-7315-4999-9158-211a0ff76a78",
       "solvents": [
         "Water",
-        "Ethanol"
+        "Methanol",
+        "Acetone",
+        "DMSO"
       ],
       "descriptors": [
         "Polarity",
+        "Dielectric constant",
         "Boiling point"
       ],
       "custom_solvents": {}
@@ -73,21 +79,25 @@
     "base_config": {
       "boiling_points": {
         "Water": 100,
-        "Ethanol": 78.4
+        "Methanol": 64.7,
+        "Acetone": 56,
+        "DMSO": 189
       },
       "solvents": [
         "Water",
-        "Ethanol"
+        "Methanol",
+        "Acetone",
+        "DMSO"
       ],
-      "solvent_param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "solvent_param_id": "8f440318-7315-4999-9158-211a0ff76a78",
       "solvent_param_name": "Solvent",
       "constraints": [
         {
-          "id": "e4c094d7-04e3-463e-b250-41bea6252f2e",
+          "id": "4a0164c9-e830-45ea-9dc3-9b81d47b233a",
           "type": "less_than_bp",
-          "parameter_id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
-          "parameter_name": "temperature",
-          "description": "temperature < BP(solvent)"
+          "parameter_id": "10b3a7ed-2374-4484-b1d1-2d3b6becb9e8",
+          "parameter_name": "TEMP",
+          "description": "TEMP < BP(solvent)"
         }
       ],
       "safety_margin": 10

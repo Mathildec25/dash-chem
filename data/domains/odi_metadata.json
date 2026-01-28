@@ -1,0 +1,126 @@
+{
+  "excel_name": "odi.xlsx",
+  "parameters": [
+    {
+      "id": "4c1f3c30-b7e4-4e27-bfb5-9a3e0f76e5ce",
+      "name": "Base",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "DBU",
+          "MTBD"
+        ]
+      }
+    },
+    {
+      "id": "d46e97c4-36ff-473b-a07e-38b478489ea7",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Acetonitrile",
+          "DMF",
+          "DMSO"
+        ]
+      }
+    },
+    {
+      "id": "e0005d0d-e420-4d86-80ce-b74de3dc0d6b",
+      "name": "temp",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          300.0
+        ],
+        "step": 5.0
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "433e71e5-5663-4273-86cf-53da40644d94",
+      "name": "YIELD",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "691194aa-88c6-483f-a755-1809ef110866",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 10,
+    "column_order": [
+      "Point type",
+      "Base",
+      "Solvent",
+      "temp",
+      "YIELD"
+    ],
+    "parameter_names": [
+      "Base",
+      "Solvent",
+      "temp"
+    ],
+    "objective_names": [
+      "YIELD"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "d46e97c4-36ff-473b-a07e-38b478489ea7",
+      "solvents": [
+        "Acetonitrile",
+        "DMF",
+        "DMSO"
+      ],
+      "descriptors": [
+        "viscosity",
+        "bp"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": {
+      "boiling_points": {
+        "Acetonitrile": 81.6,
+        "DMF": 153,
+        "DMSO": 189
+      },
+      "solvents": [
+        "Acetonitrile",
+        "DMF",
+        "DMSO"
+      ],
+      "solvent_param_id": "d46e97c4-36ff-473b-a07e-38b478489ea7",
+      "solvent_param_name": "Solvent",
+      "constraints": [
+        {
+          "id": "8b9fd8a7-7f70-4bc2-b963-145599109c91",
+          "type": "less_than_bp",
+          "parameter_id": "e0005d0d-e420-4d86-80ce-b74de3dc0d6b",
+          "parameter_name": "temp",
+          "description": "temp < BP(solvent)"
+        }
+      ],
+      "safety_margin": 5
+    },
+    "constraints_config": {
+      "param_id": "4c1f3c30-b7e4-4e27-bfb5-9a3e0f76e5ce",
+      "bases": [
+        "DBU",
+        "MTBD"
+      ],
+      "descriptors": [
+        "pKa",
+        "nucleophilicity"
+      ],
+      "custom_bases": {}
+    }
+  }
+}

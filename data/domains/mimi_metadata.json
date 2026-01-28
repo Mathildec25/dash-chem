@@ -1,32 +1,32 @@
 {
-  "excel_name": "NEW.xlsx",
+  "excel_name": "mimi.xlsx",
   "parameters": [
     {
-      "id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "id": "2a585e2f-ae70-4d6c-beec-a0c0d5781484",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
-          "Water",
-          "Ethanol"
+          "Methanol",
+          "Water"
         ]
       }
     },
     {
-      "id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
+      "id": "1e7a68ab-24a5-4486-a900-f42836114ccb",
       "name": "temperature",
       "type": "float",
       "type_info": {
         "range": [
           0.0,
-          200.0
+          400.0
         ]
       }
     }
   ],
   "objectives": [
     {
-      "id": "dd112dea-432c-462d-afe7-828cfebd8f0b",
+      "id": "f62eac5c-c740-4b7d-9e6c-c78f02afd554",
       "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
@@ -35,13 +35,13 @@
   ],
   "extra_columns": [
     {
-      "id": "15b0d6ee-4853-4799-a04a-1c1e5dda757d",
+      "id": "99b5d535-071a-4bb1-b52b-a6e56fed5983",
       "name": "Point type"
     }
   ],
   "metadata": {
     "sampling_method": "latin_hypercube",
-    "nb_points": 3,
+    "nb_points": 4,
     "column_order": [
       "Point type",
       "Solvent",
@@ -59,10 +59,10 @@
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "param_id": "2a585e2f-ae70-4d6c-beec-a0c0d5781484",
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Methanol",
+        "Water"
       ],
       "descriptors": [
         "Polarity",
@@ -72,20 +72,20 @@
     },
     "base_config": {
       "boiling_points": {
-        "Water": 100,
-        "Ethanol": 78.4
+        "Methanol": 64.7,
+        "Water": 100
       },
       "solvents": [
-        "Water",
-        "Ethanol"
+        "Methanol",
+        "Water"
       ],
-      "solvent_param_id": "5b56c6d8-383a-4d56-8792-3108e33d4576",
+      "solvent_param_id": "2a585e2f-ae70-4d6c-beec-a0c0d5781484",
       "solvent_param_name": "Solvent",
       "constraints": [
         {
-          "id": "e4c094d7-04e3-463e-b250-41bea6252f2e",
+          "id": "1c214b15-0e85-47a3-ab7a-a7f8b2ac3e04",
           "type": "less_than_bp",
-          "parameter_id": "30ec6e6d-e013-4599-9bd3-83bdf02a11e1",
+          "parameter_id": "1e7a68ab-24a5-4486-a900-f42836114ccb",
           "parameter_name": "temperature",
           "description": "temperature < BP(solvent)"
         }

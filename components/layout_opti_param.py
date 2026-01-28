@@ -121,7 +121,7 @@ def create_opti_param_layout():
                                                         size="sm",
                                                         style={"borderRadius": "6px"}
                                                     )
-                                                ], width=6),
+                                                ], width=4),  # ✅ Réduit de 6 à 4
                                                 dbc.Col([
                                                     dbc.Input(
                                                         id={'type': 'parameter-max', 'index': initial_id},
@@ -131,7 +131,18 @@ def create_opti_param_layout():
                                                         size="sm",
                                                         style={"borderRadius": "6px"}
                                                     )
-                                                ], width=6),
+                                                ], width=4),  # ✅ Réduit de 6 à 4
+                                                dbc.Col([
+                                                    dbc.Input(
+                                                        id={'type': 'parameter-step', 'index': initial_id},  # ✅ NOUVEAU
+                                                        placeholder="Step (opt)",
+                                                        type="number",
+                                                        step="any",
+                                                        min=0.001,
+                                                        size="sm",
+                                                        style={"borderRadius": "6px"}
+                                                    )
+                                                ], width=4),  # ✅ NOUVEAU
                                             ])
                                         ])
                                     ], width=5),
