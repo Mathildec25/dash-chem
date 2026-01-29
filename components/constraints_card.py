@@ -1,6 +1,8 @@
 """
 Constraints Card Component
 Card for defining constraints in domain configuration
+
+UPDATED: Supports both boiling point (BP) and melting point (MP) constraints
 """
 
 import dash_bootstrap_components as dbc
@@ -12,7 +14,7 @@ def create_constraints_card():
     Create the Constraints card component for domain configuration.
     
     This card appears when solvents are selected and allows defining
-    constraints based on solvent boiling points.
+    constraints based on solvent boiling points AND melting points.
     
     Returns:
         dbc.Card: The constraints card component
@@ -23,7 +25,7 @@ def create_constraints_card():
             html.Div([
                 html.H5([
                     html.I(className="bi bi-sliders me-2", style={"color": "#6c757d"}),
-                    "Constraints"
+                    "Phase Constraints"
                 ], className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                 dbc.Button([
                     html.I(className="bi bi-plus-lg me-1"),
@@ -40,26 +42,12 @@ def create_constraints_card():
             # Info text
             html.P([
                 html.I(className="bi bi-info-circle me-2"),
-                "Define constraints to ensure parameters stay below solvent boiling points."
+                "Define constraints to ensure the solvent stays in liquid phase ",
+                "(above melting point, below boiling point)."
             ], className="text-muted small mb-3"),
             
-            # Boiling point information display
+            # Boiling/Melting point information display
             html.Div(id="bp-info-display", className="mb-3"),
-            
-            # Constraint type selector (for future expansion)
-            html.Div([
-                html.Label("Constraint Type", className="form-label small text-muted"),
-                dcc.Dropdown(
-                    id="constraint-type-select",
-                    options=[
-                        {"label": "Parameter < Minimum Boiling Point", "value": "less_than_min_bp"},
-                    ],
-                    value="less_than_min_bp",
-                    clearable=False,
-                    style={"fontSize": "0.875rem"},
-                    disabled=True  # Only one type for now
-                )
-            ], className="mb-3"),
             
             # Constraints container
             html.Div(id="constraint-rows-container", children=[]),
@@ -69,29 +57,31 @@ def create_constraints_card():
                 html.Hr(className="my-3"),
                 html.Small([
                     html.Strong("How it works: "),
-                    "When you add a constraint, the selected parameter's upper bound will be ",
-                    "automatically limited to the minimum boiling point of your selected solvents. ",
-                    "This ensures the reaction temperature never exceeds the solvent's boiling point."
-                ], className="text-muted")
-            ])
-        ], style={"padding": "1.25rem"})
-    ], 
+                ], className="d-block mb-2"),
+                html.Ul([
+                    html.Li([
+                        html.Strong("< Boiling Point: ", style={"color": "#dc3545"}),
+                        "Prevents the solvent from boiling (too hot)"
+                    ], className="small text-muted"),
+                    html.Li([
+                        html.Strong("> Melting Point: ", style={"color": "#0d6efd"}),
+                        "Prevents the solvent from freezing (too cold)"
+                    ], className="small text-muted"),
+                ], className="mb-2", style={"paddingLeft": "1.2rem"}),
+                html.Small([
+                    html.I(className="bi bi-exclamation-triangle me-1", style={"color": "#ffc107"}),
+                    "Note: Some solvents like DMSO (MP=18.5°C) and Water (MP=0°C) can freeze at common lab temperatures!"
+                ], className="text-muted fst-italic")
+            ], className="mt-3")
+        ])
+    ],
     id="constraints-card",
     style={
         "display": "none",  # Hidden by default, shown when solvents are configured
         "borderRadius": "12px",
         "border": "1px solid #e0e0e0",
         "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
-        "backgroundColor": "white",
-        "marginTop": "1rem"
-    })
-
-
-def create_constraints_store():
-    """
-    Create the dcc.Store component for constraints data.
-    
-    Returns:
-        dcc.Store: Store component for constraints
-    """
-    return dcc.Store(id='constraints-store', data=None, storage_type="session")
+        "backgroundColor": "white"
+    },
+    className="mb-4"
+    )

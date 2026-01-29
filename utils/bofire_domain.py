@@ -4,14 +4,14 @@ Uses threading to avoid Flask context interference with Pydantic validators
 
 MODIFICATIONS FOR DISCRETE + NATIVE CONSTRAINTS:
 - Converts float parameters to DiscreteInput when discretization step is provided
-- Uses CategoricalExcludeConstraint for native boiling point constraints
+- Uses CategoricalExcludeConstraint for native boiling point AND melting point constraints
 - Eliminates need for post-filtering of suggestions
 
 Best Practices for Bayesian Optimization in Chemistry:
 - Normalize inputs to [0, 1] for better GP performance
 - Standardize outputs (Y) for numerical stability
 - Handle different parameter scales appropriately
-- Use constraints to enforce physical limits (e.g., temperature < boiling point)
+- Use constraints to enforce physical limits (e.g., MP < temperature < BP)
 """
 
 import pandas as pd
@@ -30,7 +30,7 @@ from bofire.data_models.features.api import (
 )
 from bofire.data_models.objectives.api import MinimizeObjective, MaximizeObjective
 
-# ✅ NEW IMPORTS FOR NATIVE CONSTRAINTS
+# ✅ IMPORTS FOR NATIVE CONSTRAINTS
 from bofire.data_models.constraints.api import (
     LinearInequalityConstraint,
     CategoricalExcludeConstraint,
@@ -53,270 +53,144 @@ class InputNormalizer:
     """
     Handles normalization/denormalization of input parameters for Bayesian Optimization.
     
-    Best Practice: Normalize all continuous/discrete inputs to [0, 1] range
-    - Improves GP kernel computation (Matérn, RBF kernels work better in unit hypercube)
-    - Ensures equal weighting of all parameters regardless of their natural scale
-    - Improves numerical stability of acquisition function optimization
-    
-    Example:
-        normalizer = InputNormalizer()
-        normalizer.fit(domain, experiments_df)
-        X_normalized = normalizer.transform(experiments_df)
-        X_original = normalizer.inverse_transform(X_normalized)
+    Note: BoFire internally handles normalization for the GP model, but this class
+    can be useful for custom preprocessing or debugging.
     """
     
     def __init__(self):
-        self.bounds: Dict[str, Tuple[float, float]] = {}
-        self.param_types: Dict[str, str] = {}  # 'continuous', 'discrete', 'categorical'
-        self.categorical_maps: Dict[str, Dict[str, int]] = {}
-        self.fitted = False
+        self.bounds = {}
+        self.is_fitted = False
     
-    def fit(self, domain: Domain, data: Optional[pd.DataFrame] = None) -> 'InputNormalizer':
+    def fit(self, domain: Domain, experiments: pd.DataFrame = None):
         """
-        Fit the normalizer to a BoFire domain.
+        Extract bounds from domain for normalization.
         
         Args:
-            domain: BoFire Domain object
-            data: Optional DataFrame of experiments (used for detecting actual ranges)
-        
-        Returns:
-            self (for method chaining)
+            domain: BoFire domain
+            experiments: Optional DataFrame to compute bounds from data
         """
         for feature in domain.inputs.features:
-            key = feature.key
-            
             if isinstance(feature, ContinuousInput):
-                self.param_types[key] = 'continuous'
-                lb, ub = feature.bounds
-                self.bounds[key] = (float(lb), float(ub))
-                
+                self.bounds[feature.key] = {
+                    'lower': feature.bounds[0],
+                    'upper': feature.bounds[1],
+                    'type': 'continuous'
+                }
             elif isinstance(feature, DiscreteInput):
-                self.param_types[key] = 'discrete'
-                values = feature.values
-                self.bounds[key] = (float(min(values)), float(max(values)))
-                
-            elif isinstance(feature, (CategoricalInput, CategoricalDescriptorInput)):
-                self.param_types[key] = 'categorical'
-                categories = feature.categories
-                # Map categories to integers for one-hot or ordinal encoding
-                self.categorical_maps[key] = {cat: i for i, cat in enumerate(categories)}
-        
-        self.fitted = True
+                self.bounds[feature.key] = {
+                    'lower': min(feature.values),
+                    'upper': max(feature.values),
+                    'type': 'discrete'
+                }
+        self.is_fitted = True
         return self
     
-    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Normalize input data to [0, 1] range for continuous/discrete parameters.
-        Categorical parameters are left as-is (BoFire handles encoding internally).
+    def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize continuous parameters to [0, 1]."""
+        if not self.is_fitted:
+            raise ValueError("InputNormalizer must be fitted before normalizing")
         
-        Args:
-            data: DataFrame with parameter columns
-            
-        Returns:
-            Normalized DataFrame
-        """
-        if not self.fitted:
-            raise ValueError("InputNormalizer must be fit before transform")
-        
-        normalized = data.copy()
-        
-        for col in data.columns:
-            if col in self.bounds and self.param_types.get(col) in ['continuous', 'discrete']:
-                lb, ub = self.bounds[col]
-                if ub > lb:  # Avoid division by zero
-                    normalized[col] = (data[col] - lb) / (ub - lb)
-                else:
-                    normalized[col] = 0.5  # Constant parameter
-        
-        return normalized
+        result = df.copy()
+        for col, bounds in self.bounds.items():
+            if col in result.columns and bounds['type'] == 'continuous':
+                lb, ub = bounds['lower'], bounds['upper']
+                if ub > lb:
+                    result[col] = (result[col] - lb) / (ub - lb)
+        return result
     
-    def inverse_transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Denormalize data from [0, 1] back to original scale.
+    def denormalize(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Convert normalized values back to original scale."""
+        if not self.is_fitted:
+            raise ValueError("InputNormalizer must be fitted before denormalizing")
         
-        Args:
-            data: Normalized DataFrame
-            
-        Returns:
-            DataFrame in original scale
-        """
-        if not self.fitted:
-            raise ValueError("InputNormalizer must be fit before inverse_transform")
-        
-        denormalized = data.copy()
-        
-        for col in data.columns:
-            if col in self.bounds and self.param_types.get(col) in ['continuous', 'discrete']:
-                lb, ub = self.bounds[col]
-                denormalized[col] = data[col] * (ub - lb) + lb
-        
-        return denormalized
-    
-    def get_bounds_info(self) -> pd.DataFrame:
-        """
-        Get a summary of parameter bounds for debugging/logging.
-        
-        Returns:
-            DataFrame with parameter names, types, and bounds
-        """
-        info = []
-        for key in self.param_types:
-            if key in self.bounds:
-                lb, ub = self.bounds[key]
-                info.append({
-                    'parameter': key,
-                    'type': self.param_types[key],
-                    'lower_bound': lb,
-                    'upper_bound': ub,
-                    'range': ub - lb
-                })
-        return pd.DataFrame(info)
+        result = df.copy()
+        for col, bounds in self.bounds.items():
+            if col in result.columns and bounds['type'] == 'continuous':
+                lb, ub = bounds['lower'], bounds['upper']
+                result[col] = result[col] * (ub - lb) + lb
+        return result
 
 
 class OutputStandardizer:
     """
-    Handles standardization (z-score normalization) of output variables.
+    Handles standardization of outputs (Y) for Bayesian Optimization.
     
-    Best Practice: Standardize outputs to mean=0, std=1
-    - Improves GP conditioning and numerical stability
-    - Makes different objectives comparable in multi-objective optimization
-    - Prevents numerical issues in matrix inversion
-    
-    Example:
-        standardizer = OutputStandardizer()
-        standardizer.fit(experiments_df, objective_columns=['Yield', 'Purity'])
-        Y_standardized = standardizer.transform(experiments_df)
-        Y_original = standardizer.inverse_transform(Y_standardized)
+    Note: BoFire internally handles output standardization, but this class
+    can be useful for custom preprocessing or debugging.
     """
     
     def __init__(self):
-        self.means: Dict[str, float] = {}
-        self.stds: Dict[str, float] = {}
-        self.fitted = False
+        self.stats = {}
+        self.is_fitted = False
     
-    def fit(self, data: pd.DataFrame, objective_columns: List[str]) -> 'OutputStandardizer':
-        """
-        Fit the standardizer to output data.
-        
-        Args:
-            data: DataFrame containing objective columns
-            objective_columns: List of column names to standardize
-            
-        Returns:
-            self (for method chaining)
-        """
+    def fit(self, experiments: pd.DataFrame, objective_columns: List[str]):
+        """Compute mean and std for each objective."""
         for col in objective_columns:
-            if col in data.columns:
-                self.means[col] = data[col].mean()
-                self.stds[col] = data[col].std()
-                
-                # Handle constant columns
-                if self.stds[col] < 1e-10:
-                    self.stds[col] = 1.0
-        
-        self.fitted = True
+            if col in experiments.columns:
+                values = experiments[col].dropna()
+                self.stats[col] = {
+                    'mean': values.mean(),
+                    'std': values.std() if len(values) > 1 else 1.0
+                }
+        self.is_fitted = True
         return self
     
-    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Standardize output data to z-scores.
+    def standardize(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Standardize objectives to zero mean, unit variance."""
+        if not self.is_fitted:
+            raise ValueError("OutputStandardizer must be fitted before standardizing")
         
-        Args:
-            data: DataFrame with objective columns
-            
-        Returns:
-            Standardized DataFrame
-        """
-        if not self.fitted:
-            raise ValueError("OutputStandardizer must be fit before transform")
-        
-        standardized = data.copy()
-        
-        for col in self.means:
-            if col in data.columns:
-                standardized[col] = (data[col] - self.means[col]) / self.stds[col]
-        
-        return standardized
+        result = df.copy()
+        for col, stats in self.stats.items():
+            if col in result.columns:
+                std = stats['std'] if stats['std'] > 0 else 1.0
+                result[col] = (result[col] - stats['mean']) / std
+        return result
     
-    def inverse_transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Reverse standardization back to original scale.
+    def destandardize(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Convert standardized values back to original scale."""
+        if not self.is_fitted:
+            raise ValueError("OutputStandardizer must be fitted before destandardizing")
         
-        Args:
-            data: Standardized DataFrame
-            
-        Returns:
-            DataFrame in original scale
-        """
-        if not self.fitted:
-            raise ValueError("OutputStandardizer must be fit before inverse_transform")
-        
-        denormalized = data.copy()
-        
-        for col in self.means:
-            if col in data.columns:
-                denormalized[col] = data[col] * self.stds[col] + self.means[col]
-        
-        return denormalized
-    
-    def get_stats(self) -> pd.DataFrame:
-        """
-        Get standardization statistics.
-        
-        Returns:
-            DataFrame with objective names, means, and standard deviations
-        """
-        info = []
-        for col in self.means:
-            info.append({
-                'objective': col,
-                'mean': self.means[col],
-                'std': self.stds[col]
-            })
-        return pd.DataFrame(info)
+        result = df.copy()
+        for col, stats in self.stats.items():
+            if col in result.columns:
+                std = stats['std'] if stats['std'] > 0 else 1.0
+                result[col] = result[col] * std + stats['mean']
+        return result
 
 
 def check_parameter_scales(domain: Domain) -> List[str]:
     """
-    Check parameter scales and provide recommendations for better GP performance.
+    Check parameter scales and provide recommendations for Bayesian Optimization.
     
     Args:
         domain: BoFire domain
-        
+    
     Returns:
         List of recommendation strings
     """
     recommendations = []
     
-    # Check for parameters with very different scales
+    # Collect continuous parameter ranges
     ranges = []
     for feature in domain.inputs.features:
         if isinstance(feature, ContinuousInput):
             lb, ub = feature.bounds
             param_range = ub - lb
             ranges.append((feature.key, param_range, lb, ub))
-        elif isinstance(feature, DiscreteInput):
-            values = feature.values
-            param_range = max(values) - min(values)
-            ranges.append((feature.key, param_range, min(values), max(values)))
     
-    if len(ranges) >= 2:
-        # Check if ranges differ by more than 2 orders of magnitude
-        range_values = [r[1] for r in ranges]
+    if not ranges:
+        return recommendations
+    
+    # Check for scale differences
+    range_values = [r[1] for r in ranges]
+    if len(range_values) > 1:
         max_range = max(range_values)
-        min_range = min([r for r in range_values if r > 0])
-        
-        if max_range / min_range > 100:
+        min_range = min(range_values)
+        if max_range / (min_range + 1e-10) > 100:
             recommendations.append(
-                f"⚠️ Parameter scales differ by {max_range/min_range:.1f}x. "
-                f"Normalization is strongly recommended."
-            )
-    
-    # Check for very small ranges
-    for name, param_range, lb, ub in ranges:
-        if param_range < 1e-6:
-            recommendations.append(
-                f"📊 Parameter '{name}' has very small range [{lb}, {ub}]. "
+                f"⚠️ Large scale differences detected between parameters. "
                 f"Consider rescaling or using log-scale."
             )
     
@@ -381,14 +255,14 @@ def create_bofire_domain_from_store(
     """
     Create a BoFire Domain using saved parameters and objectives from Dash stores.
     
-    ✅ NEW: Supports discretization of continuous parameters and native constraints
+    ✅ UPDATED: Supports both boiling point (BP) and melting point (MP) constraints
     
     Args:
         parameter_data (list of dicts): Output from parameter-store.
         objective_data (list of dicts): Output from objective-store.
         solvent_config (dict): Configuration for solvent parameter with descriptors.
         base_config (dict): Configuration for base parameter with descriptors.
-        constraints_config (dict): Configuration for constraints (e.g., boiling point limits).
+        constraints_config (dict): Configuration for constraints (BP and MP limits).
         discretization_config (dict): Configuration for discretization steps.
             Example: {'Temperature': 5.0, 'Concentration': 0.1}
     
@@ -524,16 +398,17 @@ def create_bofire_domain_from_store(
 
     outputs = Outputs(features=output_features)
 
-    # ===== ✅ CREATE NATIVE CONSTRAINTS =====
+    # ===== ✅ CREATE NATIVE CONSTRAINTS (BP AND MP) =====
     constraint_list = []
     
     # Read constraints from base_config (where constraint callback stores them)
     if base_config and base_config.get('constraints'):
         print(f"🔧 Processing {len(base_config['constraints'])} constraint(s)...")
         
-        # Get solvent info - ALWAYS from solvent_config
+        # Get solvent info from solvent_config
         solvent_param_name = None
         bp_dict = {}
+        mp_dict = {}
         
         if solvent_config:
             from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
@@ -541,14 +416,16 @@ def create_bofire_domain_from_store(
             solvents = solvent_config.get('solvents', [])
             solvent_param_name = solvent_config.get('param_name', 'Solvent')
             
-            # Calculate bp_dict from SOLVENT_DESCRIPTORS
-            bp_dict = {
-                s: SOLVENT_DESCRIPTORS[s]['bp'] 
-                for s in solvents 
-                if s in SOLVENT_DESCRIPTORS
-            }
+            # Calculate bp_dict and mp_dict from SOLVENT_DESCRIPTORS
+            for s in solvents:
+                if s in SOLVENT_DESCRIPTORS:
+                    if 'bp' in SOLVENT_DESCRIPTORS[s]:
+                        bp_dict[s] = SOLVENT_DESCRIPTORS[s]['bp']
+                    if 'mp' in SOLVENT_DESCRIPTORS[s]:
+                        mp_dict[s] = SOLVENT_DESCRIPTORS[s]['mp']
             
             print(f"✅ Found {len(bp_dict)} solvents with boiling points")
+            print(f"✅ Found {len(mp_dict)} solvents with melting points")
             print(f"✅ Using solvent_param_name: '{solvent_param_name}'")
         else:
             print(f"⚠️ No solvent_config provided, cannot create constraints")
@@ -560,46 +437,52 @@ def create_bofire_domain_from_store(
             print(f"⚠️ Solvent parameter '{solvent_param_name}' not found in inputs!")
             print(f"   Available parameters: {[f.key for f in input_features]}")
             print(f"   Skipping constraint creation")
-        elif not bp_dict:
-            print(f"⚠️ No boiling points available, skipping constraint creation")
+        elif not bp_dict and not mp_dict:
+            print(f"⚠️ No boiling/melting points available, skipping constraint creation")
         else:
             print(f"✅ Found solvent parameter: {solvent_param_name}")
             
             # Get safety margin from base_config
-            safety_margin = base_config.get('safety_margin', 10.0)
+            safety_margin = base_config.get('safety_margin', 5.0)
             
             # Process each constraint
             for constraint in base_config.get('constraints', []):
-                if constraint['type'] == 'less_than_bp':
-                    param_name = constraint['parameter_name']
-                    
-                    # Check if parameter exists in input features
-                    param_feature = next((f for f in input_features if f.key == param_name), None)
-                    
-                    if not param_feature:
-                        print(f"   ⚠️ Parameter '{param_name}' not found in inputs, skipping constraint")
+                constraint_type = constraint.get('type', 'less_than_bp')
+                param_name = constraint['parameter_name']
+                
+                # Check if parameter exists in input features
+                param_feature = next((f for f in input_features if f.key == param_name), None)
+                
+                if not param_feature:
+                    print(f"   ⚠️ Parameter '{param_name}' not found in inputs, skipping constraint")
+                    continue
+                
+                # ===== CONSTRAINT TYPE: less_than_bp (Boiling Point) =====
+                if constraint_type == 'less_than_bp':
+                    if not bp_dict:
+                        print(f"   ⚠️ No boiling points available, skipping less_than_bp constraint")
                         continue
                     
-                    # ✅ CREATE CategoricalExcludeConstraint FOR EACH SOLVENT
+                    # Create CategoricalExcludeConstraint FOR EACH SOLVENT
                     for solvent_name, bp in bp_dict.items():
                         try:
                             temp_limit = bp - safety_margin
                             
                             # If parameter is discrete, find the appropriate discrete threshold
                             if isinstance(param_feature, DiscreteInput):
-                                # Find the first value >= limit
+                                # Find the first value >= limit (to exclude)
                                 invalid_values = [v for v in param_feature.values if v >= temp_limit]
                                 if invalid_values:
                                     temp_limit_discrete = min(invalid_values)
                                 else:
                                     # All values are valid, no constraint needed for this solvent
-                                    print(f"   ℹ️ {solvent_name}: All discrete values below {temp_limit}°C, no constraint needed")
+                                    print(f"   ℹ️ {solvent_name}: All discrete values below {temp_limit}°C, no BP constraint needed")
                                     continue
                             else:
                                 temp_limit_discrete = temp_limit
                             
                             # CategoricalExcludeConstraint excludes combinations where:
-                            # Solvent == solvent_name AND Parameter >= temp_limit
+                            # Solvent == solvent_name AND Parameter >= temp_limit (too hot!)
                             native_constraint = CategoricalExcludeConstraint(
                                 features=[solvent_param_name, param_name],
                                 conditions=[
@@ -608,13 +491,59 @@ def create_bofire_domain_from_store(
                                 ],
                             )
                             constraint_list.append(native_constraint)
-                            print(f"   ✅ Native constraint: {solvent_name} → {param_name} < {temp_limit_discrete}°C "
+                            print(f"   ✅ Native constraint (BP): {solvent_name} → {param_name} < {temp_limit_discrete}°C "
                                   f"(BP={bp}°C, margin={safety_margin}°C)")
                             
                         except Exception as e:
-                            print(f"   ❌ Failed to create constraint for {solvent_name}: {e}")
+                            print(f"   ❌ Failed to create BP constraint for {solvent_name}: {e}")
                             import traceback
                             traceback.print_exc()
+                
+                # ===== CONSTRAINT TYPE: greater_than_mp (Melting Point) - NEW =====
+                elif constraint_type == 'greater_than_mp':
+                    if not mp_dict:
+                        print(f"   ⚠️ No melting points available, skipping greater_than_mp constraint")
+                        continue
+                    
+                    # Create CategoricalExcludeConstraint FOR EACH SOLVENT
+                    for solvent_name, mp in mp_dict.items():
+                        try:
+                            # T must be > MP, so we exclude T <= (MP + margin)
+                            temp_limit = mp + safety_margin
+                            
+                            # If parameter is discrete, find the appropriate discrete threshold
+                            if isinstance(param_feature, DiscreteInput):
+                                # Find the last value <= limit (values to exclude)
+                                invalid_values = [v for v in param_feature.values if v <= temp_limit]
+                                if invalid_values:
+                                    temp_limit_discrete = max(invalid_values)
+                                else:
+                                    # All values are valid (above melting point), no constraint needed
+                                    print(f"   ℹ️ {solvent_name}: All discrete values above {temp_limit}°C, no MP constraint needed")
+                                    continue
+                            else:
+                                temp_limit_discrete = temp_limit
+                            
+                            # CategoricalExcludeConstraint excludes combinations where:
+                            # Solvent == solvent_name AND Parameter <= temp_limit (too cold!)
+                            native_constraint = CategoricalExcludeConstraint(
+                                features=[solvent_param_name, param_name],
+                                conditions=[
+                                    SelectionCondition(selection=[solvent_name]),
+                                    ThresholdCondition(threshold=temp_limit_discrete, operator="<="),
+                                ],
+                            )
+                            constraint_list.append(native_constraint)
+                            print(f"   ✅ Native constraint (MP): {solvent_name} → {param_name} > {temp_limit_discrete}°C "
+                                  f"(MP={mp}°C, margin={safety_margin}°C)")
+                            
+                        except Exception as e:
+                            print(f"   ❌ Failed to create MP constraint for {solvent_name}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                
+                else:
+                    print(f"   ⚠️ Unknown constraint type: {constraint_type}")
     else:
         print(f"ℹ️ No constraints configured")
     
@@ -639,6 +568,8 @@ def create_bofire_domain_from_store(
         print(rec)
     
     return domain
+
+
 # ==============================================================================
 # CONVENIENCE FUNCTIONS
 # ==============================================================================

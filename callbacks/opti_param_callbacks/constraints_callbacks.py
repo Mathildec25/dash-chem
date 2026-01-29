@@ -1,10 +1,14 @@
 """
 Constraints configuration callbacks
-Handles constraints related to solvent boiling points
+Handles constraints related to solvent boiling points AND melting points
 
-DYNAMIC CONSTRAINT: Temperature adapts to the suggested solvent's boiling point
-- Methanol suggested → Temperature < 64.7°C
-- Ethanol suggested → Temperature < 78.4°C
+DYNAMIC CONSTRAINTS:
+- Temperature < Boiling Point (avoid boiling)
+- Temperature > Melting Point (avoid freezing)
+
+The constraint adapts to the suggested solvent:
+- Methanol suggested → Temperature < 64.7°C (BP) and > -97.6°C (MP)
+- DMSO suggested → Temperature < 189°C (BP) and > 18.5°C (MP) ⚠️
 """
 
 from dash import callback, Input, Output, State, ALL, ctx, html, dcc, no_update
@@ -14,6 +18,10 @@ import uuid
 
 from utils.descriptor_data import SOLVENT_DESCRIPTORS
 
+
+# ============================================================================
+# BOILING POINT FUNCTIONS (existing)
+# ============================================================================
 
 def get_solvent_boiling_point(solvent_name: str) -> float:
     """Get boiling point for a specific solvent."""
@@ -52,9 +60,58 @@ def get_boiling_points_info(solvents: list) -> list:
     return info
 
 
+# ============================================================================
+# MELTING POINT FUNCTIONS (NEW)
+# ============================================================================
+
+def get_solvent_melting_point(solvent_name: str) -> float:
+    """Get melting point for a specific solvent."""
+    if solvent_name in SOLVENT_DESCRIPTORS:
+        return SOLVENT_DESCRIPTORS[solvent_name].get('mp')
+    return None
+
+
+def get_max_melting_point(solvents: list) -> float:
+    """Get the maximum melting point from selected solvents.
+    
+    This is the critical value for the lower temperature constraint:
+    Temperature must be ABOVE this to ensure all solvents are liquid.
+    """
+    melting_points = []
+    for solvent in solvents:
+        mp = get_solvent_melting_point(solvent)
+        if mp is not None:
+            melting_points.append(mp)
+    return max(melting_points) if melting_points else None
+
+
+def get_melting_points_dict(solvents: list) -> dict:
+    """Get dictionary of solvent -> melting point for all selected solvents."""
+    mp_dict = {}
+    for solvent in solvents:
+        mp = get_solvent_melting_point(solvent)
+        if mp is not None:
+            mp_dict[solvent] = mp
+    return mp_dict
+
+
+def get_melting_points_info(solvents: list) -> list:
+    """Get melting point information for display."""
+    info = []
+    for solvent in solvents:
+        mp = get_solvent_melting_point(solvent)
+        if mp is not None:
+            info.append((solvent, mp))
+    return info
+
+
+# ============================================================================
+# VALIDATION FUNCTION (updated for both BP and MP)
+# ============================================================================
+
 def validate_and_adjust_suggestion(suggestion_row: dict, constraints_config: dict, solvent_param_name: str) -> tuple:
     """
-    Validate a BO suggestion against dynamic boiling point constraints.
+    Validate a BO suggestion against dynamic boiling point AND melting point constraints.
     Adjusts parameter values if they violate constraints.
     
     Args:
@@ -75,48 +132,76 @@ def validate_and_adjust_suggestion(suggestion_row: dict, constraints_config: dic
     if not suggested_solvent:
         return suggestion_row, []
     
-    # Get boiling point for the suggested solvent
+    # Get boiling and melting points for the suggested solvent
     bp_dict = constraints_config.get('boiling_points', {})
-    solvent_bp = bp_dict.get(suggested_solvent)
+    mp_dict = constraints_config.get('melting_points', {})
     
-    if solvent_bp is None:
-        return suggestion_row, []
+    solvent_bp = bp_dict.get(suggested_solvent)
+    solvent_mp = mp_dict.get(suggested_solvent)
     
     # Check and adjust each constrained parameter
     adjusted_row = suggestion_row.copy()
     adjustments_made = []
+    safety_margin = constraints_config.get('safety_margin', 5.0)
     
     for constraint in constraints_config.get('constraints', []):
-        if constraint['type'] == 'less_than_bp':
-            param_name = constraint['parameter_name']
+        param_name = constraint['parameter_name']
+        constraint_type = constraint.get('type', 'less_than_bp')
+        
+        if param_name not in adjusted_row:
+            continue
             
-            if param_name in adjusted_row:
-                current_value = adjusted_row[param_name]
-                
-                # Check if constraint is violated
-                if current_value is not None and current_value >= solvent_bp:
-                    # Adjust to just below boiling point (with small margin)
-                    margin = 2.0  # 2°C safety margin
-                    adjusted_value = round(solvent_bp - margin, 1)
-                    adjusted_row[param_name] = adjusted_value
-                    adjustments_made.append({
-                        'parameter': param_name,
-                        'original': round(current_value, 1),
-                        'adjusted': adjusted_value,
-                        'solvent': suggested_solvent,
-                        'boiling_point': solvent_bp
-                    })
+        current_value = adjusted_row[param_name]
+        if current_value is None:
+            continue
+        
+        # ===== CONSTRAINT: Temperature < Boiling Point =====
+        if constraint_type == 'less_than_bp' and solvent_bp is not None:
+            limit = solvent_bp - safety_margin
+            if current_value >= limit:
+                adjusted_value = round(limit - 2.0, 1)  # Additional 2°C margin
+                adjusted_row[param_name] = adjusted_value
+                adjustments_made.append({
+                    'parameter': param_name,
+                    'original': round(current_value, 1),
+                    'adjusted': adjusted_value,
+                    'solvent': suggested_solvent,
+                    'limit_type': 'boiling_point',
+                    'limit_value': solvent_bp,
+                    'reason': f"T >= {limit}°C (BP={solvent_bp}°C - margin)"
+                })
+        
+        # ===== CONSTRAINT: Temperature > Melting Point =====
+        elif constraint_type == 'greater_than_mp' and solvent_mp is not None:
+            limit = solvent_mp + safety_margin
+            if current_value <= limit:
+                adjusted_value = round(limit + 2.0, 1)  # Additional 2°C margin
+                adjusted_row[param_name] = adjusted_value
+                adjustments_made.append({
+                    'parameter': param_name,
+                    'original': round(current_value, 1),
+                    'adjusted': adjusted_value,
+                    'solvent': suggested_solvent,
+                    'limit_type': 'melting_point',
+                    'limit_value': solvent_mp,
+                    'reason': f"T <= {limit}°C (MP={solvent_mp}°C + margin)"
+                })
     
     return adjusted_row, adjustments_made
 
 
+# ============================================================================
+# UI COMPONENT CREATION
+# ============================================================================
+
 def create_constraint_row(row_id: str, parameter_options: list = None):
-    """Create a single constraint row."""
+    """Create a single constraint row with constraint type selector."""
     if parameter_options is None:
         parameter_options = []
     
     return html.Div([
         dbc.Row([
+            # Parameter selector
             dbc.Col([
                 dcc.Dropdown(
                     id={'type': 'constraint-param-select', 'index': row_id},
@@ -125,15 +210,21 @@ def create_constraint_row(row_id: str, parameter_options: list = None):
                     clearable=True,
                     style={"fontSize": "0.875rem"}
                 )
-            ], width=5),
+            ], width=4),
+            # Constraint type selector
             dbc.Col([
-                html.Span([
-                    "< BP of ",
-                    html.Strong("suggested solvent", style={"color": "#6366f1"})
-                ], 
-                className="text-muted",
-                style={"fontSize": "0.875rem", "lineHeight": "38px"})
+                dcc.Dropdown(
+                    id={'type': 'constraint-type-select', 'index': row_id},
+                    options=[
+                        {"label": "< Boiling Point (avoid boiling)", "value": "less_than_bp"},
+                        {"label": "> Melting Point (avoid freezing)", "value": "greater_than_mp"},
+                    ],
+                    value="less_than_bp",
+                    clearable=False,
+                    style={"fontSize": "0.875rem"}
+                )
             ], width=5),
+            # Delete button
             dbc.Col([
                 dbc.Button(
                     html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
@@ -147,6 +238,10 @@ def create_constraint_row(row_id: str, parameter_options: list = None):
         ], className="mb-2 align-items-center"),
     ], id={'type': 'constraint-row', 'index': row_id})
 
+
+# ============================================================================
+# CALLBACKS
+# ============================================================================
 
 # ===== SHOW/HIDE CONSTRAINTS CARD =====
 
@@ -168,20 +263,21 @@ def toggle_constraints_card(solvent_config):
     return {"display": "none"}
 
 
-# ===== UPDATE BOILING POINT INFO DISPLAY =====
+# ===== UPDATE BOILING/MELTING POINT INFO DISPLAY =====
 
 @callback(
     Output("bp-info-display", "children"),
     Input("solvent-config-store", "data"),
     prevent_initial_call=True
 )
-def update_bp_info(solvent_config):
-    """Update the boiling point information display"""
+def update_bp_mp_info(solvent_config):
+    """Update the boiling point AND melting point information display"""
     if not solvent_config or not solvent_config.get('solvents'):
         return ""
     
     solvents = solvent_config.get('solvents', [])
     bp_info = get_boiling_points_info(solvents)
+    mp_info = get_melting_points_info(solvents)
     
     if not bp_info:
         return dbc.Alert(
@@ -190,26 +286,62 @@ def update_bp_info(solvent_config):
             className="mb-2 py-2"
         )
     
-    # Create table-like display
-    bp_rows = []
+    # Create mp lookup for easy access
+    mp_lookup = {s: mp for s, mp in mp_info}
+    
+    # Create table-like display with both BP and MP
+    rows = []
+    critical_solvents = []
+    
     for solvent, bp in sorted(bp_info, key=lambda x: x[1]):
-        bp_rows.append(
+        mp = mp_lookup.get(solvent)
+        mp_str = f"{mp}°C" if mp is not None else "N/A"
+        
+        # Flag solvents with high melting points (> -20°C)
+        is_critical = mp is not None and mp > -20
+        if is_critical:
+            critical_solvents.append((solvent, mp))
+        
+        row_style = {"padding": "0.25rem 0.5rem"}
+        if is_critical:
+            row_style["backgroundColor"] = "#fff3cd"
+        
+        rows.append(
             html.Tr([
-                html.Td(solvent, style={"padding": "0.25rem 0.5rem"}),
-                html.Td(f"{bp}°C", style={"padding": "0.25rem 0.5rem", "fontWeight": "600"})
+                html.Td(solvent, style=row_style),
+                html.Td(f"{bp}°C", style={**row_style, "fontWeight": "600"}),
+                html.Td(mp_str, style={**row_style, "fontWeight": "600", "color": "#dc3545" if is_critical else "inherit"})
             ])
         )
     
+    # Warning for critical solvents
+    warning_div = None
+    if critical_solvents:
+        warning_text = ", ".join([f"{s} ({mp}°C)" for s, mp in critical_solvents])
+        warning_div = dbc.Alert([
+            html.I(className="bi bi-exclamation-triangle-fill me-2"),
+            html.Strong("Attention: "),
+            f"These solvents have high melting points and may freeze: {warning_text}"
+        ], color="warning", className="mb-2 py-2", style={"fontSize": "0.8rem"})
+    
     return html.Div([
         html.Small([
-            html.Strong("Boiling points - constraint adapts to suggested solvent:"),
+            html.Strong("Phase limits - constraints adapt to suggested solvent:"),
         ], className="text-muted d-block mb-2"),
+        warning_div,
         html.Table([
-            html.Tbody(bp_rows)
+            html.Thead([
+                html.Tr([
+                    html.Th("Solvent", style={"padding": "0.25rem 0.5rem", "fontSize": "0.75rem"}),
+                    html.Th("BP (max)", style={"padding": "0.25rem 0.5rem", "fontSize": "0.75rem"}),
+                    html.Th("MP (min)", style={"padding": "0.25rem 0.5rem", "fontSize": "0.75rem"})
+                ])
+            ]),
+            html.Tbody(rows)
         ], className="table table-sm table-borderless mb-0", style={"fontSize": "0.8rem"}),
         html.Div([
             html.I(className="bi bi-info-circle me-1"),
-            html.Small("The constraint limit will match the solvent suggested by optimization", 
+            html.Small("Constraints ensure temperature stays in the liquid phase range", 
                       className="text-muted fst-italic")
         ], className="mt-2")
     ], className="mb-3 p-2", style={
@@ -315,22 +447,26 @@ def delete_constraint_row(n_clicks, current_rows):
 @callback(
     Output("constraints-store", "data"),
     [Input({'type': 'constraint-param-select', 'index': ALL}, 'value'),
+     Input({'type': 'constraint-type-select', 'index': ALL}, 'value'),
      Input("solvent-config-store", "data")],
     [State({'type': 'constraint-param-select', 'index': ALL}, 'id'),
+     State({'type': 'constraint-type-select', 'index': ALL}, 'id'),
      State({'type': 'parameter-name', 'index': ALL}, 'value'),
      State({'type': 'parameter-name', 'index': ALL}, 'id')],
     prevent_initial_call=True
 )
-def save_constraints(constraint_values, solvent_config, constraint_ids, param_names, param_ids):
+def save_constraints(constraint_values, constraint_types, solvent_config, 
+                     constraint_ids, constraint_type_ids, param_names, param_ids):
     """
     Save constraint configuration to store.
     
-    ✅ PATCHED VERSION with solvent_param_name
+    ✅ UPDATED VERSION with melting points and constraint types
     
     The store now contains:
     - boiling_points: dict mapping solvent name -> boiling point
+    - melting_points: dict mapping solvent name -> melting point
     - solvent_param_name: name of the solvent parameter
-    - constraints: list of constraint definitions
+    - constraints: list of constraint definitions with type
     - safety_margin: configurable safety margin in °C
     """
     if not solvent_config:
@@ -338,10 +474,11 @@ def save_constraints(constraint_values, solvent_config, constraint_ids, param_na
     
     solvents = solvent_config.get('solvents', [])
     
-    # Get boiling points for ALL solvents (not just minimum)
+    # Get boiling points and melting points for ALL solvents
     bp_dict = get_boiling_points_dict(solvents)
+    mp_dict = get_melting_points_dict(solvents)
     
-    if not bp_dict:
+    if not bp_dict and not mp_dict:
         return None
     
     # ✅ GET SOLVENT PARAMETER NAME (critical for native constraints)
@@ -368,29 +505,39 @@ def save_constraints(constraint_values, solvent_config, constraint_ids, param_na
             if name:
                 param_name_lookup[pid['index']] = name
     
-    # Build constraints list
+    # Build constraints list with type
     constraints = []
-    if constraint_values and constraint_ids:
-        for value, cid in zip(constraint_values, constraint_ids):
+    if constraint_values and constraint_ids and constraint_types:
+        for value, cid, ctype in zip(constraint_values, constraint_ids, constraint_types):
             if value:
                 param_name = param_name_lookup.get(value)
                 if param_name:
+                    constraint_type = ctype if ctype else 'less_than_bp'
+                    
+                    if constraint_type == 'less_than_bp':
+                        description = f"{param_name} < BP(solvent)"
+                    else:
+                        description = f"{param_name} > MP(solvent)"
+                    
                     constraints.append({
                         'id': cid['index'],
-                        'type': 'less_than_bp',
+                        'type': constraint_type,
                         'parameter_id': value,
                         'parameter_name': param_name,
-                        'description': f"{param_name} < BP(solvent)"
+                        'description': description
                     })
     
     print(f"🔍 Constraint store - {len(constraints)} constraint(s) configured")
+    for c in constraints:
+        print(f"   - {c['description']} (type: {c['type']})")
     
-    # ✅ RETURN WITH solvent_param_name and safety_margin
+    # ✅ RETURN WITH both boiling_points and melting_points
     return {
-        'boiling_points': bp_dict,  # Dict: solvent -> BP
+        'boiling_points': bp_dict,      # Dict: solvent -> BP
+        'melting_points': mp_dict,      # Dict: solvent -> MP (NEW)
         'solvents': solvents,
         'solvent_param_id': solvent_param_id,
-        'solvent_param_name': solvent_param_name,  # ✅ ADDED
+        'solvent_param_name': solvent_param_name,
         'constraints': constraints,
-        'safety_margin': 5.0  # ✅ Configurable safety margin
+        'safety_margin': 5.0            # Configurable safety margin
     }
