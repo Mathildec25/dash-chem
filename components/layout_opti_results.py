@@ -1,5 +1,6 @@
 """
 Layout for Optimization Results & Analysis page
+Adaptive layout for Single-Objective (SOBO) and Multi-Objective (MOBO) optimization
 """
 
 import dash_bootstrap_components as dbc
@@ -32,7 +33,13 @@ def create_opti_results_layout():
                           "color": "#6c757d",
                           "marginBottom": "0"
                       })
-            ], width=True)
+            ], width=True),
+            # Optimization type badge
+            dbc.Col([
+                html.Div(id="optimization-type-badge", children=[
+                    dbc.Badge("Loading...", color="secondary", className="px-3 py-2")
+                ])
+            ], width="auto", className="text-end")
         ], className="mb-4 align-items-center"),
         
         # Alert for status
@@ -47,7 +54,7 @@ def create_opti_results_layout():
             ], md=12)
         ]),
         
-        # Summary Cards Row
+        # ===== SUMMARY CARDS ROW =====
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -98,74 +105,253 @@ def create_opti_results_layout():
             ], md=3, className="mb-3"),
         ]),
         
-        # Convergence Plot
+        # ===== MAIN CONVERGENCE SECTION =====
+        # This section adapts based on SOBO vs MOBO
         dbc.Row([
+            # Primary convergence plot (left side - larger)
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Optimization Convergence", className="mb-0", style={"fontWeight": "600"})
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5(id="convergence-title", children="Optimization Convergence", 
+                                       className="mb-0", style={"fontWeight": "600"})
+                            ]),
+                            dbc.Col([
+                                dbc.Select(
+                                    id="convergence-objective-selector",
+                                    options=[],
+                                    placeholder="Select objective",
+                                    size="sm",
+                                    style={"width": "150px", "display": "none"}
+                                )
+                            ], width="auto")
+                        ], align="center")
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        dcc.Graph(id="convergence-plot", style={"height": "350px"})
+                        dcc.Graph(id="convergence-plot", style={"height": "380px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=8, className="mb-3"),
             
-            # Objective Distribution
+            # Secondary metrics (right side - smaller)
             dbc.Col([
+                # For SOBO: Regret plot / For MOBO: Hypervolume
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5(id="secondary-metric-title", children="Optimization Progress", 
+                               className="mb-0", style={"fontWeight": "600"})
+                    ], style={"backgroundColor": "#f8f9fa"}),
+                    dbc.CardBody([
+                        dcc.Graph(id="secondary-metric-plot", style={"height": "160px"})
+                    ])
+                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"}, className="mb-3"),
+                
+                # Objective Distribution
                 dbc.Card([
                     dbc.CardHeader([
                         html.H5("Objective Distribution", className="mb-0", style={"fontWeight": "600"})
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        dcc.Graph(id="objective-distribution", style={"height": "350px"})
+                        dcc.Graph(id="objective-distribution", style={"height": "160px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=4, className="mb-3"),
         ]),
         
-        # Parallel Coordinates Plot
+        # ===== MOBO SPECIFIC: PARETO FRONT SECTION =====
+        html.Div(id="mobo-section", children=[
+            dbc.Row([
+                # Pareto Front Plot
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            dbc.Row([
+                                dbc.Col([
+                                    html.H5("Pareto Front Evolution", className="mb-0", style={"fontWeight": "600"}),
+                                    html.Small("Non-dominated solutions over iterations", className="text-muted")
+                                ]),
+                                dbc.Col([
+                                    dbc.ButtonGroup([
+                                        dbc.Button("2D", id="pareto-2d-btn", color="primary", size="sm", outline=False),
+                                        dbc.Button("3D", id="pareto-3d-btn", color="primary", size="sm", outline=True),
+                                    ], size="sm")
+                                ], width="auto")
+                            ], align="center")
+                        ], style={"backgroundColor": "#f8f9fa"}),
+                        dbc.CardBody([
+                            dcc.Graph(id="pareto-front-plot", style={"height": "400px"})
+                        ])
+                    ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+                ], md=8, className="mb-3"),
+                
+                # Hypervolume Evolution
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H5("Hypervolume Indicator", className="mb-0", style={"fontWeight": "600"}),
+                            html.Small("Pareto front quality metric", className="text-muted")
+                        ], style={"backgroundColor": "#f8f9fa"}),
+                        dbc.CardBody([
+                            dcc.Graph(id="hypervolume-plot", style={"height": "400px"})
+                        ])
+                    ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+                ], md=4, className="mb-3"),
+            ])
+        ], style={"display": "none"}),  # Hidden by default, shown for MOBO
+        
+        # ===== SOBO SPECIFIC: REGRET & EXPLORATION SECTION =====
+        html.Div(id="sobo-section", children=[
+            dbc.Row([
+                # Cumulative Regret
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H5("Optimization Regret", className="mb-0", style={"fontWeight": "600"}),
+                            html.Small("Gap from best found solution", className="text-muted")
+                        ], style={"backgroundColor": "#f8f9fa"}),
+                        dbc.CardBody([
+                            dcc.Graph(id="regret-plot", style={"height": "300px"})
+                        ])
+                    ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+                ], md=6, className="mb-3"),
+                
+                # Improvement Rate
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H5("Improvement Rate", className="mb-0", style={"fontWeight": "600"}),
+                            html.Small("Rolling improvement over iterations", className="text-muted")
+                        ], style={"backgroundColor": "#f8f9fa"}),
+                        dbc.CardBody([
+                            dcc.Graph(id="improvement-rate-plot", style={"height": "300px"})
+                        ])
+                    ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+                ], md=6, className="mb-3"),
+            ])
+        ], style={"display": "none"}),  # Hidden by default, shown for SOBO
+        
+        # ===== PARAMETER EXPLORATION SECTION =====
+        dbc.Row([
+            # Parameter Space Exploration
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5("Parameter Space Exploration", className="mb-0", style={"fontWeight": "600"}),
+                                html.Small("How parameters were explored during optimization", className="text-muted")
+                            ]),
+                            dbc.Col([
+                                dbc.Select(
+                                    id="param-x-selector",
+                                    options=[],
+                                    placeholder="X-axis",
+                                    size="sm",
+                                    style={"width": "120px", "display": "inline-block", "marginRight": "8px"}
+                                ),
+                                dbc.Select(
+                                    id="param-y-selector",
+                                    options=[],
+                                    placeholder="Y-axis",
+                                    size="sm",
+                                    style={"width": "120px", "display": "inline-block"}
+                                )
+                            ], width="auto")
+                        ], align="center")
+                    ], style={"backgroundColor": "#f8f9fa"}),
+                    dbc.CardBody([
+                        dcc.Graph(id="parameter-exploration-plot", style={"height": "400px"})
+                    ])
+                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+            ], md=7, className="mb-3"),
+            
+            # Parameter Importance
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("Parameter Influence", className="mb-0", style={"fontWeight": "600"}),
+                        html.Small("Correlation with objective", className="text-muted")
+                    ], style={"backgroundColor": "#f8f9fa"}),
+                    dbc.CardBody([
+                        dcc.Graph(id="parameter-importance-plot", style={"height": "400px"})
+                    ])
+                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+            ], md=5, className="mb-3"),
+        ]),
+        
+        # ===== PARALLEL COORDINATES =====
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Parallel Coordinates", className="mb-0", style={"fontWeight": "600"}),
-                        html.Small("Visualize parameter-objective relationships", className="text-muted")
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5("Parallel Coordinates", className="mb-0", style={"fontWeight": "600"}),
+                                html.Small("Visualize parameter-objective relationships", className="text-muted")
+                            ]),
+                            dbc.Col([
+                                dbc.Select(
+                                    id="parallel-color-selector",
+                                    options=[
+                                        {"label": "By Iteration", "value": "iteration"},
+                                        {"label": "By Objective", "value": "objective"},
+                                        {"label": "By Point Type", "value": "point_type"}
+                                    ],
+                                    value="objective",
+                                    size="sm",
+                                    style={"width": "140px"}
+                                )
+                            ], width="auto")
+                        ], align="center")
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        dcc.Graph(id="parallel-coordinates-plot", style={"height": "400px"})
+                        dcc.Graph(id="parallel-coordinates-plot", style={"height": "420px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=12, className="mb-3"),
         ]),
         
-        # Parameter Importance & Pareto Front (for multi-objective)
+        # ===== CORRELATION HEATMAP =====
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Parameter Influence", className="mb-0", style={"fontWeight": "600"})
+                        html.H5("Parameter-Objective Correlations", className="mb-0", style={"fontWeight": "600"})
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        dcc.Graph(id="parameter-importance-plot", style={"height": "300px"})
+                        dcc.Graph(id="correlation-heatmap", style={"height": "350px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=6, className="mb-3"),
             
+            # Slice Plot / 1D Effect
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Pareto Front", className="mb-0", style={"fontWeight": "600"}),
-                        html.Small("Multi-objective trade-offs", className="text-muted")
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5("Parameter Effect (1D Slice)", className="mb-0", style={"fontWeight": "600"})
+                            ]),
+                            dbc.Col([
+                                dbc.Select(
+                                    id="slice-param-selector",
+                                    options=[],
+                                    placeholder="Select parameter",
+                                    size="sm",
+                                    style={"width": "150px"}
+                                )
+                            ], width="auto")
+                        ], align="center")
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        dcc.Graph(id="pareto-front-plot", style={"height": "300px"})
+                        dcc.Graph(id="slice-plot", style={"height": "350px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=6, className="mb-3"),
         ]),
         
-        # Best Experiments Table
+        # ===== BEST EXPERIMENTS TABLE =====
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -197,7 +383,7 @@ def create_opti_results_layout():
             ], md=12, className="mb-3"),
         ]),
         
-# Generate Report button
+        # ===== GENERATE REPORT BUTTON =====
         dbc.Row([
             dbc.Col([
                 dbc.Button([
@@ -222,6 +408,8 @@ def create_opti_results_layout():
             ], md=12)
         ]),
         
+        # Store for optimization type
+        dcc.Store(id='optimization-type-store', data='SOBO'),
         
     ], fluid=True, style={
         "maxWidth": "1400px",
