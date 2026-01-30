@@ -1,6 +1,9 @@
 """
 Results Analysis Callbacks
 Generates adaptive visualizations for SOBO and MOBO optimization results
+- Uses GP lengthscales for parameter importance (more accurate)
+- Corrected regret calculation using theoretical bounds
+- Adaptive visualizations for SOBO vs MOBO
 """
 
 from dash import callback, Input, Output, State, html, no_update, ctx
@@ -141,6 +144,134 @@ def compute_hypervolume_2d(pareto_points, ref_point, directions):
     return abs(hv)
 
 
+def compute_shap_importance(domain_data, df_complete, obj_names):
+    """
+    Compute parameter importance using SHAP values.
+    Works with all variable types (continuous, discrete, categorical).
+    
+    Returns:
+        dict with:
+            - 'importance': {param_name: absolute_importance}
+            - 'direction': {param_name: mean_shap_value} (positive = increases objective)
+            - 'shap_values': raw shap values array
+            - 'X': encoded feature matrix
+            - 'feature_names': list of encoded feature names
+            - 'param_mapping': {original_param: [encoded_columns]}
+    """
+    try:
+        import shap
+        from sklearn.ensemble import RandomForestRegressor
+        
+        param_names = domain_data.get('metadata', {}).get('parameter_names', [])
+        
+        if not param_names or not obj_names:
+            return None
+        
+        obj_col = obj_names[0]
+        
+        # Prepare data
+        df_model = df_complete.copy()
+        
+        # Encode categorical variables
+        X_encoded = pd.DataFrame()
+        encoding_map = {}  # Track which columns belong to which parameter
+        
+        for param in param_names:
+            if param not in df_model.columns:
+                continue
+                
+            col_data = df_model[param]
+            
+            # Check if categorical (non-numeric or object dtype)
+            if col_data.dtype == 'object' or not np.issubdtype(col_data.dtype, np.number):
+                # One-hot encode
+                dummies = pd.get_dummies(col_data, prefix=param)
+                X_encoded = pd.concat([X_encoded, dummies], axis=1)
+                encoding_map[param] = list(dummies.columns)
+            else:
+                # Numeric - use as-is
+                X_encoded[param] = pd.to_numeric(col_data, errors='coerce')
+                encoding_map[param] = [param]
+        
+        # Target variable
+        y = df_model[obj_col].values
+        
+        # Remove NaN
+        mask = ~np.isnan(y) & ~X_encoded.isna().any(axis=1)
+        X_clean = X_encoded[mask].reset_index(drop=True)
+        y_clean = y[mask]
+        
+        if len(y_clean) < 3:
+            print("⚠️ SHAP: Not enough data points")
+            return None
+        
+        print(f"🔍 SHAP: Computing importance for {len(param_names)} parameters...")
+        print(f"   Data shape: {X_clean.shape}, encoded features: {X_clean.columns.tolist()}")
+        
+        # Train a surrogate model (Random Forest works well for SHAP)
+        model = RandomForestRegressor(
+            n_estimators=100,
+            max_depth=min(10, max(3, len(y_clean) // 2)),
+            random_state=42,
+            n_jobs=-1
+        )
+        model.fit(X_clean.values, y_clean)
+        
+        # Compute SHAP values
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(X_clean.values)
+        
+        # Aggregate SHAP values back to original parameters
+        importance = {}  # Absolute importance (raw mean |SHAP|)
+        direction = {}   # Mean direction (positive/negative effect)
+        mean_shap = {}   # Mean SHAP value (signed, for bar plot)
+        
+        for param, encoded_cols in encoding_map.items():
+            # Find indices of encoded columns
+            col_indices = [X_clean.columns.tolist().index(c) for c in encoded_cols]
+            
+            # For importance: mean of absolute SHAP values (RAW, no normalization)
+            param_shap_abs = np.abs(shap_values[:, col_indices]).sum(axis=1).mean()
+            importance[param] = float(param_shap_abs)
+            
+            # For direction and mean_shap: mean SHAP value (signed)
+            if len(col_indices) == 1:
+                # Single column (numeric parameter)
+                param_shap_mean = shap_values[:, col_indices[0]].mean()
+                direction[param] = float(param_shap_mean)
+                mean_shap[param] = float(param_shap_mean)
+            else:
+                # Multiple columns (categorical one-hot)
+                # Sum SHAP values across all categories for each sample, then mean
+                param_shap_sum = shap_values[:, col_indices].sum(axis=1).mean()
+                direction[param] = float(param_shap_sum)
+                mean_shap[param] = float(param_shap_sum)
+        
+        print(f"   ✅ SHAP importance (raw mean |SHAP|): {importance}")
+        print(f"   ✅ SHAP mean (signed): {mean_shap}")
+        
+        return {
+            'importance': importance,  # Raw absolute values
+            'direction': direction,
+            'mean_shap': mean_shap,    # Signed mean values for bar plot
+            'shap_values': shap_values,
+            'X': X_clean,
+            'feature_names': X_clean.columns.tolist(),
+            'param_mapping': encoding_map,
+            'y': y_clean,
+            'model': model
+        }
+        
+    except ImportError:
+        print("⚠️ SHAP not installed. Install with: pip install shap")
+        return None
+    except Exception as e:
+        print(f"⚠️ SHAP computation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 # ===== MAIN CALLBACK: LOAD AND ANALYZE =====
 
 @callback(
@@ -159,6 +290,9 @@ def compute_hypervolume_2d(pareto_points, ref_point, directions):
      Output('param-y-selector', 'value'),
      Output('slice-param-selector', 'options'),
      Output('slice-param-selector', 'value'),
+     Output('shap-main-param-selector', 'options'),
+     Output('shap-main-param-selector', 'value'),
+     Output('shap-color-param-selector', 'options'),
      Output('sobo-section', 'style'),
      Output('mobo-section', 'style'),
      Output('convergence-title', 'children'),
@@ -183,7 +317,7 @@ def initialize_results_page(excel_file, pathname):
     if not excel_file:
         return ("0", "-", "0", "-", "SOBO", 
                 dbc.Badge("No Data", color="secondary", className="px-3 py-2"),
-                [], None, default_style, [], [], None, None, [], None,
+                [], None, default_style, [], [], None, None, [], None, [], None, [],
                 hidden, hidden, "Optimization Convergence", "Progress",
                 "No project selected", True, "warning")
     
@@ -193,7 +327,7 @@ def initialize_results_page(excel_file, pathname):
         if not os.path.exists(file_path):
             return ("0", "-", "0", "-", "SOBO",
                     dbc.Badge("File Not Found", color="danger", className="px-3 py-2"),
-                    [], None, default_style, [], [], None, None, [], None,
+                    [], None, default_style, [], [], None, None, [], None, [], None, [],
                     hidden, hidden, "Optimization Convergence", "Progress",
                     f"File not found: {excel_file}", True, "danger")
         
@@ -207,7 +341,7 @@ def initialize_results_page(excel_file, pathname):
         if not domain_data:
             return ("0", "-", "0", "-", "SOBO",
                     dbc.Badge("No Domain", color="warning", className="px-3 py-2"),
-                    [], None, default_style, [], [], None, None, [], None,
+                    [], None, default_style, [], [], None, None, [], None, [], None, [],
                     hidden, hidden, "Optimization Convergence", "Progress",
                     "Domain configuration not found", True, "warning")
         
@@ -261,6 +395,9 @@ def initialize_results_page(excel_file, pathname):
         obj_options = [{"label": name, "value": name} for name in obj_names]
         param_options = [{"label": name, "value": name} for name in param_names]
         
+        # SHAP color options (with "Auto" option)
+        shap_color_options = [{"label": "Auto (best interaction)", "value": "auto"}] + param_options
+        
         # Styles and titles based on optimization type
         if is_mobo:
             badge = dbc.Badge("Multi-Objective (MOBO)", color="info", className="px-3 py-2")
@@ -293,6 +430,9 @@ def initialize_results_page(excel_file, pathname):
             param_names[1] if len(param_names) > 1 else (param_names[0] if param_names else None),
             param_options,
             param_names[0] if param_names else None,
+            param_options,  # SHAP main param options
+            param_names[0] if param_names else None,  # SHAP main param default
+            shap_color_options,  # SHAP color options
             sobo_style,
             mobo_style,
             conv_title,
@@ -307,7 +447,7 @@ def initialize_results_page(excel_file, pathname):
         print(traceback.format_exc())
         return ("0", "-", "0", "-", "SOBO",
                 dbc.Badge("Error", color="danger", className="px-3 py-2"),
-                [], None, default_style, [], [], None, None, [], None,
+                [], None, default_style, [], [], None, None, [], None, [], None, [],
                 hidden, hidden, "Optimization Convergence", "Progress",
                 f"Error: {str(e)}", True, "danger")
 
@@ -649,7 +789,7 @@ def update_distribution_plot(excel_file, selected_obj, opt_type, pathname):
         return get_empty_figure()
 
 
-# ===== REGRET PLOT (SOBO) =====
+# ===== REGRET PLOT (SOBO) - CORRECTED WITH THEORETICAL BOUNDS =====
 
 @callback(
     Output('regret-plot', 'figure'),
@@ -658,7 +798,10 @@ def update_distribution_plot(excel_file, selected_obj, opt_type, pathname):
      Input('url', 'pathname')]
 )
 def update_regret_plot(excel_file, opt_type, pathname):
-    """Regret plot showing instantaneous and cumulative regret"""
+    """
+    Regret plot showing instantaneous and cumulative regret.
+    CORRECTED: Uses theoretical bounds from objective configuration.
+    """
     
     if pathname != '/Opt-results' or not excel_file or opt_type != "SOBO":
         return get_empty_figure()
@@ -680,10 +823,19 @@ def update_regret_plot(excel_file, opt_type, pathname):
             return get_empty_figure()
         
         obj_col = obj_names[0]
+        
+        # Get direction and theoretical bounds
         direction = 'min'
+        theoretical_best = None
+        
         for obj in objectives:
             if obj.get('name') == obj_col:
                 direction = obj.get('direction', 'min')
+                # Get theoretical optimum from bounds
+                if direction == 'min':
+                    theoretical_best = obj.get('lower_bound')
+                else:
+                    theoretical_best = obj.get('upper_bound')
                 break
         
         df_complete = df.copy()
@@ -695,17 +847,32 @@ def update_regret_plot(excel_file, opt_type, pathname):
         
         obj_values = df_complete[obj_col].values
         
-        # Best found value (optimal reference)
-        if direction == 'min':
-            best_found = obj_values.min()
-            instantaneous_regret = obj_values - best_found
+        # If no theoretical bound defined, fall back to best found (with warning)
+        if theoretical_best is None:
+            print(f"⚠️ No theoretical bound defined for {obj_col}, using best found as reference")
+            if direction == 'min':
+                theoretical_best = obj_values.min()
+            else:
+                theoretical_best = obj_values.max()
+            title_suffix = " (vs best found)"
         else:
-            best_found = obj_values.max()
-            instantaneous_regret = best_found - obj_values
+            title_suffix = f" (vs theoretical: {theoretical_best})"
+        
+        # Calculate regret
+        if direction == 'min':
+            instantaneous_regret = obj_values - theoretical_best
+        else:
+            instantaneous_regret = theoretical_best - obj_values
+        
+        # Ensure regret is non-negative (can happen if we exceed theoretical best)
+        instantaneous_regret = np.maximum(instantaneous_regret, 0)
         
         cumulative_regret = np.cumsum(instantaneous_regret)
         
-        fig = make_subplots(rows=1, cols=2, subplot_titles=("Instantaneous Regret", "Cumulative Regret"))
+        fig = make_subplots(
+            rows=1, cols=2, 
+            subplot_titles=(f"Instantaneous Regret{title_suffix}", "Cumulative Regret")
+        )
         
         # Instantaneous regret
         fig.add_trace(go.Scatter(
@@ -716,6 +883,9 @@ def update_regret_plot(excel_file, opt_type, pathname):
             line=dict(color=COLORS['warning']),
             marker=dict(size=5)
         ), row=1, col=1)
+        
+        # Add reference line at 0
+        fig.add_hline(y=0, line_dash="dash", line_color=COLORS['success'], row=1, col=1)
         
         # Cumulative regret
         fig.add_trace(go.Scatter(
@@ -738,6 +908,7 @@ def update_regret_plot(excel_file, opt_type, pathname):
         return apply_common_layout(fig)
         
     except Exception as e:
+        print(f"Error in regret plot: {e}")
         return get_empty_figure()
 
 
@@ -1172,7 +1343,7 @@ def update_parameter_exploration(excel_file, param_x, param_y, opt_type, pathnam
         return get_empty_figure()
 
 
-# ===== PARAMETER IMPORTANCE PLOT =====
+# ===== PARAMETER IMPORTANCE PLOT - USING SHAP (Signed Mean) =====
 
 @callback(
     Output('parameter-importance-plot', 'figure'),
@@ -1181,7 +1352,12 @@ def update_parameter_exploration(excel_file, param_x, param_y, opt_type, pathnam
      Input('url', 'pathname')]
 )
 def update_parameter_importance(excel_file, opt_type, pathname):
-    """Parameter importance based on correlation with objective"""
+    """
+    Parameter importance using signed mean SHAP values.
+    Shows the average effect direction and magnitude.
+    - Positive (right): increasing parameter increases objective on average
+    - Negative (left): increasing parameter decreases objective on average
+    """
     
     if pathname != '/Opt-results' or not excel_file:
         return get_empty_figure()
@@ -1202,6 +1378,7 @@ def update_parameter_importance(excel_file, opt_type, pathname):
         if not param_names or not obj_names:
             return get_empty_figure()
         
+        # Filter complete experiments
         df_complete = df.copy()
         for obj in obj_names:
             if obj in df_complete.columns:
@@ -1211,56 +1388,487 @@ def update_parameter_importance(excel_file, opt_type, pathname):
         if len(df_complete) < 3:
             return get_empty_figure("Need at least 3 experiments")
         
-        obj_col = obj_names[0]
+        # Compute SHAP importance
+        shap_result = compute_shap_importance(domain_data, df_complete, obj_names)
         
-        # Calculate correlations
-        correlations = []
-        param_labels = []
+        if not shap_result:
+            return get_empty_figure("Could not compute SHAP importance")
         
-        for param in param_names:
-            if param in df_complete.columns:
-                param_values = pd.to_numeric(df_complete[param], errors='coerce')
-                if param_values.notna().sum() > 2:
-                    corr = param_values.corr(df_complete[obj_col])
-                    if not np.isnan(corr):
-                        correlations.append(corr)
-                        param_labels.append(param)
+        importance = shap_result['importance']  # Absolute for sorting
+        mean_shap = shap_result.get('mean_shap', shap_result['direction'])  # Signed values
         
-        if not correlations:
-            return get_empty_figure("Cannot compute correlations")
+        # Sort by absolute importance (descending)
+        sorted_params = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+        param_labels = [p[0] for p in sorted_params]
         
-        # Sort by absolute correlation
-        sorted_indices = np.argsort(np.abs(correlations))[::-1]
-        correlations = [correlations[i] for i in sorted_indices]
-        param_labels = [param_labels[i] for i in sorted_indices]
+        # Get signed mean values
+        signed_values = [mean_shap.get(param, 0) for param in param_labels]
         
-        # Colors based on correlation sign
-        colors = [COLORS['success'] if c > 0 else COLORS['danger'] for c in correlations]
+        # Colors based on sign
+        colors = [COLORS['success'] if v >= 0 else COLORS['danger'] for v in signed_values]
         
         fig = go.Figure()
         
         fig.add_trace(go.Bar(
-            x=correlations,
+            x=signed_values,
             y=param_labels,
             orientation='h',
             marker_color=colors,
-            text=[f"{c:.2f}" for c in correlations],
+            text=[f"{v:+.3g}" for v in signed_values],
             textposition='outside'
         ))
         
-        fig.update_layout(
-            xaxis_title=f"Correlation with {obj_col}",
-            yaxis_title="",
-            xaxis=dict(range=[-1.1, 1.1]),
-            showlegend=False
-        )
-        
         # Add vertical line at 0
-        fig.add_vline(x=0, line_dash="dash", line_color=COLORS['gray'])
+        fig.add_vline(x=0, line_dash="solid", line_color=COLORS['gray'], line_width=1)
+        
+        # Determine x-axis range based on data
+        max_abs = max(abs(v) for v in signed_values) if signed_values else 1
+        x_range = [-max_abs * 1.3, max_abs * 1.3]
+        
+        # Get objective name for label
+        obj_name = obj_names[0] if obj_names else "objective"
+        
+        fig.update_layout(
+            xaxis_title=f"Mean SHAP value (impact on {obj_name})",
+            yaxis_title="",
+            xaxis=dict(range=x_range, zeroline=True),
+            showlegend=False,
+            title=dict(
+                text="<b>Mean SHAP Value</b>",
+                font=dict(size=12),
+                x=0.5
+            )
+        )
         
         return apply_common_layout(fig)
         
     except Exception as e:
+        print(f"Error in parameter importance: {e}")
+        import traceback
+        traceback.print_exc()
+        return get_empty_figure()
+
+
+# ===== SHAP BEESWARM PLOT =====
+
+@callback(
+    Output('shap-beeswarm-plot', 'figure'),
+    [Input('current-excel-file', 'data'),
+     Input('optimization-type-store', 'data'),
+     Input('url', 'pathname')]
+)
+def update_shap_beeswarm(excel_file, opt_type, pathname):
+    """
+    SHAP Beeswarm/Summary plot.
+    Each dot represents one experiment.
+    X-axis: SHAP value (impact on prediction)
+    Color: Feature value (red = high, blue = low)
+    """
+    
+    if pathname != '/Opt-results' or not excel_file:
+        return get_empty_figure()
+    
+    try:
+        file_path = os.path.join(EXCEL_FOLDER, excel_file)
+        df = pd.read_excel(file_path, engine='openpyxl')
+        
+        storage = DomainStorage()
+        domain_data = storage.load_domain(excel_file)
+        
+        if not domain_data:
+            return get_empty_figure()
+        
+        param_names = domain_data.get('metadata', {}).get('parameter_names', [])
+        obj_names = domain_data.get('metadata', {}).get('objective_names', [])
+        
+        if not param_names or not obj_names:
+            return get_empty_figure()
+        
+        # Filter complete experiments
+        df_complete = df.copy()
+        for obj in obj_names:
+            if obj in df_complete.columns:
+                df_complete[obj] = pd.to_numeric(df_complete[obj], errors='coerce')
+                df_complete = df_complete[df_complete[obj].notna()]
+        
+        if len(df_complete) < 3:
+            return get_empty_figure("Need at least 3 experiments")
+        
+        # Compute SHAP values
+        shap_result = compute_shap_importance(domain_data, df_complete, obj_names)
+        
+        if not shap_result:
+            return get_empty_figure("Could not compute SHAP values")
+        
+        shap_values = shap_result['shap_values']
+        X = shap_result['X']
+        feature_names = shap_result['feature_names']
+        param_mapping = shap_result['param_mapping']
+        importance = shap_result['importance']
+        
+        # Sort parameters by importance
+        sorted_params = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+        
+        fig = go.Figure()
+        
+        # For each parameter (in order of importance)
+        y_position = 0
+        y_labels = []
+        
+        for param, _ in sorted_params:
+            if param not in param_mapping:
+                continue
+            
+            encoded_cols = param_mapping[param]
+            col_indices = [feature_names.index(c) for c in encoded_cols if c in feature_names]
+            
+            if not col_indices:
+                continue
+            
+            # Get SHAP values for this parameter
+            if len(col_indices) == 1:
+                param_shap = shap_values[:, col_indices[0]]
+                # Get original feature values for coloring
+                if param in df_complete.columns:
+                    feature_vals = df_complete[param].values[:len(param_shap)]
+                    # Normalize for coloring (handle categorical)
+                    if df_complete[param].dtype == 'object':
+                        # Categorical: use category codes
+                        feature_vals_norm = pd.Categorical(feature_vals).codes
+                        feature_vals_norm = (feature_vals_norm - feature_vals_norm.min()) / (feature_vals_norm.max() - feature_vals_norm.min() + 1e-10)
+                    else:
+                        feature_vals_numeric = pd.to_numeric(feature_vals, errors='coerce')
+                        feature_vals_norm = (feature_vals_numeric - np.nanmin(feature_vals_numeric)) / (np.nanmax(feature_vals_numeric) - np.nanmin(feature_vals_numeric) + 1e-10)
+                else:
+                    feature_vals = X.iloc[:, col_indices[0]].values
+                    feature_vals_norm = (feature_vals - feature_vals.min()) / (feature_vals.max() - feature_vals.min() + 1e-10)
+            else:
+                # Categorical with multiple columns - sum SHAP values
+                param_shap = shap_values[:, col_indices].sum(axis=1)
+                # For coloring, use original categorical values
+                if param in df_complete.columns:
+                    feature_vals = df_complete[param].values[:len(param_shap)]
+                    feature_vals_norm = pd.Categorical(feature_vals).codes
+                    feature_vals_norm = (feature_vals_norm - feature_vals_norm.min()) / (feature_vals_norm.max() - feature_vals_norm.min() + 1e-10)
+                else:
+                    feature_vals_norm = np.zeros(len(param_shap))
+            
+            # Add jitter to y position for beeswarm effect
+            jitter = np.random.uniform(-0.3, 0.3, len(param_shap))
+            y_vals = y_position + jitter
+            
+            # Create hover text
+            if param in df_complete.columns:
+                feature_vals_display = df_complete[param].values[:len(param_shap)]
+                hover_text = [f"{param}: {fv}<br>SHAP: {sv:.3f}" for fv, sv in zip(feature_vals_display, param_shap)]
+            else:
+                hover_text = [f"SHAP: {sv:.3f}" for sv in param_shap]
+            
+            fig.add_trace(go.Scatter(
+                x=param_shap,
+                y=y_vals,
+                mode='markers',
+                marker=dict(
+                    size=8,
+                    color=feature_vals_norm,
+                    colorscale='RdBu_r',  # Red = high, Blue = low
+                    showscale=(y_position == 0),  # Only show colorbar once
+                    colorbar=dict(
+                        title="Feature<br>value",
+                        titleside="right",
+                        thickness=15,
+                        tickvals=[0, 1],
+                        ticktext=["Low", "High"]
+                    ) if y_position == 0 else None,
+                    opacity=0.7,
+                    line=dict(width=0.5, color='white')
+                ),
+                text=hover_text,
+                hovertemplate="%{text}<extra></extra>",
+                showlegend=False
+            ))
+            
+            y_labels.append(param)
+            y_position += 1
+        
+        # Add vertical line at 0
+        fig.add_vline(x=0, line_dash="solid", line_color=COLORS['gray'], line_width=1)
+        
+        # Get objective name for label
+        obj_name = obj_names[0] if obj_names else "objective"
+        
+        fig.update_layout(
+            xaxis_title=f"SHAP value (impact on {obj_name})",
+            yaxis=dict(
+                tickmode='array',
+                tickvals=list(range(len(y_labels))),
+                ticktext=y_labels,
+                title=""
+            ),
+            showlegend=False,
+            title=dict(
+                text="<b>SHAP Summary Plot</b><br><sup>Each dot = one experiment | Color = feature value (red=high, blue=low)</sup>",
+                font=dict(size=12),
+                x=0.5
+            )
+        )
+        
+        return apply_common_layout(fig)
+        
+    except Exception as e:
+        print(f"Error in SHAP beeswarm: {e}")
+        import traceback
+        traceback.print_exc()
+        return get_empty_figure()
+
+
+# ===== SHAP DEPENDENCE PLOT =====
+
+@callback(
+    Output('shap-dependence-plot', 'figure'),
+    [Input('current-excel-file', 'data'),
+     Input('shap-main-param-selector', 'value'),
+     Input('shap-color-param-selector', 'value'),
+     Input('url', 'pathname')]
+)
+def update_shap_dependence_plot(excel_file, main_param, color_param, pathname):
+    """
+    SHAP Dependence Plot: Shows how a parameter affects the prediction.
+    X-axis: Parameter value
+    Y-axis: SHAP value (contribution to prediction)
+    Color: Another parameter to show interactions
+    """
+    
+    if pathname != '/Opt-results' or not excel_file or not main_param:
+        return get_empty_figure("Select a parameter")
+    
+    try:
+        file_path = os.path.join(EXCEL_FOLDER, excel_file)
+        df = pd.read_excel(file_path, engine='openpyxl')
+        
+        storage = DomainStorage()
+        domain_data = storage.load_domain(excel_file)
+        
+        if not domain_data:
+            return get_empty_figure()
+        
+        param_names = domain_data.get('metadata', {}).get('parameter_names', [])
+        obj_names = domain_data.get('metadata', {}).get('objective_names', [])
+        
+        if not param_names or not obj_names:
+            return get_empty_figure()
+        
+        # Filter complete experiments
+        df_complete = df.copy()
+        for obj in obj_names:
+            if obj in df_complete.columns:
+                df_complete[obj] = pd.to_numeric(df_complete[obj], errors='coerce')
+                df_complete = df_complete[df_complete[obj].notna()]
+        
+        if len(df_complete) < 3:
+            return get_empty_figure("Need at least 3 experiments")
+        
+        # Compute SHAP values
+        shap_result = compute_shap_importance(domain_data, df_complete, obj_names)
+        
+        if not shap_result:
+            return get_empty_figure("Could not compute SHAP values")
+        
+        shap_values = shap_result['shap_values']
+        X = shap_result['X']
+        feature_names = shap_result['feature_names']
+        param_mapping = shap_result['param_mapping']
+        
+        # Find the column index for main parameter
+        if main_param not in param_mapping:
+            return get_empty_figure(f"Parameter {main_param} not found")
+        
+        main_cols = param_mapping[main_param]
+        
+        # Get original parameter values for x-axis
+        if main_param in df_complete.columns:
+            x_values = df_complete[main_param].values[:len(shap_values)]
+        else:
+            return get_empty_figure(f"Parameter {main_param} not in data")
+        
+        # Get SHAP values for this parameter
+        main_indices = [feature_names.index(c) for c in main_cols if c in feature_names]
+        
+        if len(main_indices) == 1:
+            # Single column (numeric parameter)
+            y_shap = shap_values[:, main_indices[0]]
+        else:
+            # Multiple columns (categorical) - sum SHAP values
+            y_shap = shap_values[:, main_indices].sum(axis=1)
+        
+        # Determine color values
+        if color_param and color_param != "auto" and color_param in df_complete.columns:
+            color_values = df_complete[color_param].values[:len(shap_values)]
+            color_label = color_param
+            
+            # Check if categorical
+            if df_complete[color_param].dtype == 'object':
+                # Use category codes for coloring
+                color_categorical = pd.Categorical(color_values)
+                color_numeric = color_categorical.codes
+                color_text = color_values
+            else:
+                color_numeric = pd.to_numeric(color_values, errors='coerce')
+                color_text = [f"{v:.3g}" for v in color_numeric]
+        elif color_param == "auto" and len(param_names) > 1:
+            # Auto-select: find parameter with strongest interaction
+            # Use the parameter with highest correlation to SHAP variance
+            best_interaction_param = None
+            best_corr = 0
+            
+            for p in param_names:
+                if p == main_param:
+                    continue
+                if p in df_complete.columns:
+                    p_values = pd.to_numeric(df_complete[p], errors='coerce').values[:len(shap_values)]
+                    if not np.isnan(p_values).all():
+                        # Correlation between parameter and SHAP value variance
+                        valid_mask = ~np.isnan(p_values)
+                        if valid_mask.sum() > 2:
+                            corr = abs(np.corrcoef(p_values[valid_mask], y_shap[valid_mask])[0, 1])
+                            if not np.isnan(corr) and corr > best_corr:
+                                best_corr = corr
+                                best_interaction_param = p
+            
+            if best_interaction_param:
+                color_values = df_complete[best_interaction_param].values[:len(shap_values)]
+                color_label = f"{best_interaction_param} (auto)"
+                
+                if df_complete[best_interaction_param].dtype == 'object':
+                    color_categorical = pd.Categorical(color_values)
+                    color_numeric = color_categorical.codes
+                    color_text = color_values
+                else:
+                    color_numeric = pd.to_numeric(color_values, errors='coerce')
+                    color_text = [f"{v:.3g}" for v in color_numeric]
+            else:
+                color_numeric = None
+                color_text = None
+                color_label = None
+        else:
+            color_numeric = None
+            color_text = None
+            color_label = None
+        
+        fig = go.Figure()
+        
+        # Check if main parameter is categorical
+        is_categorical = df_complete[main_param].dtype == 'object'
+        
+        if is_categorical:
+            # For categorical: use strip/jitter plot
+            categories = df_complete[main_param].unique()
+            x_numeric = pd.Categorical(x_values, categories=categories).codes
+            
+            # Add jitter
+            jitter = np.random.uniform(-0.2, 0.2, len(x_numeric))
+            x_jittered = x_numeric + jitter
+            
+            if color_numeric is not None:
+                fig.add_trace(go.Scatter(
+                    x=x_jittered,
+                    y=y_shap,
+                    mode='markers',
+                    marker=dict(
+                        size=10,
+                        color=color_numeric,
+                        colorscale='Viridis',
+                        showscale=True,
+                        colorbar=dict(title=color_label, thickness=15),
+                        line=dict(width=1, color='white')
+                    ),
+                    text=[f"{main_param}: {x}<br>SHAP: {y:.3f}<br>{color_label}: {c}" 
+                          for x, y, c in zip(x_values, y_shap, color_text)],
+                    hovertemplate="%{text}<extra></extra>"
+                ))
+            else:
+                fig.add_trace(go.Scatter(
+                    x=x_jittered,
+                    y=y_shap,
+                    mode='markers',
+                    marker=dict(size=10, color=COLORS['primary'], opacity=0.7),
+                    text=[f"{main_param}: {x}<br>SHAP: {y:.3f}" for x, y in zip(x_values, y_shap)],
+                    hovertemplate="%{text}<extra></extra>"
+                ))
+            
+            # Update x-axis for categories
+            fig.update_xaxes(
+                tickmode='array',
+                tickvals=list(range(len(categories))),
+                ticktext=categories
+            )
+        else:
+            # Numeric parameter
+            x_numeric = pd.to_numeric(x_values, errors='coerce')
+            
+            if color_numeric is not None:
+                fig.add_trace(go.Scatter(
+                    x=x_numeric,
+                    y=y_shap,
+                    mode='markers',
+                    marker=dict(
+                        size=10,
+                        color=color_numeric,
+                        colorscale='Viridis',
+                        showscale=True,
+                        colorbar=dict(title=color_label, thickness=15),
+                        line=dict(width=1, color='white')
+                    ),
+                    text=[f"{main_param}: {x:.3g}<br>SHAP: {y:.3f}<br>{color_label}: {c}" 
+                          for x, y, c in zip(x_numeric, y_shap, color_text)],
+                    hovertemplate="%{text}<extra></extra>"
+                ))
+            else:
+                fig.add_trace(go.Scatter(
+                    x=x_numeric,
+                    y=y_shap,
+                    mode='markers',
+                    marker=dict(size=10, color=COLORS['primary'], opacity=0.7),
+                    text=[f"{main_param}: {x:.3g}<br>SHAP: {y:.3f}" for x, y in zip(x_numeric, y_shap)],
+                    hovertemplate="%{text}<extra></extra>"
+                ))
+            
+            # Add trend line
+            if len(x_numeric) >= 3:
+                valid_mask = ~np.isnan(x_numeric)
+                if valid_mask.sum() >= 3:
+                    z = np.polyfit(x_numeric[valid_mask], y_shap[valid_mask], 1)
+                    p = np.poly1d(z)
+                    x_trend = np.linspace(np.nanmin(x_numeric), np.nanmax(x_numeric), 100)
+                    fig.add_trace(go.Scatter(
+                        x=x_trend,
+                        y=p(x_trend),
+                        mode='lines',
+                        line=dict(color=COLORS['gray'], width=2, dash='dash'),
+                        name='Trend',
+                        showlegend=False
+                    ))
+        
+        # Add horizontal line at y=0
+        fig.add_hline(y=0, line_dash="solid", line_color=COLORS['gray'], line_width=1, opacity=0.5)
+        
+        fig.update_layout(
+            xaxis_title=main_param,
+            yaxis_title=f"SHAP value (impact on {obj_names[0]})",
+            showlegend=False,
+            title=dict(
+                text=f"<b>Effect of {main_param}</b><br><sup>Points above 0 increase the objective</sup>",
+                font=dict(size=12),
+                x=0.5
+            )
+        )
+        
+        return apply_common_layout(fig)
+        
+    except Exception as e:
+        print(f"Error in SHAP dependence plot: {e}")
+        import traceback
+        traceback.print_exc()
         return get_empty_figure()
 
 
@@ -1398,8 +2006,8 @@ def update_correlation_heatmap(excel_file, pathname):
         if len(cols_to_use) < 2:
             return get_empty_figure("Not enough numeric columns")
         
-        # Compute correlation matrix
-        corr_matrix = df[cols_to_use].corr()
+        # Compute Spearman correlation matrix (more robust)
+        corr_matrix = df[cols_to_use].corr(method='spearman')
         
         # Create heatmap
         fig = go.Figure(data=go.Heatmap(
@@ -1491,7 +2099,7 @@ def update_slice_plot(excel_file, selected_param, pathname):
                 y=p(x_trend),
                 mode='lines',
                 line=dict(color=COLORS['danger'], width=2, dash='dash'),
-                name='Trend'
+                name='Linear trend'
             ))
         
         # Add LOWESS smoothing if enough data
@@ -1509,7 +2117,7 @@ def update_slice_plot(excel_file, selected_param, pathname):
                         y=smoothed,
                         mode='lines',
                         line=dict(color=COLORS['success'], width=2),
-                        name='Smoothed'
+                        name='Smoothed (Savitzky-Golay)'
                     ))
             except:
                 pass
@@ -1590,7 +2198,7 @@ def update_best_experiments_table(excel_file, top_n, pathname):
             display_cols.append('Point type')
         
         display_cols = [c for c in display_cols if c in df_sorted.columns]
-        df_display = df_sorted[display_cols]
+        df_display = df_sorted[display_cols].copy()
         
         # Round numeric columns
         for col in df_display.columns:

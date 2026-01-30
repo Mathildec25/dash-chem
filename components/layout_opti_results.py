@@ -266,18 +266,33 @@ def create_opti_results_layout():
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=7, className="mb-3"),
             
-            # Parameter Importance
+            # Parameter Importance (smaller, bar plot only)
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
                         html.H5("Parameter Influence", className="mb-0", style={"fontWeight": "600"}),
-                        html.Small("Correlation with objective", className="text-muted")
+                        html.Small("Mean SHAP value", className="text-muted")
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
                         dcc.Graph(id="parameter-importance-plot", style={"height": "400px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=5, className="mb-3"),
+        ]),
+        
+        # ===== SHAP BEESWARM PLOT (full width) =====
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("SHAP Summary (Beeswarm)", className="mb-0", style={"fontWeight": "600"}),
+                        html.Small("Distribution of feature effects - each dot is one experiment", className="text-muted")
+                    ], style={"backgroundColor": "#f8f9fa"}),
+                    dbc.CardBody([
+                        dcc.Graph(id="shap-beeswarm-plot", style={"height": "450px"})
+                    ])
+                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+            ], md=12, className="mb-3"),
         ]),
         
         # ===== PARALLEL COORDINATES =====
@@ -349,6 +364,45 @@ def create_opti_results_layout():
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=6, className="mb-3"),
+        ]),
+        
+        # ===== SHAP DEPENDENCE PLOT =====
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5("SHAP Dependence Plot", className="mb-0", style={"fontWeight": "600"}),
+                                html.Small("How a parameter affects the objective (with interactions)", className="text-muted")
+                            ]),
+                            dbc.Col([
+                                html.Label("Main parameter:", className="small me-2"),
+                                dbc.Select(
+                                    id="shap-main-param-selector",
+                                    options=[],
+                                    placeholder="Select parameter",
+                                    size="sm",
+                                    style={"width": "140px", "display": "inline-block"}
+                                )
+                            ], width="auto", className="me-3"),
+                            dbc.Col([
+                                html.Label("Color by:", className="small me-2"),
+                                dbc.Select(
+                                    id="shap-color-param-selector",
+                                    options=[],
+                                    placeholder="Auto",
+                                    size="sm",
+                                    style={"width": "140px", "display": "inline-block"}
+                                )
+                            ], width="auto")
+                        ], align="center")
+                    ], style={"backgroundColor": "#f8f9fa"}),
+                    dbc.CardBody([
+                        dcc.Graph(id="shap-dependence-plot", style={"height": "400px"})
+                    ])
+                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
+            ], md=12, className="mb-3"),
         ]),
         
         # ===== BEST EXPERIMENTS TABLE =====
