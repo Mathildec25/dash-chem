@@ -1,6 +1,14 @@
 """
-Layout for Optimization Results & Analysis page
-Adaptive layout for Single-Objective (SOBO) and Multi-Objective (MOBO) optimization
+Results Layout for Optimization Analysis
+Adaptive layout for SOBO and MOBO optimization results
+
+CHANGES:
+- Removed: SHAP Dependence Plot, Parameter-Objective Correlations, Parameter Effect (1D Slice)
+- Removed: Cumulative Best (secondary-metric), Objective Distribution, Improvement Rate
+- Convergence plot now full width (md=12)
+- MOBO: objective selector always visible for convergence
+- Parameter Influence + SHAP Beeswarm on same row
+- SOBO section: Regret only (full width)
 """
 
 import dash_bootstrap_components as dbc
@@ -8,59 +16,36 @@ from dash import dcc, html
 
 
 def create_opti_results_layout():
-    return dbc.Container([
-        # Header
-        dbc.Row([
-            dbc.Col([
-                dcc.Link(
-                    html.I(className="bi bi-arrow-left", style={"fontSize": "1.5rem", "color": "#6c757d"}),
-                    href="/Opt-run",
-                    style={"textDecoration": "none"}
-                )
-            ], width="auto"),
-            dbc.Col([
-                html.H1("Results & Analysis", 
-                       style={
-                           "color": "#1a1a1a", 
-                           "fontWeight": "600",
-                           "fontSize": "2rem",
-                           "letterSpacing": "-0.02em",
-                           "marginBottom": "0.25rem"
-                       }),
-                html.P("Analyze your optimization results and find the best configurations",
-                      style={
-                          "fontSize": "1rem",
-                          "color": "#6c757d",
-                          "marginBottom": "0"
-                      })
-            ], width=True),
-            # Optimization type badge
-            dbc.Col([
-                html.Div(id="optimization-type-badge", children=[
-                    dbc.Badge("Loading...", color="secondary", className="px-3 py-2")
-                ])
-            ], width="auto", className="text-end")
-        ], className="mb-4 align-items-center"),
+    """Create the optimization results analysis page layout"""
+    
+    return html.Div([
+        # Status alert
+        dbc.Alert(
+            id="results-status-alert",
+            children="Loading...",
+            color="info",
+            is_open=False,
+            dismissable=True,
+            className="mb-3"
+        ),
         
-        # Alert for status
+        # ===== OPTIMIZATION TYPE BADGE =====
         dbc.Row([
             dbc.Col([
-                dbc.Alert(
-                    id="results-status-alert",
-                    is_open=False,
-                    dismissable=True,
-                    className="mb-3"
-                )
-            ], md=12)
+                html.Div(id="optimization-type-badge", className="mb-3")
+            ])
         ]),
         
-        # ===== SUMMARY CARDS ROW =====
+        # Store for optimization type
+        dcc.Store(id="optimization-type-store", data="SOBO"),
+        
+        # ===== KPI CARDS =====
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
                         html.Div([
-                            html.I(className="bi bi-hash", style={"fontSize": "1.5rem", "color": "#6366f1"}),
+                            html.I(className="bi bi-clipboard-data", style={"fontSize": "1.5rem", "color": "#6366f1"}),
                         ], className="mb-2"),
                         html.H3(id="total-experiments", children="0", className="mb-1", style={"fontWeight": "700"}),
                         html.P("Total Experiments", className="text-muted mb-0 small")
@@ -105,10 +90,8 @@ def create_opti_results_layout():
             ], md=3, className="mb-3"),
         ]),
         
-        # ===== MAIN CONVERGENCE SECTION =====
-        # This section adapts based on SOBO vs MOBO
+        # ===== CONVERGENCE SECTION (full width) =====
         dbc.Row([
-            # Primary convergence plot (left side - larger)
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
@@ -132,31 +115,7 @@ def create_opti_results_layout():
                         dcc.Graph(id="convergence-plot", style={"height": "380px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-            ], md=8, className="mb-3"),
-            
-            # Secondary metrics (right side - smaller)
-            dbc.Col([
-                # For SOBO: Regret plot / For MOBO: Hypervolume
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5(id="secondary-metric-title", children="Optimization Progress", 
-                               className="mb-0", style={"fontWeight": "600"})
-                    ], style={"backgroundColor": "#f8f9fa"}),
-                    dbc.CardBody([
-                        dcc.Graph(id="secondary-metric-plot", style={"height": "160px"})
-                    ])
-                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"}, className="mb-3"),
-                
-                # Objective Distribution
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5("Objective Distribution", className="mb-0", style={"fontWeight": "600"})
-                    ], style={"backgroundColor": "#f8f9fa"}),
-                    dbc.CardBody([
-                        dcc.Graph(id="objective-distribution", style={"height": "160px"})
-                    ])
-                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-            ], md=4, className="mb-3"),
+            ], md=12, className="mb-3"),
         ]),
         
         # ===== MOBO SPECIFIC: PARETO FRONT SECTION =====
@@ -200,10 +159,10 @@ def create_opti_results_layout():
             ])
         ], style={"display": "none"}),  # Hidden by default, shown for MOBO
         
-        # ===== SOBO SPECIFIC: REGRET & EXPLORATION SECTION =====
+        # ===== SOBO SPECIFIC: REGRET SECTION =====
         html.Div(id="sobo-section", children=[
             dbc.Row([
-                # Cumulative Regret
+                # Optimization Regret (full width)
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
@@ -214,20 +173,7 @@ def create_opti_results_layout():
                             dcc.Graph(id="regret-plot", style={"height": "300px"})
                         ])
                     ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-                ], md=6, className="mb-3"),
-                
-                # Improvement Rate
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader([
-                            html.H5("Improvement Rate", className="mb-0", style={"fontWeight": "600"}),
-                            html.Small("Rolling improvement over iterations", className="text-muted")
-                        ], style={"backgroundColor": "#f8f9fa"}),
-                        dbc.CardBody([
-                            dcc.Graph(id="improvement-rate-plot", style={"height": "300px"})
-                        ])
-                    ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-                ], md=6, className="mb-3"),
+                ], md=12, className="mb-3"),
             ])
         ], style={"display": "none"}),  # Hidden by default, shown for SOBO
         
@@ -264,9 +210,12 @@ def create_opti_results_layout():
                         dcc.Graph(id="parameter-exploration-plot", style={"height": "400px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-            ], md=7, className="mb-3"),
-            
-            # Parameter Importance (smaller, bar plot only)
+            ], md=12, className="mb-3"),
+        ]),
+        
+        # ===== PARAMETER INFLUENCE + SHAP BEESWARM (same row) =====
+        dbc.Row([
+            # Parameter Influence (bar plot)
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
@@ -274,14 +223,12 @@ def create_opti_results_layout():
                         html.Small("Mean SHAP value", className="text-muted")
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        dcc.Graph(id="parameter-importance-plot", style={"height": "400px"})
+                        dcc.Graph(id="parameter-importance-plot", style={"height": "450px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=5, className="mb-3"),
-        ]),
-        
-        # ===== SHAP BEESWARM PLOT (full width) =====
-        dbc.Row([
+            
+            # SHAP Beeswarm
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
@@ -292,7 +239,7 @@ def create_opti_results_layout():
                         dcc.Graph(id="shap-beeswarm-plot", style={"height": "450px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-            ], md=12, className="mb-3"),
+            ], md=7, className="mb-3"),
         ]),
         
         # ===== PARALLEL COORDINATES =====
@@ -327,84 +274,6 @@ def create_opti_results_layout():
             ], md=12, className="mb-3"),
         ]),
         
-        # ===== CORRELATION HEATMAP =====
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5("Parameter-Objective Correlations", className="mb-0", style={"fontWeight": "600"})
-                    ], style={"backgroundColor": "#f8f9fa"}),
-                    dbc.CardBody([
-                        dcc.Graph(id="correlation-heatmap", style={"height": "350px"})
-                    ])
-                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-            ], md=6, className="mb-3"),
-            
-            # Slice Plot / 1D Effect
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader([
-                        dbc.Row([
-                            dbc.Col([
-                                html.H5("Parameter Effect (1D Slice)", className="mb-0", style={"fontWeight": "600"})
-                            ]),
-                            dbc.Col([
-                                dbc.Select(
-                                    id="slice-param-selector",
-                                    options=[],
-                                    placeholder="Select parameter",
-                                    size="sm",
-                                    style={"width": "150px"}
-                                )
-                            ], width="auto")
-                        ], align="center")
-                    ], style={"backgroundColor": "#f8f9fa"}),
-                    dbc.CardBody([
-                        dcc.Graph(id="slice-plot", style={"height": "350px"})
-                    ])
-                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-            ], md=6, className="mb-3"),
-        ]),
-        
-        # ===== SHAP DEPENDENCE PLOT =====
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader([
-                        dbc.Row([
-                            dbc.Col([
-                                html.H5("SHAP Dependence Plot", className="mb-0", style={"fontWeight": "600"}),
-                                html.Small("How a parameter affects the objective (with interactions)", className="text-muted")
-                            ]),
-                            dbc.Col([
-                                html.Label("Main parameter:", className="small me-2"),
-                                dbc.Select(
-                                    id="shap-main-param-selector",
-                                    options=[],
-                                    placeholder="Select parameter",
-                                    size="sm",
-                                    style={"width": "140px", "display": "inline-block"}
-                                )
-                            ], width="auto", className="me-3"),
-                            dbc.Col([
-                                html.Label("Color by:", className="small me-2"),
-                                dbc.Select(
-                                    id="shap-color-param-selector",
-                                    options=[],
-                                    placeholder="Auto",
-                                    size="sm",
-                                    style={"width": "140px", "display": "inline-block"}
-                                )
-                            ], width="auto")
-                        ], align="center")
-                    ], style={"backgroundColor": "#f8f9fa"}),
-                    dbc.CardBody([
-                        dcc.Graph(id="shap-dependence-plot", style={"height": "400px"})
-                    ])
-                ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
-            ], md=12, className="mb-3"),
-        ]),
-        
         # ===== BEST EXPERIMENTS TABLE =====
         dbc.Row([
             dbc.Col([
@@ -412,20 +281,21 @@ def create_opti_results_layout():
                     dbc.CardHeader([
                         dbc.Row([
                             dbc.Col([
-                                html.H5("Top Experiments", className="mb-0", style={"fontWeight": "600"})
+                                html.H5("Best Experiments", className="mb-0", style={"fontWeight": "600"})
                             ]),
                             dbc.Col([
+                                html.Label("Show top:", className="small me-2"),
                                 dbc.Select(
                                     id="top-n-selector",
                                     options=[
-                                        {"label": "Top 5", "value": "5"},
-                                        {"label": "Top 10", "value": "10"},
-                                        {"label": "Top 20", "value": "20"},
-                                        {"label": "All", "value": "all"}
+                                        {"label": "5", "value": 5},
+                                        {"label": "10", "value": 10},
+                                        {"label": "20", "value": 20},
+                                        {"label": "All", "value": 999}
                                     ],
-                                    value="10",
+                                    value=10,
                                     size="sm",
-                                    style={"width": "120px"}
+                                    style={"width": "80px", "display": "inline-block"}
                                 )
                             ], width="auto")
                         ], align="center")
@@ -441,34 +311,25 @@ def create_opti_results_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Button([
-                    html.I(className="bi bi-file-earmark-text me-2"),
+                    html.I(className="bi bi-file-earmark-word me-2"),
                     "Generate Report"
-                ], id="generate-report-btn", color="primary", size="lg"),
-            ], className="text-center mb-4")
-        ]),
-        
-        # Download component and status alert for report
-        dcc.Download(id='download-report'),
-
-        dbc.Row([
-            dbc.Col([
+                ],
+                id="generate-report-btn",
+                color="primary",
+                size="lg",
+                className="w-100",
+                style={"borderRadius": "8px"}
+                ),
+                dcc.Download(id="download-report"),
                 dbc.Alert(
-                    id="generate-report-status",
+                    id="report-status-alert",
+                    children="",
+                    color="info",
                     is_open=False,
                     dismissable=True,
-                    duration=5000,
-                    className="mb-3"
+                    className="mt-2"
                 )
-            ], md=12)
+            ], md=4, className="mb-3 mx-auto"),
         ]),
         
-        # Store for optimization type
-        dcc.Store(id='optimization-type-store', data='SOBO'),
-        
-    ], fluid=True, style={
-        "maxWidth": "1400px",
-        "backgroundColor": "#f8f9fa",
-        "minHeight": "100vh",
-        "paddingTop": "2rem",
-        "paddingBottom": "4rem"
-    })
+    ], className="p-3")
