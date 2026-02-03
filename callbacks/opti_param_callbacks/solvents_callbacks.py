@@ -36,27 +36,15 @@ except ImportError:
 # Common solvents list (now dynamic from descriptors, mutable to allow adding custom solvents)
 COMMON_SOLVENTS = sorted(list(SOLVENT_DESCRIPTORS.keys()))
 
-# Common descriptors list (extract from first solvent's descriptors)
-if SOLVENT_DESCRIPTORS:
-    first_solvent = next(iter(SOLVENT_DESCRIPTORS.values()))
-    COMMON_DESCRIPTORS = sorted([
-        key for key in first_solvent.keys() 
-        if key not in ['CAS']  # Exclude non-useful descriptors
-    ])
-else:
-    # Fallback if no descriptors available
-    COMMON_DESCRIPTORS = [
-        "Polarity", "Boiling point", "Viscosity", "Dielectric constant",
-        "Dipole moment", "Hydrogen bond donor", "Hydrogen bond acceptor",
-        "Surface tension", "Refractive index", "Density"
-    ]
+# Fixed solvent descriptors (auto-selected, no user choice)
+FIXED_SOLVENT_DESCRIPTORS = ['HBA', 'HBD', 'polarity_index']
 
 # Store custom solvents with their SMILES
 CUSTOM_SOLVENTS = {}
 
 # Print confirmation on import
 print(f"✓ Loaded {len(COMMON_SOLVENTS)} solvents from descriptor files")
-print(f"✓ Available descriptors: {len(COMMON_DESCRIPTORS)}")
+print(f"✓ Fixed solvent descriptors: {FIXED_SOLVENT_DESCRIPTORS}")
 
 
 def create_solvent_row(row_id):
@@ -84,33 +72,6 @@ def create_solvent_row(row_id):
             ], width=2),
         ], className="mb-2 align-items-center"),
     ], id={'type': 'solvent-row', 'index': row_id})
-
-
-def create_descriptor_row(row_id):
-    """Create a single descriptor selection row"""
-    return html.Div([
-        dbc.Row([
-            dbc.Col([
-                dcc.Dropdown(
-                    id={'type': 'descriptor-select', 'index': row_id},
-                    options=[{"label": d, "value": d} for d in COMMON_DESCRIPTORS],
-                    placeholder="Select descriptor",
-                    clearable=True,
-                    style={"fontSize": "0.875rem"}
-                )
-            ], width=10),
-            dbc.Col([
-                dbc.Button(
-                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-descriptor-row', 'index': row_id},
-                    color="danger",
-                    outline=True,
-                    size="sm",
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                )
-            ], width=2),
-        ], className="mb-2 align-items-center"),
-    ], id={'type': 'descriptor-row', 'index': row_id})
 
 
 # ===== OPEN/CLOSE MAIN MODAL =====
@@ -241,13 +202,12 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
 # ===== INITIALIZE MODAL WITH DEFAULT ROWS =====
 
 @callback(
-    [Output("solvent-rows-container", "children", allow_duplicate=True),
-     Output("descriptor-rows-container", "children", allow_duplicate=True)],
+    Output("solvent-rows-container", "children", allow_duplicate=True),
     Input("solvent-modal", "is_open"),
     prevent_initial_call=True
 )
 def initialize_modal_content(is_open):
-    """Initialize modal with one solvent row and one descriptor row when opened via button"""
+    """Initialize modal with one solvent row when opened via button"""
     # Only initialize if modal was opened by the "Solvent" button, not by the "Edit" button
     triggered_id = ctx.triggered_id
     
@@ -257,9 +217,7 @@ def initialize_modal_content(is_open):
     
     if is_open:
         solvent_id = str(uuid.uuid4())
-        descriptor_id = str(uuid.uuid4())
-        
-        return [create_solvent_row(solvent_id)], [create_descriptor_row(descriptor_id)]
+        return [create_solvent_row(solvent_id)]
     
     raise PreventUpdate
 
@@ -309,52 +267,6 @@ def manage_solvent_rows(add_clicks, delete_clicks, current_rows):
     raise PreventUpdate
 
 
-# ===== MANAGE DESCRIPTOR ROWS =====
-
-@callback(
-    Output("descriptor-rows-container", "children", allow_duplicate=True),
-    [Input("add-descriptor-row-btn", "n_clicks"),
-     Input({'type': 'delete-descriptor-row', 'index': ALL}, 'n_clicks')],
-    State("descriptor-rows-container", "children"),
-    prevent_initial_call=True
-)
-def manage_descriptor_rows(add_clicks, delete_clicks, current_rows):
-    """Handle adding and deleting descriptor rows"""
-    triggered = ctx.triggered_id
-    
-    if triggered == "add-descriptor-row-btn":
-        # Add new descriptor row
-        if not add_clicks:
-            raise PreventUpdate
-        
-        new_id = str(uuid.uuid4())
-        new_row = create_descriptor_row(new_id)
-        return current_rows + [new_row]
-    
-    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-descriptor-row':
-        # Delete descriptor row
-        if not any(delete_clicks):
-            raise PreventUpdate
-        
-        index_to_delete = triggered['index']
-        new_rows = []
-        for row in current_rows:
-            try:
-                if row['props']['id']['index'] != index_to_delete:
-                    new_rows.append(row)
-            except:
-                new_rows.append(row)
-        
-        # Keep at least one row
-        if not new_rows:
-            new_id = str(uuid.uuid4())
-            new_rows = [create_descriptor_row(new_id)]
-        
-        return new_rows
-    
-    raise PreventUpdate
-
-
 # ===== SAVE SOLVENT CONFIGURATION =====
 
 @callback(
@@ -364,26 +276,25 @@ def manage_descriptor_rows(add_clicks, delete_clicks, current_rows):
      Output("validation-alert", "is_open", allow_duplicate=True)],
     Input("save-solvents-btn", "n_clicks"),
     [State({'type': 'solvent-select', 'index': ALL}, 'value'),
-     State({'type': 'descriptor-select', 'index': ALL}, 'value'),
      State("parameter-container", "children"),
      State("solvent-config-store", "data")],
     prevent_initial_call=True
 )
-def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, current_config):
+def save_solvent_configuration(n_clicks, solvents, current_params, current_config):
     """Save the selected solvents and descriptors as a categorical parameter"""
     if not n_clicks:
         raise PreventUpdate
     
     # Filter out None/empty values
     selected_solvents = [s for s in solvents if s]
-    selected_descriptors = [d for d in descriptors if d]
+    selected_descriptors = FIXED_SOLVENT_DESCRIPTORS
     
     if not selected_solvents:
         alert = dbc.Alert("❌ Please select at least one solvent", color="danger")
         return no_update, no_update, alert, True
     
     print(f"✅ Saved solvents: {selected_solvents}")
-    print(f"✅ Saved descriptors: {selected_descriptors}")
+    print(f"✅ Using fixed descriptors: {selected_descriptors}")
     
     # Print SMILES for custom solvents
     for solvent in selected_solvents:
@@ -421,7 +332,7 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
     
     # Create solvent parameter row
     solvent_values = ", ".join(selected_solvents)
-    descriptor_info = f"Descriptors: {', '.join(selected_descriptors)}" if selected_descriptors else "No descriptors selected"
+    descriptor_info = f"Descriptors: {', '.join(selected_descriptors)}"
     
     new_row = html.Div([
         dbc.Row([
@@ -464,7 +375,7 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
                             descriptor_info,
                             target={'type': 'parameter-categories', 'index': solvent_param_id},
                             placement="top"
-                        ) if selected_descriptors else None
+                        )
                     ])
                 ])
             ], width=5),
@@ -505,8 +416,7 @@ def save_solvent_configuration(n_clicks, solvents, descriptors, current_params, 
 
 @callback(
     [Output("solvent-modal", "is_open", allow_duplicate=True),
-     Output("solvent-rows-container", "children", allow_duplicate=True),
-     Output("descriptor-rows-container", "children", allow_duplicate=True)],
+     Output("solvent-rows-container", "children", allow_duplicate=True)],
     Input({'type': 'edit-solvent', 'index': ALL}, 'n_clicks'),
     State("solvent-config-store", "data"),
     prevent_initial_call=True
@@ -517,7 +427,6 @@ def edit_solvent_parameter(n_clicks, config_data):
         raise PreventUpdate
     
     selected_solvents = config_data.get('solvents', [])
-    selected_descriptors = config_data.get('descriptors', [])
     custom_solvents = config_data.get('custom_solvents', {})
     
     # Add custom solvents back to COMMON_SOLVENTS if needed
@@ -560,38 +469,4 @@ def edit_solvent_parameter(n_clicks, config_data):
         row_id = str(uuid.uuid4())
         solvent_rows = [create_solvent_row(row_id)]
     
-    # Recreate descriptor rows with selected values
-    descriptor_rows = []
-    for descriptor in selected_descriptors:
-        row_id = str(uuid.uuid4())
-        descriptor_rows.append(html.Div([
-            dbc.Row([
-                dbc.Col([
-                    dcc.Dropdown(
-                        id={'type': 'descriptor-select', 'index': row_id},
-                        options=[{"label": d, "value": d} for d in COMMON_DESCRIPTORS],
-                        value=descriptor,
-                        placeholder="Select descriptor",
-                        clearable=True,
-                        style={"fontSize": "0.875rem"}
-                    )
-                ], width=10),
-                dbc.Col([
-                    dbc.Button(
-                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                        id={'type': 'delete-descriptor-row', 'index': row_id},
-                        color="danger",
-                        outline=True,
-                        size="sm",
-                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                    )
-                ], width=2),
-            ], className="mb-2 align-items-center"),
-        ], id={'type': 'descriptor-row', 'index': row_id}))
-    
-    # If no descriptors, add empty row
-    if not descriptor_rows:
-        row_id = str(uuid.uuid4())
-        descriptor_rows = [create_descriptor_row(row_id)]
-    
-    return True, solvent_rows, descriptor_rows
+    return True, solvent_rows

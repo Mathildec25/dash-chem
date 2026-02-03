@@ -34,26 +34,15 @@ except ImportError:
 # Common bases list (now dynamic from descriptors, mutable to allow adding custom bases)
 COMMON_BASES = sorted(list(BASE_DESCRIPTORS.keys()))
 
-# Common descriptors list (extract from first base's descriptors)
-if BASE_DESCRIPTORS:
-    first_base = next(iter(BASE_DESCRIPTORS.values()))
-    COMMON_BASE_DESCRIPTORS = sorted([
-        key for key in first_base.keys() 
-        if key not in ['CAS']  # Exclude non-useful descriptors
-    ])
-else:
-    # Fallback if no descriptors available
-    COMMON_BASE_DESCRIPTORS = [
-        "pKa", "Basicity", "Nucleophilicity", "Steric hindrance",
-        "Solubility", "Boiling point", "Molecular weight", "Dipole moment"
-    ]
+# Fixed base descriptors (auto-selected, no user choice)
+FIXED_BASE_DESCRIPTORS = ['pKa', 'nucleophilicity']
 
 # Store custom bases with their SMILES
 CUSTOM_BASES = {}
 
 # Print confirmation on import
 print(f"✓ Loaded {len(COMMON_BASES)} bases from descriptor files")
-print(f"✓ Available base descriptors: {len(COMMON_BASE_DESCRIPTORS)}")
+print(f"✓ Fixed base descriptors: {FIXED_BASE_DESCRIPTORS}")
 
 
 def create_base_row(row_id):
@@ -81,33 +70,6 @@ def create_base_row(row_id):
             ], width=2),
         ], className="mb-2 align-items-center"),
     ], id={'type': 'base-row', 'index': row_id})
-
-
-def create_base_descriptor_row(row_id):
-    """Create a single descriptor selection row for bases"""
-    return html.Div([
-        dbc.Row([
-            dbc.Col([
-                dcc.Dropdown(
-                    id={'type': 'base-descriptor-select', 'index': row_id},
-                    options=[{"label": d, "value": d} for d in COMMON_BASE_DESCRIPTORS],
-                    placeholder="Select descriptor",
-                    clearable=True,
-                    style={"fontSize": "0.875rem"}
-                )
-            ], width=10),
-            dbc.Col([
-                dbc.Button(
-                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-base-descriptor-row', 'index': row_id},
-                    color="danger",
-                    outline=True,
-                    size="sm",
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                )
-            ], width=2),
-        ], className="mb-2 align-items-center"),
-    ], id={'type': 'base-descriptor-row', 'index': row_id})
 
 
 # ===== OPEN/CLOSE MAIN MODAL =====
@@ -238,13 +200,12 @@ def add_custom_base(n_clicks, name, smiles, current_rows, current_options):
 # ===== INITIALIZE MODAL WITH DEFAULT ROWS =====
 
 @callback(
-    [Output("base-rows-container", "children", allow_duplicate=True),
-     Output("base-descriptor-rows-container", "children", allow_duplicate=True)],
+    Output("base-rows-container", "children", allow_duplicate=True),
     Input("base-modal", "is_open"),
     prevent_initial_call=True
 )
 def initialize_base_modal_content(is_open):
-    """Initialize modal with one base row and one descriptor row when opened via button"""
+    """Initialize modal with one base row when opened via button"""
     # Only initialize if modal was opened by the "Base" button, not by the "Edit" button
     triggered_id = ctx.triggered_id
     
@@ -254,9 +215,7 @@ def initialize_base_modal_content(is_open):
     
     if is_open:
         base_id = str(uuid.uuid4())
-        descriptor_id = str(uuid.uuid4())
-        
-        return [create_base_row(base_id)], [create_base_descriptor_row(descriptor_id)]
+        return [create_base_row(base_id)]
     
     raise PreventUpdate
 
@@ -306,52 +265,6 @@ def manage_base_rows(add_clicks, delete_clicks, current_rows):
     raise PreventUpdate
 
 
-# ===== MANAGE BASE DESCRIPTOR ROWS =====
-
-@callback(
-    Output("base-descriptor-rows-container", "children", allow_duplicate=True),
-    [Input("add-base-descriptor-row-btn", "n_clicks"),
-     Input({'type': 'delete-base-descriptor-row', 'index': ALL}, 'n_clicks')],
-    State("base-descriptor-rows-container", "children"),
-    prevent_initial_call=True
-)
-def manage_base_descriptor_rows(add_clicks, delete_clicks, current_rows):
-    """Handle adding and deleting base descriptor rows"""
-    triggered = ctx.triggered_id
-    
-    if triggered == "add-base-descriptor-row-btn":
-        # Add new descriptor row
-        if not add_clicks:
-            raise PreventUpdate
-        
-        new_id = str(uuid.uuid4())
-        new_row = create_base_descriptor_row(new_id)
-        return current_rows + [new_row]
-    
-    elif isinstance(triggered, dict) and triggered.get('type') == 'delete-base-descriptor-row':
-        # Delete descriptor row
-        if not any(delete_clicks):
-            raise PreventUpdate
-        
-        index_to_delete = triggered['index']
-        new_rows = []
-        for row in current_rows:
-            try:
-                if row['props']['id']['index'] != index_to_delete:
-                    new_rows.append(row)
-            except:
-                new_rows.append(row)
-        
-        # Keep at least one row
-        if not new_rows:
-            new_id = str(uuid.uuid4())
-            new_rows = [create_base_descriptor_row(new_id)]
-        
-        return new_rows
-    
-    raise PreventUpdate
-
-
 # ===== SAVE BASE CONFIGURATION =====
 
 @callback(
@@ -361,26 +274,25 @@ def manage_base_descriptor_rows(add_clicks, delete_clicks, current_rows):
      Output("validation-alert", "is_open", allow_duplicate=True)],
     Input("save-bases-btn", "n_clicks"),
     [State({'type': 'base-select', 'index': ALL}, 'value'),
-     State({'type': 'base-descriptor-select', 'index': ALL}, 'value'),
      State("parameter-container", "children"),
      State("base-config-store", "data")],
     prevent_initial_call=True
 )
-def save_base_configuration(n_clicks, bases, descriptors, current_params, current_config):
+def save_base_configuration(n_clicks, bases, current_params, current_config):
     """Save the selected bases and descriptors as a categorical parameter"""
     if not n_clicks:
         raise PreventUpdate
     
     # Filter out None/empty values
     selected_bases = [b for b in bases if b]
-    selected_descriptors = [d for d in descriptors if d]
+    selected_descriptors = FIXED_BASE_DESCRIPTORS
     
     if not selected_bases:
         alert = dbc.Alert("❌ Please select at least one base", color="danger")
         return no_update, no_update, alert, True
     
     print(f"✅ Saved bases: {selected_bases}")
-    print(f"✅ Saved descriptors: {selected_descriptors}")
+    print(f"✅ Using fixed descriptors: {selected_descriptors}")
     
     # Print SMILES for custom bases
     for base in selected_bases:
@@ -418,7 +330,7 @@ def save_base_configuration(n_clicks, bases, descriptors, current_params, curren
     
     # Create base parameter row
     base_values = ", ".join(selected_bases)
-    descriptor_info = f"Descriptors: {', '.join(selected_descriptors)}" if selected_descriptors else "No descriptors selected"
+    descriptor_info = f"Descriptors: {', '.join(selected_descriptors)}"
     
     new_row = html.Div([
         dbc.Row([
@@ -461,7 +373,7 @@ def save_base_configuration(n_clicks, bases, descriptors, current_params, curren
                             descriptor_info,
                             target={'type': 'parameter-categories', 'index': base_param_id},
                             placement="top"
-                        ) if selected_descriptors else None
+                        )
                     ])
                 ])
             ], width=5),
@@ -502,8 +414,7 @@ def save_base_configuration(n_clicks, bases, descriptors, current_params, curren
 
 @callback(
     [Output("base-modal", "is_open", allow_duplicate=True),
-     Output("base-rows-container", "children", allow_duplicate=True),
-     Output("base-descriptor-rows-container", "children", allow_duplicate=True)],
+     Output("base-rows-container", "children", allow_duplicate=True)],
     Input({'type': 'edit-base', 'index': ALL}, 'n_clicks'),
     State("base-config-store", "data"),
     prevent_initial_call=True
@@ -514,7 +425,6 @@ def edit_base_parameter(n_clicks, config_data):
         raise PreventUpdate
     
     selected_bases = config_data.get('bases', [])
-    selected_descriptors = config_data.get('descriptors', [])
     custom_bases = config_data.get('custom_bases', {})
     
     # Add custom bases back to COMMON_BASES if needed
@@ -557,38 +467,4 @@ def edit_base_parameter(n_clicks, config_data):
         row_id = str(uuid.uuid4())
         base_rows = [create_base_row(row_id)]
     
-    # Recreate descriptor rows with selected values
-    descriptor_rows = []
-    for descriptor in selected_descriptors:
-        row_id = str(uuid.uuid4())
-        descriptor_rows.append(html.Div([
-            dbc.Row([
-                dbc.Col([
-                    dcc.Dropdown(
-                        id={'type': 'base-descriptor-select', 'index': row_id},
-                        options=[{"label": d, "value": d} for d in COMMON_BASE_DESCRIPTORS],
-                        value=descriptor,
-                        placeholder="Select descriptor",
-                        clearable=True,
-                        style={"fontSize": "0.875rem"}
-                    )
-                ], width=10),
-                dbc.Col([
-                    dbc.Button(
-                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                        id={'type': 'delete-base-descriptor-row', 'index': row_id},
-                        color="danger",
-                        outline=True,
-                        size="sm",
-                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                    )
-                ], width=2),
-            ], className="mb-2 align-items-center"),
-        ], id={'type': 'base-descriptor-row', 'index': row_id}))
-    
-    # If no descriptors, add empty row
-    if not descriptor_rows:
-        row_id = str(uuid.uuid4())
-        descriptor_rows = [create_base_descriptor_row(row_id)]
-    
-    return True, base_rows, descriptor_rows
+    return True, base_rows

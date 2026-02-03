@@ -121,7 +121,7 @@ def create_opti_param_layout():
                                                         size="sm",
                                                         style={"borderRadius": "6px"}
                                                     )
-                                                ], width=4),  # ✅ Réduit de 6 à 4
+                                                ], width=4),
                                                 dbc.Col([
                                                     dbc.Input(
                                                         id={'type': 'parameter-max', 'index': initial_id},
@@ -131,10 +131,10 @@ def create_opti_param_layout():
                                                         size="sm",
                                                         style={"borderRadius": "6px"}
                                                     )
-                                                ], width=4),  # ✅ Réduit de 6 à 4
+                                                ], width=4),
                                                 dbc.Col([
                                                     dbc.Input(
-                                                        id={'type': 'parameter-step', 'index': initial_id},  # ✅ NOUVEAU
+                                                        id={'type': 'parameter-step', 'index': initial_id},
                                                         placeholder="Step (opt)",
                                                         type="number",
                                                         step="any",
@@ -142,7 +142,7 @@ def create_opti_param_layout():
                                                         size="sm",
                                                         style={"borderRadius": "6px"}
                                                     )
-                                                ], width=4),  # ✅ NOUVEAU
+                                                ], width=4),
                                             ])
                                         ])
                                     ], width=5),
@@ -503,19 +503,16 @@ def create_opti_param_layout():
                 
                 html.Hr(className="my-4"),
                 
+                # Auto-selected descriptors info (replaces manual descriptor chooser)
                 html.Div([
-                    html.H6("Choose Descriptors", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
-                    dbc.Button([
-                        html.I(className="bi bi-plus-lg")
-                    ],
-                    id="add-descriptor-row-btn",
-                    color="success",
-                    size="sm",
-                    className="float-end",
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                    ),
+                    html.I(className="bi bi-info-circle me-2", style={"color": "#6c757d"}),
+                    html.Small(
+                        "Descriptors: HBA, HBD, polarity_index (auto-selected)",
+                        className="text-muted"
+                    )
                 ], className="mb-3"),
-                html.Div(id="descriptor-rows-container", children=[]),
+                # Hidden container to avoid callback errors from pattern-matching
+                html.Div(id="descriptor-rows-container", children=[], style={"display": "none"}),
             ]),
             dbc.ModalFooter([
                 dbc.Button(
@@ -605,19 +602,16 @@ def create_opti_param_layout():
                 
                 html.Hr(className="my-4"),
                 
+                # Auto-selected descriptors info (replaces manual descriptor chooser)
                 html.Div([
-                    html.H6("Choose Descriptors", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
-                    dbc.Button([
-                        html.I(className="bi bi-plus-lg")
-                    ],
-                    id="add-base-descriptor-row-btn",
-                    color="success",
-                    size="sm",
-                    className="float-end",
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                    ),
+                    html.I(className="bi bi-info-circle me-2", style={"color": "#6c757d"}),
+                    html.Small(
+                        "Descriptors: pKa, nucleophilicity (auto-selected)",
+                        className="text-muted"
+                    )
                 ], className="mb-3"),
-                html.Div(id="base-descriptor-rows-container", children=[]),
+                # Hidden container to avoid callback errors from pattern-matching
+                html.Div(id="base-descriptor-rows-container", children=[], style={"display": "none"}),
             ]),
             dbc.ModalFooter([
                 dbc.Button(
