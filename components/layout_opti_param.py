@@ -506,10 +506,7 @@ def create_opti_param_layout():
                 # Auto-selected descriptors info (replaces manual descriptor chooser)
                 html.Div([
                     html.I(className="bi bi-info-circle me-2", style={"color": "#6c757d"}),
-                    html.Small(
-                        "Descriptors: HBA, HBD, polarity_index (auto-selected)",
-                        className="text-muted"
-                    )
+                    html.Small("Descriptors: ε, μ, HBA, HBD, AN, DN (auto-selected)", className="text-muted")   
                 ], className="mb-3"),
                 # Hidden container to avoid callback errors from pattern-matching
                 html.Div(id="descriptor-rows-container", children=[], style={"display": "none"}),

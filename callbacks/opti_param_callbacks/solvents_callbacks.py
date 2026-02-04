@@ -37,7 +37,7 @@ except ImportError:
 COMMON_SOLVENTS = sorted(list(SOLVENT_DESCRIPTORS.keys()))
 
 # Fixed solvent descriptors (auto-selected, no user choice)
-FIXED_SOLVENT_DESCRIPTORS = ['HBA', 'HBD', 'polarity_index']
+FIXED_SOLVENT_DESCRIPTORS = ['dielectric', 'dipole_moment', 'HBA', 'HBD', 'AN', 'DN']
 
 # Store custom solvents with their SMILES
 CUSTOM_SOLVENTS = {}

@@ -213,8 +213,24 @@ def _create_categorical_descriptor_safely(name, categories, descriptors, values)
     """
     Creates a CategoricalDescriptorInput in a separate thread.
     This avoids Flask context interference with Pydantic validators.
+    
+    Automatically removes descriptors with no variation across categories,
+    which would cause BoFire validation errors.
     """
     print(f"   🧵 Thread {threading.current_thread().name}: Creating CategoricalDescriptorInput")
+    
+    # --- Filter out constant descriptors (BoFire requires variation) ---
+    if values and descriptors:
+        keep_indices = [
+            i for i in range(len(descriptors))
+            if len(set(row[i] for row in values)) > 1
+        ]
+        if len(keep_indices) < len(descriptors):
+            removed = [descriptors[i] for i in range(len(descriptors)) if i not in keep_indices]
+            print(f"   ⚠️ Removed {len(removed)} constant descriptor(s): {removed}")
+            descriptors = [descriptors[i] for i in keep_indices]
+            values = [[row[i] for i in keep_indices] for row in values]
+            print(f"   ✅ Remaining descriptors: {descriptors}")
     
     # Create allowed list explicitly
     allowed_list = [True for _ in categories]
@@ -242,7 +258,6 @@ def _create_categorical_descriptor_safely(name, categories, descriptors, values)
         )
         print(f"   ✅ Created with model_construct")
         return feature
-
 
 def create_bofire_domain_from_store(
     parameter_data: List[Dict],

@@ -1,0 +1,118 @@
+{
+  "excel_name": "ouoou.xlsx",
+  "parameters": [
+    {
+      "id": "4dc7c689-0ef0-47ab-b070-ca1aff5e2b1c",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Acetone",
+          "Ethyl acetate",
+          "o-Xylene"
+        ]
+      }
+    },
+    {
+      "id": "f7c414b2-23e2-4c5c-a5ec-c748830b6804",
+      "name": "temp",
+      "type": "float",
+      "type_info": {
+        "range": [
+          -200.0,
+          200.0
+        ],
+        "step": 5.0
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "3822057f-f980-4195-b39e-e266438b848e",
+      "name": "YIELD",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "84904eb0-d66b-496f-9e76-a4efa9980b86",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "latin_hypercube",
+    "nb_points": 10,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "temp",
+      "YIELD"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "temp"
+    ],
+    "objective_names": [
+      "YIELD"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "4dc7c689-0ef0-47ab-b070-ca1aff5e2b1c",
+      "solvents": [
+        "Acetone",
+        "Ethyl acetate",
+        "o-Xylene"
+      ],
+      "descriptors": [
+        "dielectric",
+        "dipole_moment",
+        "HBA",
+        "HBD",
+        "AN",
+        "DN"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": {
+      "boiling_points": {
+        "Acetone": 56.1,
+        "Ethyl acetate": 77.1,
+        "o-Xylene": 144
+      },
+      "melting_points": {
+        "Acetone": -95,
+        "Ethyl acetate": -83.6,
+        "o-Xylene": -25.2
+      },
+      "solvents": [
+        "Acetone",
+        "Ethyl acetate",
+        "o-Xylene"
+      ],
+      "solvent_param_id": "4dc7c689-0ef0-47ab-b070-ca1aff5e2b1c",
+      "solvent_param_name": "Solvent",
+      "constraints": [
+        {
+          "id": "ab67af65-7c43-4432-85b2-93c4a046fa78",
+          "type": "less_than_bp",
+          "parameter_id": "f7c414b2-23e2-4c5c-a5ec-c748830b6804",
+          "parameter_name": "temp",
+          "description": "temp < BP(solvent)"
+        },
+        {
+          "id": "e0fd26cc-f28f-4614-8a20-40e74ad55198",
+          "type": "greater_than_mp",
+          "parameter_id": "f7c414b2-23e2-4c5c-a5ec-c748830b6804",
+          "parameter_name": "temp",
+          "description": "temp > MP(solvent)"
+        }
+      ],
+      "safety_margin": 5
+    },
+    "constraints_config": null
+  }
+}
