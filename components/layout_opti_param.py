@@ -377,8 +377,9 @@ def create_opti_param_layout():
                                         {"label": "Random", "value": "random"},
                                         {"label": "Latin Hypercube", "value": "latin_hypercube"},
                                         {"label": "Sobol", "value": "sobol"},
+                                        {"label": "k-Means (constrained)", "value": "kmeans"},
                                     ],
-                                    value="latin_hypercube",
+                                    value="kmeans",
                                     clearable=False,
                                     style={"fontSize": "0.875rem"}
                                 ),

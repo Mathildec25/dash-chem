@@ -14,6 +14,7 @@ import uuid
 
 from domain_storage import DomainStorage
 from utils.BoFire import create_bofire_domain_from_store, sampling
+from utils.bofire_optimization import kmeans_sampling
 from config_path import EXCEL_FOLDER, TRACKING_FILE
 
 
@@ -350,22 +351,30 @@ def create_domain_and_excel(n_clicks, project_name,
         
         if sampling_method and sampling_method != 'none' and nb_points and int(nb_points) > 0:
             try:
-                # Map method names to SamplingMethodEnum values
-                method_map = {
-                    'random': 'UNIFORM',
-                    'latin_hypercube': 'LHS',
-                    'sobol': 'SOBOL'
-                }
-                
-                method_key = method_map.get(sampling_method, 'LHS')
-                sampled_data = sampling(domain, method_key, int(nb_points))
-                print(f"✅ Generated {len(sampled_data)} sampling points using {method_key}")
+                if sampling_method == 'kmeans':
+                    sampled_data = kmeans_sampling(
+                        domain=domain,
+                        nb_points=int(nb_points),
+                        constraints_config=base_config,
+                    )
+                    print(f"✅ Generated {len(sampled_data)} sampling points using k-Means")
+                else:
+                    # Map method names to SamplingMethodEnum values
+                    method_map = {
+                        'random': 'UNIFORM',
+                        'latin_hypercube': 'LHS',
+                        'sobol': 'SOBOL'
+                    }
+                    
+                    method_key = method_map.get(sampling_method, 'LHS')
+                    sampled_data = sampling(domain, method_key, int(nb_points))
+                    print(f"✅ Generated {len(sampled_data)} sampling points using {method_key}")
             except Exception as e:
                 import traceback
                 print(f"Sampling error: {traceback.format_exc()}")
                 alert = dbc.Alert(f"❌ Sampling failed: {str(e)}", color="danger")
                 return no_update, no_update, alert, True
-        
+            
         # ===== 7. BUILD EXCEL DATAFRAME =====
         # Column order: Extra columns → Parameters → Objectives
         all_columns = []

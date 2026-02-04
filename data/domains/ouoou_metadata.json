@@ -2,19 +2,19 @@
   "excel_name": "ouoou.xlsx",
   "parameters": [
     {
-      "id": "4dc7c689-0ef0-47ab-b070-ca1aff5e2b1c",
+      "id": "57b19d67-5764-4899-94ca-f3474bfea81b",
       "name": "Solvent",
       "type": "cat",
       "type_info": {
         "values": [
           "Acetone",
           "Ethyl acetate",
-          "o-Xylene"
+          "Glycerol carbonate"
         ]
       }
     },
     {
-      "id": "f7c414b2-23e2-4c5c-a5ec-c748830b6804",
+      "id": "152cc7ef-7625-4be0-81f3-235fa1243a77",
       "name": "temp",
       "type": "float",
       "type_info": {
@@ -22,27 +22,27 @@
           -200.0,
           200.0
         ],
-        "step": 5.0
+        "step": 0.0
       }
     }
   ],
   "objectives": [
     {
-      "id": "3822057f-f980-4195-b39e-e266438b848e",
+      "id": "5bcc6d39-2001-49db-a1fe-5d44b1cff333",
       "name": "YIELD",
       "direction": "max",
       "lower_bound": 0,
-      "upper_bound": 100
+      "upper_bound": 1
     }
   ],
   "extra_columns": [
     {
-      "id": "84904eb0-d66b-496f-9e76-a4efa9980b86",
+      "id": "dc62ac7b-e3ae-4689-83e7-735c53a519d4",
       "name": "Point type"
     }
   ],
   "metadata": {
-    "sampling_method": "latin_hypercube",
+    "sampling_method": "kmeans",
     "nb_points": 10,
     "column_order": [
       "Point type",
@@ -61,11 +61,11 @@
       "Point type"
     ],
     "solvent_config": {
-      "param_id": "4dc7c689-0ef0-47ab-b070-ca1aff5e2b1c",
+      "param_id": "57b19d67-5764-4899-94ca-f3474bfea81b",
       "solvents": [
         "Acetone",
         "Ethyl acetate",
-        "o-Xylene"
+        "Glycerol carbonate"
       ],
       "descriptors": [
         "dielectric",
@@ -81,32 +81,32 @@
       "boiling_points": {
         "Acetone": 56.1,
         "Ethyl acetate": 77.1,
-        "o-Xylene": 144
+        "Glycerol carbonate": 250
       },
       "melting_points": {
         "Acetone": -95,
         "Ethyl acetate": -83.6,
-        "o-Xylene": -25.2
+        "Glycerol carbonate": -69
       },
       "solvents": [
         "Acetone",
         "Ethyl acetate",
-        "o-Xylene"
+        "Glycerol carbonate"
       ],
-      "solvent_param_id": "4dc7c689-0ef0-47ab-b070-ca1aff5e2b1c",
+      "solvent_param_id": "57b19d67-5764-4899-94ca-f3474bfea81b",
       "solvent_param_name": "Solvent",
       "constraints": [
         {
-          "id": "ab67af65-7c43-4432-85b2-93c4a046fa78",
+          "id": "16f78ff7-d282-48a6-bdd4-dc66e9d398b7",
           "type": "less_than_bp",
-          "parameter_id": "f7c414b2-23e2-4c5c-a5ec-c748830b6804",
+          "parameter_id": "152cc7ef-7625-4be0-81f3-235fa1243a77",
           "parameter_name": "temp",
           "description": "temp < BP(solvent)"
         },
         {
-          "id": "e0fd26cc-f28f-4614-8a20-40e74ad55198",
+          "id": "be2ffd4b-4e63-4755-8bbd-413f437db846",
           "type": "greater_than_mp",
-          "parameter_id": "f7c414b2-23e2-4c5c-a5ec-c748830b6804",
+          "parameter_id": "152cc7ef-7625-4be0-81f3-235fa1243a77",
           "parameter_name": "temp",
           "description": "temp > MP(solvent)"
         }

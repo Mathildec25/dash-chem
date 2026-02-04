@@ -13,6 +13,10 @@ from bofire.data_models.acquisition_functions.api import (
 )
 from bofire.data_models.strategies.api import RandomStrategy, SoboStrategy, MoboStrategy
 
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
+from itertools import product as itertools_product
+
 
 def sampling(domain, sampling_method: str, nb_points: int):
     """
@@ -35,6 +39,144 @@ def sampling(domain, sampling_method: str, nb_points: int):
     sampler = strategies.map(datamodel)
     return sampler.ask(nb_points)
 
+def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, random_state: int = 42):
+    """
+    Initial sampling via k-Means clustering in reaction parameter space.
+    
+    Generates a large candidate pool (like LHS/Sobol), filters by constraints,
+    then selects nb_points via k-Means for optimal space-filling coverage.
+    
+    References:
+        - Shields et al., Nature 590, 89–96 (2021)
+        - Kaneko, ACS Omega 7, 47789–47795 (2022)
+    
+    Args:
+        domain: BoFire Domain object
+        nb_points: Number of initial experiments to select
+        constraints_config: Constraints config from Dash store (optional)
+        random_state: Random seed for reproducibility
+    
+    Returns:
+        pd.DataFrame: same format as sampling()
+    """
+    from bofire.data_models.features.api import (
+        CategoricalDescriptorInput, CategoricalInput, DiscreteInput, ContinuousInput
+    )
+    
+    # ===== 1. ENUMERATE ALL FEASIBLE COMBINATIONS =====
+    feature_keys = [f.key for f in domain.inputs.features]
+    feature_types = {}   # 'cat' or 'num'
+    all_values = {}
+    
+    for feature in domain.inputs.features:
+        key = feature.key
+        if isinstance(feature, (CategoricalDescriptorInput, CategoricalInput)):
+            all_values[key] = list(feature.categories)
+            feature_types[key] = 'cat'
+        elif isinstance(feature, DiscreteInput):
+            all_values[key] = list(feature.values)
+            feature_types[key] = 'num'
+        elif isinstance(feature, ContinuousInput):
+            lb, ub = feature.bounds
+            step = (ub - lb) / 20
+            all_values[key] = [round(v, 6) for v in np.arange(lb, ub + step / 2, step)]
+            feature_types[key] = 'num'
+    
+    # Total combinations
+    total = 1
+    for v in all_values.values():
+        total *= len(v)
+    
+    if total > 100_000:
+        # Too large: use random pool via BoFire sampling
+        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=SamplingMethodEnum.UNIFORM)
+        sampler = strategies.map(datamodel)
+        pool_df = sampler.ask(10_000)
+        candidate_pool = [dict(row) for _, row in pool_df.iterrows()]
+    else:
+        value_lists = [all_values[k] for k in feature_keys]
+        candidate_pool = [
+            dict(zip(feature_keys, combo))
+            for combo in itertools_product(*value_lists)
+        ]
+    
+    # ===== 2. FILTER BY CONSTRAINTS (BP/MP) =====
+    if constraints_config and constraints_config.get('constraints'):
+        feasible = _filter_constraints(candidate_pool, constraints_config)
+    else:
+        feasible = candidate_pool
+    
+    if len(feasible) == 0:
+        raise ValueError("No feasible points found. Check constraints and parameter bounds.")
+    
+    if nb_points >= len(feasible):
+        return pd.DataFrame(feasible)[feature_keys]
+    
+    # ===== 3. ENCODE FOR k-MEANS =====
+    # Categoricals → integer index, numerics → raw value
+    cat_maps = {}
+    for key in feature_keys:
+        if feature_types[key] == 'cat':
+            cats = sorted(set(p[key] for p in feasible))
+            cat_maps[key] = {c: i for i, c in enumerate(cats)}
+    
+    X = np.zeros((len(feasible), len(feature_keys)))
+    for j, key in enumerate(feature_keys):
+        if feature_types[key] == 'cat':
+            X[:, j] = [cat_maps[key][p[key]] for p in feasible]
+        else:
+            X[:, j] = [float(p[key]) for p in feasible]
+    
+    # ===== 4. NORMALIZE + k-MEANS =====
+    scaler = MinMaxScaler()
+    X_norm = scaler.fit_transform(X)
+    
+    kmeans = KMeans(n_clusters=nb_points, random_state=random_state, n_init=20)
+    kmeans.fit(X_norm)
+    
+    # ===== 5. SELECT NEAREST FEASIBLE POINT PER CENTROID =====
+    selected_indices = []
+    for centroid in kmeans.cluster_centers_:
+        distances = np.linalg.norm(X_norm - centroid, axis=1)
+        for idx in np.argsort(distances):
+            if idx not in selected_indices:
+                selected_indices.append(idx)
+                break
+    
+    return pd.DataFrame([feasible[i] for i in selected_indices])[feature_keys]
+
+
+def _filter_constraints(candidate_pool, constraints_config):
+    """Filter candidate points by BP/MP constraints."""
+    safety_margin = constraints_config.get('safety_margin', 5.0)
+    solvent_param = constraints_config.get('solvent_param_name')
+    boiling_points = constraints_config.get('boiling_points', {})
+    melting_points = constraints_config.get('melting_points', {})
+    
+    feasible = []
+    for point in candidate_pool:
+        valid = True
+        solvent_name = point.get(solvent_param)
+        
+        if solvent_name:
+            for c in constraints_config.get('constraints', []):
+                param_val = point.get(c.get('parameter_name'))
+                if param_val is None:
+                    continue
+                if c['type'] == 'less_than_bp':
+                    bp = boiling_points.get(solvent_name)
+                    if bp is not None and param_val >= (bp - safety_margin):
+                        valid = False
+                        break
+                elif c['type'] == 'greater_than_mp':
+                    mp = melting_points.get(solvent_name)
+                    if mp is not None and param_val <= (mp + safety_margin):
+                        valid = False
+                        break
+        if valid:
+            feasible.append(point)
+    
+    return feasible
 
 def get_available_acquisition_functions(is_multi_objective=False):
     """
