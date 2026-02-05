@@ -604,7 +604,7 @@ def create_opti_param_layout():
                 html.Div([
                     html.I(className="bi bi-info-circle me-2", style={"color": "#6c757d"}),
                     html.Small(
-                        "Descriptors: pKa, nucleophilicity (auto-selected)",
+                        "Descriptors: pKa_DMSO, MW (auto-selected)",
                         className="text-muted"
                     )
                 ], className="mb-3"),

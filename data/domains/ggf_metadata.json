@@ -1,0 +1,144 @@
+{
+  "excel_name": "ggf.xlsx",
+  "parameters": [
+    {
+      "id": "5aac7ddf-dd47-4d08-9e27-5c20edb1011d",
+      "name": "Solvent",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "Acetone",
+          "Ethanol",
+          "Propylene carbonate"
+        ]
+      }
+    },
+    {
+      "id": "3f9ff491-679f-4469-a1aa-cf27bd04c709",
+      "name": "Base",
+      "type": "cat",
+      "type_info": {
+        "values": [
+          "DBN",
+          "DBU",
+          "MTBD"
+        ]
+      }
+    },
+    {
+      "id": "29fab90d-0da1-4737-a667-cb28296195fa",
+      "name": "temperature",
+      "type": "float",
+      "type_info": {
+        "range": [
+          0.0,
+          200.0
+        ],
+        "step": 5.0
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "c9144791-5b27-41de-9fc0-81483208bc2a",
+      "name": "YIELD",
+      "direction": "max",
+      "lower_bound": 0,
+      "upper_bound": 100
+    }
+  ],
+  "extra_columns": [
+    {
+      "id": "51e33568-9d7d-481a-9d38-a849feed6a1a",
+      "name": "Point type"
+    }
+  ],
+  "metadata": {
+    "sampling_method": "kmeans",
+    "nb_points": 10,
+    "column_order": [
+      "Point type",
+      "Solvent",
+      "Base",
+      "temperature",
+      "YIELD"
+    ],
+    "parameter_names": [
+      "Solvent",
+      "Base",
+      "temperature"
+    ],
+    "objective_names": [
+      "YIELD"
+    ],
+    "extra_column_names": [
+      "Point type"
+    ],
+    "solvent_config": {
+      "param_id": "5aac7ddf-dd47-4d08-9e27-5c20edb1011d",
+      "solvents": [
+        "Acetone",
+        "Ethanol",
+        "Propylene carbonate"
+      ],
+      "descriptors": [
+        "dielectric",
+        "dipole_moment",
+        "HBA",
+        "HBD",
+        "AN",
+        "DN"
+      ],
+      "custom_solvents": {}
+    },
+    "base_config": {
+      "boiling_points": {
+        "Acetone": 56.1,
+        "Ethanol": 78.4,
+        "Propylene carbonate": 242
+      },
+      "melting_points": {
+        "Acetone": -95,
+        "Ethanol": -114.1,
+        "Propylene carbonate": -48.8
+      },
+      "solvents": [
+        "Acetone",
+        "Ethanol",
+        "Propylene carbonate"
+      ],
+      "solvent_param_id": "5aac7ddf-dd47-4d08-9e27-5c20edb1011d",
+      "solvent_param_name": "Solvent",
+      "constraints": [
+        {
+          "id": "9656ca0e-7309-46cb-bfcc-2cf5caec0c7b",
+          "type": "less_than_bp",
+          "parameter_id": "29fab90d-0da1-4737-a667-cb28296195fa",
+          "parameter_name": "temperature",
+          "description": "temperature < BP(solvent)"
+        },
+        {
+          "id": "d239768b-20f4-47cb-a0da-876f5d30754e",
+          "type": "greater_than_mp",
+          "parameter_id": "29fab90d-0da1-4737-a667-cb28296195fa",
+          "parameter_name": "temperature",
+          "description": "temperature > MP(solvent)"
+        }
+      ],
+      "safety_margin": 5
+    },
+    "constraints_config": {
+      "param_id": "3f9ff491-679f-4469-a1aa-cf27bd04c709",
+      "bases": [
+        "DBN",
+        "DBU",
+        "MTBD"
+      ],
+      "descriptors": [
+        "pKa_DMSO",
+        "MW"
+      ],
+      "custom_bases": {}
+    }
+  }
+}

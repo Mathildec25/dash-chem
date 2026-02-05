@@ -35,7 +35,7 @@ except ImportError:
 COMMON_BASES = sorted(list(BASE_DESCRIPTORS.keys()))
 
 # Fixed base descriptors (auto-selected, no user choice)
-FIXED_BASE_DESCRIPTORS = ['pKa', 'nucleophilicity']
+FIXED_BASE_DESCRIPTORS = ['pKa_DMSO', 'MW']
 
 # Store custom bases with their SMILES
 CUSTOM_BASES = {}
