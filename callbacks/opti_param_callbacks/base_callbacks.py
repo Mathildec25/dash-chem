@@ -13,16 +13,16 @@ import uuid
 # ============================================================================
 
 try:
-    # Try importing from utils folder
+    from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
     from bofire_base_descriptors import BASE_DESCRIPTORS
 except ImportError:
     try:
-        # Try importing from root folder
+        from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
         from bofire_base_descriptors import BASE_DESCRIPTORS
     except ImportError:
-        print("⚠️ WARNING: Could not import base descriptor files!")
+        print("⚠️ WARNING: Could not import descriptor files!")
         print("   Using minimal fallback. Run: python advanced_descriptor_calculator.py")
-        # Minimal fallback
+        SOLVENT_DESCRIPTORS = {}
         BASE_DESCRIPTORS = {
             "Triethylamine": {}, "Pyridine": {}, "DBU": {}
         }
@@ -37,12 +37,96 @@ COMMON_BASES = sorted(list(BASE_DESCRIPTORS.keys()))
 # Fixed base descriptors (auto-selected, no user choice)
 FIXED_BASE_DESCRIPTORS = ['pKa_DMSO', 'MW']
 
-# Store custom bases with their SMILES
-CUSTOM_BASES = {}
+# Get ALL descriptor keys from the first base entry (excluding CAS)
+def _get_base_descriptor_keys():
+    """Get all descriptor keys from BASE_DESCRIPTORS (excluding CAS)."""
+    if not BASE_DESCRIPTORS:
+        return []
+    first_base = next(iter(BASE_DESCRIPTORS.values()))
+    return sorted([k for k in first_base.keys() if k != 'CAS'])
+
+BASE_DESCRIPTOR_KEYS = _get_base_descriptor_keys()
 
 # Print confirmation on import
 print(f"✓ Loaded {len(COMMON_BASES)} bases from descriptor files")
 print(f"✓ Fixed base descriptors: {FIXED_BASE_DESCRIPTORS}")
+print(f"✓ All base descriptor keys: {BASE_DESCRIPTOR_KEYS}")
+
+
+# ============================================================================
+# LAYOUT HELPER: Custom Base Form (to be used in modal layout)
+# ============================================================================
+
+def create_custom_base_form():
+    """
+    Create the custom base form with Name + all descriptor inputs.
+    Call this function in your layout file inside the base modal,
+    replacing the old Name + SMILES form.
+    
+    Returns:
+        html.Div with the toggle button, collapse, and form content
+    """
+    # Build descriptor input rows
+    descriptor_inputs = []
+    for desc_key in BASE_DESCRIPTOR_KEYS:
+        descriptor_inputs.append(
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label(desc_key, className="small mb-0")
+                ], width=4),
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'custom-base-desc', 'index': desc_key},
+                        type="number",
+                        placeholder=f"Value for {desc_key}",
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=8),
+            ], className="mb-2 align-items-center")
+        )
+    
+    return html.Div([
+        # Collapsible form (initially hidden)
+        html.Div([
+            dbc.Card([
+                dbc.CardBody([
+                    # Base name
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Label("Base Name", className="small mb-0 fw-bold")
+                        ], width=4),
+                        dbc.Col([
+                            dbc.Input(
+                                id="custom-base-name",
+                                type="text",
+                                placeholder="e.g. My Custom Base",
+                                size="sm",
+                                style={"borderRadius": "6px"}
+                            )
+                        ], width=8),
+                    ], className="mb-3 align-items-center"),
+                    
+                    html.Hr(className="my-2"),
+                    html.P("Descriptor values:", className="small fw-bold mb-2 text-muted"),
+                    
+                    # All descriptor inputs
+                    *descriptor_inputs,
+                    
+                    html.Hr(className="my-2"),
+                    
+                    # Save button
+                    dbc.Button(
+                        [html.I(className="bi bi-check-circle me-2"), "Save Custom Base"],
+                        id="confirm-custom-base-btn",
+                        color="success",
+                        size="sm",
+                        className="w-100"
+                    )
+                ])
+            ], className="border-info"),
+        ], id="custom-base-collapse", style={"display": "none"})
+    ])
 
 
 def create_base_row(row_id):
@@ -93,21 +177,26 @@ def toggle_base_modal(open_clicks, save_clicks, is_open):
 # ===== TOGGLE CUSTOM BASE COLLAPSE =====
 
 @callback(
-    [Output("custom-base-collapse", "is_open"),
-     Output("toggle-custom-base", "children")],
-    Input("toggle-custom-base", "n_clicks"),
-    State("custom-base-collapse", "is_open"),
+    [Output("custom-base-collapse", "style"),
+     Output("toggle-custom-base-btn", "children")],
+    Input("toggle-custom-base-btn", "n_clicks"),
+    State("custom-base-collapse", "style"),
     prevent_initial_call=True
 )
-def toggle_custom_base_collapse(n_clicks, is_open):
+def toggle_custom_base_collapse(n_clicks, current_style):
     """Toggle custom base form"""
     if n_clicks:
-        new_state = not is_open
+        # Toggle display
+        if current_style and current_style.get("display") == "block":
+            new_style = {"display": "none"}
+        else:
+            new_style = {"display": "block"}
+        
         button_text = [
-            html.I(className="bi bi-flask me-2"),
-            "Create Custom Base"
+            html.I(className="bi bi-plus-circle me-1", style={"fontSize": "0.75rem"}),
+            "Create Custom"
         ]
-        return new_state, button_text
+        return new_style, button_text
     raise PreventUpdate
 
 
@@ -117,37 +206,63 @@ def toggle_custom_base_collapse(n_clicks, is_open):
     [Output("base-rows-container", "children", allow_duplicate=True),
      Output({'type': 'base-select', 'index': ALL}, 'options'),
      Output("custom-base-name", "value"),
-     Output("custom-base-smiles", "value"),
-     Output("custom-base-collapse", "is_open", allow_duplicate=True),
-     Output("toggle-custom-base", "children", allow_duplicate=True),
+     Output({'type': 'custom-base-desc', 'index': ALL}, 'value'),
+     Output("custom-base-collapse", "style", allow_duplicate=True),
+     Output("toggle-custom-base-btn", "children", allow_duplicate=True),
      Output("validation-alert", "children", allow_duplicate=True),
      Output("validation-alert", "is_open", allow_duplicate=True)],
     Input("confirm-custom-base-btn", "n_clicks"),
     [State("custom-base-name", "value"),
-     State("custom-base-smiles", "value"),
+     State({'type': 'custom-base-desc', 'index': ALL}, 'value'),
+     State({'type': 'custom-base-desc', 'index': ALL}, 'id'),
      State("base-rows-container", "children"),
      State({'type': 'base-select', 'index': ALL}, 'options')],
     prevent_initial_call=True
 )
-def add_custom_base(n_clicks, name, smiles, current_rows, current_options):
-    """Add a custom base to the list and create a new row with it selected"""
+def add_custom_base(n_clicks, name, desc_values, desc_ids, current_rows, current_options):
+    """Add a custom base with all descriptor values to the list and select it"""
     if not n_clicks:
         raise PreventUpdate
     
-    # Validate inputs
+    # Validate name
     if not name or not name.strip():
         alert = dbc.Alert("❌ Base name is required", color="danger")
-        return no_update, no_update, no_update, no_update, no_update, no_update, alert, True
+        n_desc = len(desc_values)
+        return (no_update, no_update, no_update, [no_update] * n_desc,
+                no_update, no_update, alert, True)
     
-    if not smiles or not smiles.strip():
-        alert = dbc.Alert("❌ SMILES is required", color="danger")
-        return no_update, no_update, no_update, no_update, no_update, no_update, alert, True
-    
-    # Add to global lists
     base_name = name.strip()
-    if base_name not in COMMON_BASES:
-        COMMON_BASES.append(base_name)
-        CUSTOM_BASES[base_name] = smiles.strip()
+    
+    # Check for duplicate name
+    if base_name in COMMON_BASES:
+        alert = dbc.Alert(f"❌ Base '{base_name}' already exists", color="danger")
+        n_desc = len(desc_values)
+        return (no_update, no_update, no_update, [no_update] * n_desc,
+                no_update, no_update, alert, True)
+    
+    # Validate all descriptor values
+    descriptor_data = {}
+    for desc_id, desc_val in zip(desc_ids, desc_values):
+        desc_key = desc_id['index']
+        if desc_val is None or desc_val == '':
+            alert = dbc.Alert(f"❌ Value for '{desc_key}' is required", color="danger")
+            n_desc = len(desc_values)
+            return (no_update, no_update, no_update, [no_update] * n_desc,
+                    no_update, no_update, alert, True)
+        try:
+            descriptor_data[desc_key] = float(desc_val)
+        except (ValueError, TypeError):
+            alert = dbc.Alert(f"❌ Invalid numeric value for '{desc_key}'", color="danger")
+            n_desc = len(desc_values)
+            return (no_update, no_update, no_update, [no_update] * n_desc,
+                    no_update, no_update, alert, True)
+    
+    # === SUCCESS: Add to BASE_DESCRIPTORS and COMMON_BASES ===
+    BASE_DESCRIPTORS[base_name] = descriptor_data
+    COMMON_BASES.append(base_name)
+    
+    print(f"✅ Added custom base '{base_name}' to BASE_DESCRIPTORS")
+    print(f"   Descriptors: {descriptor_data}")
     
     # Update all dropdown options
     new_options = [{"label": b, "value": b} for b in sorted(COMMON_BASES)]
@@ -185,8 +300,8 @@ def add_custom_base(n_clicks, name, smiles, current_rows, current_options):
     
     # Reset button text
     button_text = [
-        html.I(className="bi bi-flask me-2"),
-        "Create Custom Base"
+        html.I(className="bi bi-plus-circle me-1", style={"fontSize": "0.75rem"}),
+        "Create Custom"
     ]
     
     alert = dbc.Alert([
@@ -194,8 +309,11 @@ def add_custom_base(n_clicks, name, smiles, current_rows, current_options):
         f"✅ Added custom base: {base_name}"
     ], color="success")
     
-    return updated_rows, updated_options, "", "", False, button_text, alert, True
-
+    # Clear all descriptor inputs
+    cleared_desc_values = [None] * len(desc_values)
+    
+    return (updated_rows, updated_options, "", cleared_desc_values,
+            {"display": "none"}, button_text, alert, True)
 
 # ===== INITIALIZE MODAL WITH DEFAULT ROWS =====
 
@@ -206,10 +324,8 @@ def add_custom_base(n_clicks, name, smiles, current_rows, current_options):
 )
 def initialize_base_modal_content(is_open):
     """Initialize modal with one base row when opened via button"""
-    # Only initialize if modal was opened by the "Base" button, not by the "Edit" button
     triggered_id = ctx.triggered_id
     
-    # If opened by edit button, don't reinitialize (it's already filled by edit_base_parameter)
     if triggered_id != "add-base-button":
         raise PreventUpdate
     
@@ -233,16 +349,13 @@ def manage_base_rows(add_clicks, delete_clicks, current_rows):
     triggered = ctx.triggered_id
     
     if triggered == "add-base-row-btn":
-        # Add new base row
         if not add_clicks:
             raise PreventUpdate
-        
         new_id = str(uuid.uuid4())
         new_row = create_base_row(new_id)
         return current_rows + [new_row]
     
     elif isinstance(triggered, dict) and triggered.get('type') == 'delete-base-row':
-        # Delete base row
         if not any(delete_clicks):
             raise PreventUpdate
         
@@ -255,7 +368,6 @@ def manage_base_rows(add_clicks, delete_clicks, current_rows):
             except:
                 new_rows.append(row)
         
-        # Keep at least one row
         if not new_rows:
             new_id = str(uuid.uuid4())
             new_rows = [create_base_row(new_id)]
@@ -283,7 +395,6 @@ def save_base_configuration(n_clicks, bases, current_params, current_config):
     if not n_clicks:
         raise PreventUpdate
     
-    # Filter out None/empty values
     selected_bases = [b for b in bases if b]
     selected_descriptors = FIXED_BASE_DESCRIPTORS
     
@@ -294,35 +405,27 @@ def save_base_configuration(n_clicks, bases, current_params, current_config):
     print(f"✅ Saved bases: {selected_bases}")
     print(f"✅ Using fixed descriptors: {selected_descriptors}")
     
-    # Print SMILES for custom bases
-    for base in selected_bases:
-        if base in CUSTOM_BASES:
-            print(f"   - {base}: {CUSTOM_BASES[base]}")
-    
     # Get existing base parameter ID if it exists
     base_param_id = None
     if current_config and 'param_id' in current_config:
         base_param_id = current_config['param_id']
     
-    # If no existing ID, create new one
     if base_param_id is None:
         base_param_id = str(uuid.uuid4())
     
-    # Store configuration with parameter ID
+    # Store configuration - no more 'custom_bases' with SMILES
     config_data = {
         'param_id': base_param_id,
         'bases': selected_bases,
         'descriptors': selected_descriptors,
-        'custom_bases': {b: CUSTOM_BASES[b] for b in selected_bases if b in CUSTOM_BASES}
     }
     
-    # Remove existing Base parameter if it exists (using the stored ID)
+    # Remove existing Base parameter if it exists
     updated_params = []
     for param in current_params:
         try:
             param_row_id = param['props']['id']
             if param_row_id['type'] == 'parameter-row' and param_row_id['index'] == base_param_id:
-                # Skip this parameter, we'll recreate it
                 continue
         except:
             pass
@@ -340,7 +443,7 @@ def save_base_configuration(n_clicks, bases, current_params, current_config):
                     value="Base",
                     size="sm",
                     style={"borderRadius": "6px"},
-                    disabled=True  # Can't edit the name
+                    disabled=True
                 )
             ], width=3),
             dbc.Col([
@@ -354,7 +457,7 @@ def save_base_configuration(n_clicks, bases, current_params, current_config):
                     value="cat",
                     placeholder="Type",
                     clearable=False,
-                    disabled=True,  # Can't change type
+                    disabled=True,
                     style={"fontSize": "0.875rem"}
                 )
             ], width=2),
@@ -366,7 +469,7 @@ def save_base_configuration(n_clicks, bases, current_params, current_config):
                             value=base_values,
                             type="text",
                             size="sm",
-                            disabled=True,  # Can't edit directly
+                            disabled=True,
                             style={"borderRadius": "6px"}
                         ),
                         dbc.Tooltip(
@@ -400,7 +503,6 @@ def save_base_configuration(n_clicks, bases, current_params, current_config):
         ], className="mb-2 align-items-center"),
     ], id={'type': 'parameter-row', 'index': base_param_id})
     
-    # Add to beginning of parameters list
     updated_params = [new_row] + updated_params
     
     alert = dbc.Alert([
@@ -425,13 +527,6 @@ def edit_base_parameter(n_clicks, config_data):
         raise PreventUpdate
     
     selected_bases = config_data.get('bases', [])
-    custom_bases = config_data.get('custom_bases', {})
-    
-    # Add custom bases back to COMMON_BASES if needed
-    for base_name, smiles in custom_bases.items():
-        if base_name not in COMMON_BASES:
-            COMMON_BASES.append(base_name)
-            CUSTOM_BASES[base_name] = smiles
     
     # Recreate base rows with selected values
     base_rows = []
@@ -462,7 +557,6 @@ def edit_base_parameter(n_clicks, config_data):
             ], className="mb-2 align-items-center"),
         ], id={'type': 'base-row', 'index': row_id}))
     
-    # If no bases, add empty row
     if not base_rows:
         row_id = str(uuid.uuid4())
         base_rows = [create_base_row(row_id)]

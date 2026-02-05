@@ -2,6 +2,10 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 import uuid
 
+# Import custom form generators from callbacks
+from callbacks.opti_param_callbacks.solvents_callbacks import create_custom_solvent_form
+from callbacks.opti_param_callbacks.base_callbacks import create_custom_base_form
+
 initial_id = str(uuid.uuid4())
 initial_objective_id = str(uuid.uuid4())
 
@@ -431,24 +435,13 @@ def create_opti_param_layout():
             ], md=6, className="mx-auto")
         ]),
         
-        # Modal for Solvents
+        # ========== Modal for Solvents ==========
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Solvent Configuration")),
             dbc.ModalBody([
                 html.Div([
                     html.H6("Choose Solvents", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                     html.Div([
-                        dbc.Button([
-                            html.I(className="bi bi-flask me-2"),
-                            "Create Custom Solvent"
-                        ],
-                        id="toggle-custom-solvent",
-                        outline=True,
-                        color="secondary",
-                        size="sm",
-                        className="me-2",
-                        style={"borderRadius": "6px", "padding": "0.25rem 0.75rem"}
-                        ),
                         dbc.Button([
                             html.I(className="bi bi-plus-lg")
                         ],
@@ -460,51 +453,16 @@ def create_opti_param_layout():
                     ], className="float-end"),
                 ], className="mb-3"),
                 
-                dbc.Collapse([
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.H6("Create Custom Solvent", className="mb-3", style={"fontWeight": "600"}),
-                            dbc.Row([
-                                dbc.Col([
-                                    html.Label("Solvent Name", className="form-label small text-muted"),
-                                    dbc.Input(
-                                        id="custom-solvent-name",
-                                        placeholder="e.g., My Custom Solvent",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    ),
-                                ], md=6),
-                                dbc.Col([
-                                    html.Label("SMILES", className="form-label small text-muted"),
-                                    dbc.Input(
-                                        id="custom-solvent-smiles",
-                                        placeholder="e.g., CCO",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    ),
-                                ], md=6),
-                            ]),
-                            dbc.Button(
-                                "Add to List",
-                                id="confirm-custom-solvent-btn",
-                                color="primary",
-                                size="sm",
-                                className="mt-3",
-                                style={"borderRadius": "6px"}
-                            )
-                        ], style={"padding": "1rem"})
-                    ], style={
-                        "borderRadius": "8px",
-                        "border": "1px solid #e0e0e0",
-                        "backgroundColor": "#f8f9fa"
-                    })
-                ], id="custom-solvent-collapse", is_open=False, className="mb-3"),
-                
                 html.Div(id="solvent-rows-container", children=[]),
                 
-                html.Hr(className="my-4"),
+                html.Hr(className="my-3"),
                 
-                # Auto-selected descriptors info (replaces manual descriptor chooser)
+                # === Custom Solvent Form directly (no wrapper) ===
+                create_custom_solvent_form(),
+                
+                html.Hr(className="my-3"),
+                
+                # Auto-selected descriptors info
                 html.Div([
                     html.I(className="bi bi-info-circle me-2", style={"color": "#6c757d"}),
                     html.Small("Descriptors: ε, μ, HBA, HBD, AN, DN (auto-selected)", className="text-muted")   
@@ -513,6 +471,17 @@ def create_opti_param_layout():
                 html.Div(id="descriptor-rows-container", children=[], style={"display": "none"}),
             ]),
             dbc.ModalFooter([
+                dbc.Button([
+                    html.I(className="bi bi-plus-circle me-1", style={"fontSize": "0.75rem"}),
+                    "Create Custom"
+                ],
+                id="toggle-custom-solvent-btn",
+                color="secondary",
+                outline=True,
+                size="sm",
+                className="me-auto",
+                style={"borderRadius": "6px", "padding": "0.25rem 0.75rem", "fontSize": "0.85rem"}
+                ),
                 dbc.Button(
                     "Save",
                     id="save-solvents-btn",
@@ -527,24 +496,13 @@ def create_opti_param_layout():
         is_open=False,
         ),
         
-        # Modal for Bases
+        # ========== Modal for Bases ==========
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Base Configuration")),
             dbc.ModalBody([
                 html.Div([
                     html.H6("Choose Bases", className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                     html.Div([
-                        dbc.Button([
-                            html.I(className="bi bi-flask me-2"),
-                            "Create Custom Base"
-                        ],
-                        id="toggle-custom-base",
-                        outline=True,
-                        color="secondary",
-                        size="sm",
-                        className="me-2",
-                        style={"borderRadius": "6px", "padding": "0.25rem 0.75rem"}
-                        ),
                         dbc.Button([
                             html.I(className="bi bi-plus-lg")
                         ],
@@ -556,51 +514,16 @@ def create_opti_param_layout():
                     ], className="float-end"),
                 ], className="mb-3"),
                 
-                dbc.Collapse([
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.H6("Create Custom Base", className="mb-3", style={"fontWeight": "600"}),
-                            dbc.Row([
-                                dbc.Col([
-                                    html.Label("Base Name", className="form-label small text-muted"),
-                                    dbc.Input(
-                                        id="custom-base-name",
-                                        placeholder="e.g., My Custom Base",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    ),
-                                ], md=6),
-                                dbc.Col([
-                                    html.Label("SMILES", className="form-label small text-muted"),
-                                    dbc.Input(
-                                        id="custom-base-smiles",
-                                        placeholder="e.g., C1=CC=NC=C1",
-                                        size="sm",
-                                        style={"borderRadius": "6px"}
-                                    ),
-                                ], md=6),
-                            ]),
-                            dbc.Button(
-                                "Add to List",
-                                id="confirm-custom-base-btn",
-                                color="primary",
-                                size="sm",
-                                className="mt-3",
-                                style={"borderRadius": "6px"}
-                            )
-                        ], style={"padding": "1rem"})
-                    ], style={
-                        "borderRadius": "8px",
-                        "border": "1px solid #e0e0e0",
-                        "backgroundColor": "#f8f9fa"
-                    })
-                ], id="custom-base-collapse", is_open=False, className="mb-3"),
-                
                 html.Div(id="base-rows-container", children=[]),
                 
-                html.Hr(className="my-4"),
+                html.Hr(className="my-3"),
                 
-                # Auto-selected descriptors info (replaces manual descriptor chooser)
+                # === Custom Base Form directly (no wrapper) ===
+                create_custom_base_form(),
+                
+                html.Hr(className="my-3"),
+                
+                # Auto-selected descriptors info
                 html.Div([
                     html.I(className="bi bi-info-circle me-2", style={"color": "#6c757d"}),
                     html.Small(
@@ -612,6 +535,17 @@ def create_opti_param_layout():
                 html.Div(id="base-descriptor-rows-container", children=[], style={"display": "none"}),
             ]),
             dbc.ModalFooter([
+                dbc.Button([
+                    html.I(className="bi bi-plus-circle me-1", style={"fontSize": "0.75rem"}),
+                    "Create Custom"
+                ],
+                id="toggle-custom-base-btn",
+                color="secondary",
+                outline=True,
+                size="sm",
+                className="me-auto",
+                style={"borderRadius": "6px", "padding": "0.25rem 0.75rem", "fontSize": "0.85rem"}
+                ),
                 dbc.Button(
                     "Save",
                     id="save-bases-btn",

@@ -39,12 +39,96 @@ COMMON_SOLVENTS = sorted(list(SOLVENT_DESCRIPTORS.keys()))
 # Fixed solvent descriptors (auto-selected, no user choice)
 FIXED_SOLVENT_DESCRIPTORS = ['dielectric', 'dipole_moment', 'HBA', 'HBD', 'AN', 'DN']
 
-# Store custom solvents with their SMILES
-CUSTOM_SOLVENTS = {}
+# Get ALL descriptor keys from the first solvent entry (excluding CAS)
+def _get_solvent_descriptor_keys():
+    """Get all descriptor keys from SOLVENT_DESCRIPTORS (excluding CAS)."""
+    if not SOLVENT_DESCRIPTORS:
+        return []
+    first_solvent = next(iter(SOLVENT_DESCRIPTORS.values()))
+    return sorted([k for k in first_solvent.keys() if k != 'CAS'])
+
+SOLVENT_DESCRIPTOR_KEYS = _get_solvent_descriptor_keys()
 
 # Print confirmation on import
 print(f"✓ Loaded {len(COMMON_SOLVENTS)} solvents from descriptor files")
 print(f"✓ Fixed solvent descriptors: {FIXED_SOLVENT_DESCRIPTORS}")
+print(f"✓ All solvent descriptor keys: {SOLVENT_DESCRIPTOR_KEYS}")
+
+
+# ============================================================================
+# LAYOUT HELPER: Custom Solvent Form (to be used in modal layout)
+# ============================================================================
+
+def create_custom_solvent_form():
+    """
+    Create the custom solvent form with Name + all descriptor inputs.
+    Call this function in your layout file inside the solvent modal,
+    replacing the old Name + SMILES form.
+    
+    Returns:
+        html.Div with the toggle button, collapse, and form content
+    """
+    # Build descriptor input rows
+    descriptor_inputs = []
+    for desc_key in SOLVENT_DESCRIPTOR_KEYS:
+        descriptor_inputs.append(
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label(desc_key, className="small mb-0")
+                ], width=4),
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'custom-solvent-desc', 'index': desc_key},
+                        type="number",
+                        placeholder=f"Value for {desc_key}",
+                        size="sm",
+                        style={"borderRadius": "6px"}
+                    )
+                ], width=8),
+            ], className="mb-2 align-items-center")
+        )
+    
+    return html.Div([
+        # Collapsible form (initially hidden)
+        html.Div([
+            dbc.Card([
+                dbc.CardBody([
+                    # Solvent name
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Label("Solvent Name", className="small mb-0 fw-bold")
+                        ], width=4),
+                        dbc.Col([
+                            dbc.Input(
+                                id="custom-solvent-name",
+                                type="text",
+                                placeholder="e.g. My Custom Solvent",
+                                size="sm",
+                                style={"borderRadius": "6px"}
+                            )
+                        ], width=8),
+                    ], className="mb-3 align-items-center"),
+                    
+                    html.Hr(className="my-2"),
+                    html.P("Descriptor values:", className="small fw-bold mb-2 text-muted"),
+                    
+                    # All descriptor inputs
+                    *descriptor_inputs,
+                    
+                    html.Hr(className="my-2"),
+                    
+                    # Save button
+                    dbc.Button(
+                        [html.I(className="bi bi-check-circle me-2"), "Save Custom Solvent"],
+                        id="confirm-custom-solvent-btn",
+                        color="success",
+                        size="sm",
+                        className="w-100"
+                    )
+                ])
+            ], className="border-info"),
+        ], id="custom-solvent-collapse", style={"display": "none"})
+    ])
 
 
 def create_solvent_row(row_id):
@@ -95,21 +179,26 @@ def toggle_solvent_modal(open_clicks, save_clicks, is_open):
 # ===== TOGGLE CUSTOM SOLVENT COLLAPSE =====
 
 @callback(
-    [Output("custom-solvent-collapse", "is_open"),
-     Output("toggle-custom-solvent", "children")],
-    Input("toggle-custom-solvent", "n_clicks"),
-    State("custom-solvent-collapse", "is_open"),
+    [Output("custom-solvent-collapse", "style"),
+     Output("toggle-custom-solvent-btn", "children")],
+    Input("toggle-custom-solvent-btn", "n_clicks"),
+    State("custom-solvent-collapse", "style"),
     prevent_initial_call=True
 )
-def toggle_custom_solvent_collapse(n_clicks, is_open):
+def toggle_custom_solvent_collapse(n_clicks, current_style):
     """Toggle custom solvent form"""
     if n_clicks:
-        new_state = not is_open
+        # Toggle display
+        if current_style and current_style.get("display") == "block":
+            new_style = {"display": "none"}
+        else:
+            new_style = {"display": "block"}
+        
         button_text = [
-            html.I(className="bi bi-flask me-2"),
-            "Create Custom Solvent"
+            html.I(className="bi bi-plus-circle me-1", style={"fontSize": "0.75rem"}),
+            "Create Custom"
         ]
-        return new_state, button_text
+        return new_style, button_text
     raise PreventUpdate
 
 
@@ -119,37 +208,63 @@ def toggle_custom_solvent_collapse(n_clicks, is_open):
     [Output("solvent-rows-container", "children", allow_duplicate=True),
      Output({'type': 'solvent-select', 'index': ALL}, 'options'),
      Output("custom-solvent-name", "value"),
-     Output("custom-solvent-smiles", "value"),
-     Output("custom-solvent-collapse", "is_open", allow_duplicate=True),
-     Output("toggle-custom-solvent", "children", allow_duplicate=True),
+     Output({'type': 'custom-solvent-desc', 'index': ALL}, 'value'),
+     Output("custom-solvent-collapse", "style", allow_duplicate=True),
+     Output("toggle-custom-solvent-btn", "children", allow_duplicate=True),
      Output("validation-alert", "children", allow_duplicate=True),
      Output("validation-alert", "is_open", allow_duplicate=True)],
     Input("confirm-custom-solvent-btn", "n_clicks"),
     [State("custom-solvent-name", "value"),
-     State("custom-solvent-smiles", "value"),
+     State({'type': 'custom-solvent-desc', 'index': ALL}, 'value'),
+     State({'type': 'custom-solvent-desc', 'index': ALL}, 'id'),
      State("solvent-rows-container", "children"),
      State({'type': 'solvent-select', 'index': ALL}, 'options')],
     prevent_initial_call=True
 )
-def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
-    """Add a custom solvent to the list and create a new row with it selected"""
+def add_custom_solvent(n_clicks, name, desc_values, desc_ids, current_rows, current_options):
+    """Add a custom solvent with all descriptor values to the list and select it"""
     if not n_clicks:
         raise PreventUpdate
     
-    # Validate inputs
+    # Validate name
     if not name or not name.strip():
         alert = dbc.Alert("❌ Solvent name is required", color="danger")
-        return no_update, no_update, no_update, no_update, no_update, no_update, alert, True
+        n_desc = len(desc_values)
+        return (no_update, no_update, no_update, [no_update] * n_desc,
+                no_update, no_update, alert, True)
     
-    if not smiles or not smiles.strip():
-        alert = dbc.Alert("❌ SMILES is required", color="danger")
-        return no_update, no_update, no_update, no_update, no_update, no_update, alert, True
-    
-    # Add to global lists
     solvent_name = name.strip()
-    if solvent_name not in COMMON_SOLVENTS:
-        COMMON_SOLVENTS.append(solvent_name)
-        CUSTOM_SOLVENTS[solvent_name] = smiles.strip()
+    
+    # Check for duplicate name
+    if solvent_name in COMMON_SOLVENTS:
+        alert = dbc.Alert(f"❌ Solvent '{solvent_name}' already exists", color="danger")
+        n_desc = len(desc_values)
+        return (no_update, no_update, no_update, [no_update] * n_desc,
+                no_update, no_update, alert, True)
+    
+    # Validate all descriptor values
+    descriptor_data = {}
+    for desc_id, desc_val in zip(desc_ids, desc_values):
+        desc_key = desc_id['index']
+        if desc_val is None or desc_val == '':
+            alert = dbc.Alert(f"❌ Value for '{desc_key}' is required", color="danger")
+            n_desc = len(desc_values)
+            return (no_update, no_update, no_update, [no_update] * n_desc,
+                    no_update, no_update, alert, True)
+        try:
+            descriptor_data[desc_key] = float(desc_val)
+        except (ValueError, TypeError):
+            alert = dbc.Alert(f"❌ Invalid numeric value for '{desc_key}'", color="danger")
+            n_desc = len(desc_values)
+            return (no_update, no_update, no_update, [no_update] * n_desc,
+                    no_update, no_update, alert, True)
+    
+    # === SUCCESS: Add to SOLVENT_DESCRIPTORS and COMMON_SOLVENTS ===
+    SOLVENT_DESCRIPTORS[solvent_name] = descriptor_data
+    COMMON_SOLVENTS.append(solvent_name)
+    
+    print(f"✅ Added custom solvent '{solvent_name}' to SOLVENT_DESCRIPTORS")
+    print(f"   Descriptors: {descriptor_data}")
     
     # Update all dropdown options
     new_options = [{"label": s, "value": s} for s in sorted(COMMON_SOLVENTS)]
@@ -187,8 +302,8 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
     
     # Reset button text
     button_text = [
-        html.I(className="bi bi-flask me-2"),
-        "Create Custom Solvent"
+        html.I(className="bi bi-plus-circle me-1", style={"fontSize": "0.75rem"}),
+        "Create Custom"
     ]
     
     alert = dbc.Alert([
@@ -196,8 +311,12 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
         f"✅ Added custom solvent: {solvent_name}"
     ], color="success")
     
-    # Return: updated rows, updated options for ALL dropdowns, clear inputs, close collapse, reset button, show alert
-    return updated_rows, updated_options, "", "", False, button_text, alert, True
+    # Clear all descriptor inputs
+    cleared_desc_values = [None] * len(desc_values)
+    
+    # Return: updated rows, updated options, clear name, clear descriptors, close collapse, reset button, alert
+    return (updated_rows, updated_options, "", cleared_desc_values,
+            {"display": "none"}, button_text, alert, True)
 
 # ===== INITIALIZE MODAL WITH DEFAULT ROWS =====
 
@@ -208,10 +327,8 @@ def add_custom_solvent(n_clicks, name, smiles, current_rows, current_options):
 )
 def initialize_modal_content(is_open):
     """Initialize modal with one solvent row when opened via button"""
-    # Only initialize if modal was opened by the "Solvent" button, not by the "Edit" button
     triggered_id = ctx.triggered_id
     
-    # If opened by edit button, don't reinitialize (it's already filled by edit_solvent_parameter)
     if triggered_id != "add-solvent-button":
         raise PreventUpdate
     
@@ -235,16 +352,13 @@ def manage_solvent_rows(add_clicks, delete_clicks, current_rows):
     triggered = ctx.triggered_id
     
     if triggered == "add-solvent-row-btn":
-        # Add new solvent row
         if not add_clicks:
             raise PreventUpdate
-        
         new_id = str(uuid.uuid4())
         new_row = create_solvent_row(new_id)
         return current_rows + [new_row]
     
     elif isinstance(triggered, dict) and triggered.get('type') == 'delete-solvent-row':
-        # Delete solvent row
         if not any(delete_clicks):
             raise PreventUpdate
         
@@ -257,7 +371,6 @@ def manage_solvent_rows(add_clicks, delete_clicks, current_rows):
             except:
                 new_rows.append(row)
         
-        # Keep at least one row
         if not new_rows:
             new_id = str(uuid.uuid4())
             new_rows = [create_solvent_row(new_id)]
@@ -296,35 +409,28 @@ def save_solvent_configuration(n_clicks, solvents, current_params, current_confi
     print(f"✅ Saved solvents: {selected_solvents}")
     print(f"✅ Using fixed descriptors: {selected_descriptors}")
     
-    # Print SMILES for custom solvents
-    for solvent in selected_solvents:
-        if solvent in CUSTOM_SOLVENTS:
-            print(f"   - {solvent}: {CUSTOM_SOLVENTS[solvent]}")
-    
     # Get existing solvent parameter ID if it exists
     solvent_param_id = None
     if current_config and 'param_id' in current_config:
         solvent_param_id = current_config['param_id']
     
-    # If no existing ID, create new one
     if solvent_param_id is None:
         solvent_param_id = str(uuid.uuid4())
     
     # Store configuration with parameter ID
+    # No more 'custom_solvents' with SMILES - custom solvents are now in SOLVENT_DESCRIPTORS
     config_data = {
         'param_id': solvent_param_id,
         'solvents': selected_solvents,
         'descriptors': selected_descriptors,
-        'custom_solvents': {s: CUSTOM_SOLVENTS[s] for s in selected_solvents if s in CUSTOM_SOLVENTS}
     }
     
-    # Remove existing Solvent parameter if it exists (using the stored ID)
+    # Remove existing Solvent parameter if it exists
     updated_params = []
     for param in current_params:
         try:
             param_row_id = param['props']['id']
             if param_row_id['type'] == 'parameter-row' and param_row_id['index'] == solvent_param_id:
-                # Skip this parameter, we'll recreate it
                 continue
         except:
             pass
@@ -342,7 +448,7 @@ def save_solvent_configuration(n_clicks, solvents, current_params, current_confi
                     value="Solvent",
                     size="sm",
                     style={"borderRadius": "6px"},
-                    disabled=True  # Can't edit the name
+                    disabled=True
                 )
             ], width=3),
             dbc.Col([
@@ -356,7 +462,7 @@ def save_solvent_configuration(n_clicks, solvents, current_params, current_confi
                     value="cat",
                     placeholder="Type",
                     clearable=False,
-                    disabled=True,  # Can't change type
+                    disabled=True,
                     style={"fontSize": "0.875rem"}
                 )
             ], width=2),
@@ -368,7 +474,7 @@ def save_solvent_configuration(n_clicks, solvents, current_params, current_confi
                             value=solvent_values,
                             type="text",
                             size="sm",
-                            disabled=True,  # Can't edit directly
+                            disabled=True,
                             style={"borderRadius": "6px"}
                         ),
                         dbc.Tooltip(
@@ -402,7 +508,6 @@ def save_solvent_configuration(n_clicks, solvents, current_params, current_confi
         ], className="mb-2 align-items-center"),
     ], id={'type': 'parameter-row', 'index': solvent_param_id})
     
-    # Add to beginning of parameters list
     updated_params = [new_row] + updated_params
     
     alert = dbc.Alert([
@@ -427,13 +532,6 @@ def edit_solvent_parameter(n_clicks, config_data):
         raise PreventUpdate
     
     selected_solvents = config_data.get('solvents', [])
-    custom_solvents = config_data.get('custom_solvents', {})
-    
-    # Add custom solvents back to COMMON_SOLVENTS if needed
-    for solvent_name, smiles in custom_solvents.items():
-        if solvent_name not in COMMON_SOLVENTS:
-            COMMON_SOLVENTS.append(solvent_name)
-            CUSTOM_SOLVENTS[solvent_name] = smiles
     
     # Recreate solvent rows with selected values
     solvent_rows = []
@@ -464,7 +562,6 @@ def edit_solvent_parameter(n_clicks, config_data):
             ], className="mb-2 align-items-center"),
         ], id={'type': 'solvent-row', 'index': row_id}))
     
-    # If no solvents, add empty row
     if not solvent_rows:
         row_id = str(uuid.uuid4())
         solvent_rows = [create_solvent_row(row_id)]
