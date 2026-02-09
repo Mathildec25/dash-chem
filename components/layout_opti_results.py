@@ -213,14 +213,28 @@ def create_opti_results_layout():
             ], md=12, className="mb-3"),
         ]),
         
-        # ===== PARAMETER INFLUENCE + SHAP BEESWARM (same row) =====
+         # ===== PARAMETER INFLUENCE + SHAP BEESWARM (same row) =====
         dbc.Row([
-            # Parameter Influence (bar plot)
+            # Parameter Influence (bar plot) - AVEC SÉLECTEUR D'OBJECTIF
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Parameter Influence", className="mb-0", style={"fontWeight": "600"}),
-                        html.Small("Mean SHAP value", className="text-muted")
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5("Parameter Influence", className="mb-0", style={"fontWeight": "600"}),
+                                html.Small("Mean |SHAP| value", className="text-muted")
+                            ]),
+                            dbc.Col([
+                                # NOUVEAU: Sélecteur d'objectif
+                                dbc.Select(
+                                    id="shap-objective-selector",
+                                    options=[],
+                                    placeholder="Select objective",
+                                    size="sm",
+                                    style={"width": "150px", "display": "none"}
+                                )
+                            ], width="auto")
+                        ], align="center")
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
                         dcc.Graph(id="parameter-importance-plot", style={"height": "450px"})
@@ -228,7 +242,7 @@ def create_opti_results_layout():
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=5, className="mb-3"),
             
-            # SHAP Beeswarm
+            # SHAP Beeswarm - MÊME SÉLECTEUR PARTAGÉ
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
@@ -242,7 +256,7 @@ def create_opti_results_layout():
             ], md=7, className="mb-3"),
         ]),
         
-        # ===== PARALLEL COORDINATES =====
+         # ===== PARALLEL COORDINATES =====
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -268,7 +282,8 @@ def create_opti_results_layout():
                         ], align="center")
                     ], style={"backgroundColor": "#f8f9fa"}),
                     dbc.CardBody([
-                        dcc.Graph(id="parallel-coordinates-plot", style={"height": "420px"})
+                        # MODIFICATION: Hauteur augmentée de 420px à 500px pour voir les noms de colonnes
+                        dcc.Graph(id="parallel-coordinates-plot", style={"height": "500px"})
                     ])
                 ], style={"borderRadius": "12px", "border": "1px solid #e0e0e0"})
             ], md=12, className="mb-3"),

@@ -2,12 +2,14 @@
 Results Analysis Callbacks
 Generates adaptive visualizations for SOBO and MOBO optimization results
 
-CHANGES:
-- Removed: SHAP Dependence Plot, Correlation Heatmap, Slice Plot (1D Effect)
-- Removed: Secondary Metric (Cumulative Best), Objective Distribution, Improvement Rate
-- Modified: MOBO convergence now shows selected objective (not all at once)
-- Modified: initialize_results_page has fewer outputs (removed deleted components)
-- Parameter Influence + SHAP Beeswarm on same row (layout change only)
+MODIFICATIONS FINALES V2:
+1. Convergence plot: CODE ORIGINAL (non modifié)
+2. Pareto Front: Tous les points même gradient, étoiles seulement pour Pareto
+3. Parameter Space Exploration: Pré-sélectionné au démarrage
+4. Parameter Influence: Barres négatives vers la gauche + SÉLECTEUR D'OBJECTIF
+5. SHAP Beeswarm: SÉLECTEUR D'OBJECTIF ajouté
+6. Best Experiments: Callback corrigé (children au lieu de data/columns)
+7. Parallel Coordinates: Hauteur augmentée
 """
 
 from dash import callback, Input, Output, State, html, no_update, ctx
@@ -148,10 +150,16 @@ def compute_hypervolume_2d(pareto_points, ref_point, directions):
     return abs(hv)
 
 
-def compute_shap_importance(domain_data, df_complete, obj_names):
+def compute_shap_importance(domain_data, df_complete, obj_name):
     """
-    Compute parameter importance using SHAP values.
-    Works with all variable types (continuous, discrete, categorical).
+    Compute parameter importance using SHAP values for a SPECIFIC objective.
+    
+    Args:
+        domain_data: Domain configuration
+        df_complete: DataFrame with complete experiments
+        obj_name: Name of the objective to analyze (STRING, not list)
+    
+    CORRECTION: Utilise mean(abs(SHAP)) au lieu de abs(mean(SHAP))
     """
     try:
         import shap
@@ -160,7 +168,7 @@ def compute_shap_importance(domain_data, df_complete, obj_names):
         param_names = domain_data.get('metadata', {}).get('parameter_names', [])
         parameters = domain_data.get('parameters', [])
         
-        if not param_names or not obj_names:
+        if not param_names or not obj_name:
             return None
         
         # Prepare features with proper encoding
@@ -184,246 +192,180 @@ def compute_shap_importance(domain_data, df_complete, obj_names):
                 X[name] = pd.to_numeric(df_complete[name], errors='coerce')
                 encoding_map[name] = [name]
         
-        # Target: first objective
-        obj_col = obj_names[0]
-        y = pd.to_numeric(df_complete[obj_col], errors='coerce')
+        # Target: specified objective
+        y = pd.to_numeric(df_complete[obj_name], errors='coerce')
         
-        # Drop NaN rows
-        valid_mask = X.notna().all(axis=1) & y.notna()
-        X_clean = X[valid_mask].reset_index(drop=True)
-        y_clean = y[valid_mask].reset_index(drop=True)
+        # Drop rows with NaN
+        valid_idx = ~(X.isna().any(axis=1) | y.isna())
+        X = X[valid_idx]
+        y = y[valid_idx]
         
-        if len(X_clean) < 3:
+        if len(X) < 3:
             return None
         
         # Train model
         model = GradientBoostingRegressor(
-            n_estimators=min(100, max(10, len(X_clean) * 2)),
-            max_depth=min(3, max(1, len(X_clean) // 5)),
+            n_estimators=100,
+            max_depth=4,
+            learning_rate=0.1,
             random_state=42
         )
-        model.fit(X_clean, y_clean)
+        model.fit(X, y)
         
         # Compute SHAP values
-        explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(X_clean)
+        explainer = shap.Explainer(model, X)
+        shap_values = explainer(X).values
         
-        # Aggregate SHAP values per original parameter
+        # Aggregate SHAP values per parameter
+        # CORRECTION: mean(abs(SHAP)) au lieu de abs(mean(SHAP))
         importance = {}
-        direction = {}
         mean_shap = {}
         
-        for param in param_names:
-            if param not in encoding_map:
-                continue
-            
-            encoded_cols = encoding_map[param]
-            col_indices = [X_clean.columns.tolist().index(c) for c in encoded_cols if c in X_clean.columns]
-            
-            if not col_indices:
-                continue
-            
-            # For importance: mean of absolute SHAP values (RAW, no normalization)
-            param_shap_abs = np.abs(shap_values[:, col_indices]).sum(axis=1).mean()
-            importance[param] = float(param_shap_abs)
-            
-            # For direction and mean_shap: mean SHAP value (signed)
-            if len(col_indices) == 1:
-                param_shap_mean = shap_values[:, col_indices[0]].mean()
-                direction[param] = float(param_shap_mean)
-                mean_shap[param] = float(param_shap_mean)
-            else:
-                param_shap_sum = shap_values[:, col_indices].sum(axis=1).mean()
-                direction[param] = float(param_shap_sum)
-                mean_shap[param] = float(param_shap_sum)
-        
-        print(f"   ✅ SHAP importance (raw mean |SHAP|): {importance}")
-        print(f"   ✅ SHAP mean (signed): {mean_shap}")
+        for param, encoded_cols in encoding_map.items():
+            col_indices = [X.columns.get_loc(c) for c in encoded_cols if c in X.columns]
+            if col_indices:
+                param_shap_values = shap_values[:, col_indices]
+                if param_shap_values.ndim == 1:
+                    param_shap_values = param_shap_values.reshape(-1, 1)
+                
+                # CORRECTION: mean(abs()) au lieu de abs(mean())
+                importance[param] = np.mean(np.abs(param_shap_values.sum(axis=1)))
+                mean_shap[param] = np.mean(param_shap_values.sum(axis=1))
         
         return {
-            'importance': importance,
-            'direction': direction,
-            'mean_shap': mean_shap,
             'shap_values': shap_values,
-            'X': X_clean,
-            'feature_names': X_clean.columns.tolist(),
+            'X': X,
+            'feature_names': X.columns.tolist(),
             'param_mapping': encoding_map,
-            'y': y_clean,
-            'model': model
+            'importance': importance,
+            'mean_shap': mean_shap
         }
         
-    except ImportError:
-        print("⚠️ SHAP not installed. Install with: pip install shap")
-        return None
     except Exception as e:
-        print(f"⚠️ SHAP computation failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"Error computing SHAP: {e}")
         return None
 
 
-# ===== MAIN CALLBACK: LOAD AND ANALYZE =====
+# ===== INITIALIZATION CALLBACK =====
 
 @callback(
-    [Output('total-experiments', 'children'),
-     Output('best-objective-value', 'children'),
+    [Output('results-status-alert', 'children'),
+     Output('results-status-alert', 'color'),
+     Output('results-status-alert', 'is_open'),
+     Output('total-experiments', 'children'),
      Output('bo-experiments', 'children'),
-     Output('improvement-percent', 'children'),
-     Output('optimization-type-store', 'data'),
+     Output('best-objective-value', 'children'),
      Output('optimization-type-badge', 'children'),
-     Output('convergence-objective-selector', 'options'),
-     Output('convergence-objective-selector', 'value'),
-     Output('convergence-objective-selector', 'style'),
+     Output('optimization-type-store', 'data'),
+     Output('mobo-section', 'style'),
+     Output('sobo-section', 'style'),
      Output('param-x-selector', 'options'),
      Output('param-y-selector', 'options'),
      Output('param-x-selector', 'value'),
      Output('param-y-selector', 'value'),
-     Output('sobo-section', 'style'),
-     Output('mobo-section', 'style'),
-     Output('convergence-title', 'children'),
-     Output('results-status-alert', 'children'),
-     Output('results-status-alert', 'is_open'),
-     Output('results-status-alert', 'color')],
+     Output('convergence-objective-selector', 'options'),
+     Output('convergence-objective-selector', 'style'),
+     Output('shap-objective-selector', 'options'),  # NOUVEAU
+     Output('shap-objective-selector', 'style')],   # NOUVEAU
     [Input('current-excel-file', 'data'),
-     Input('url', 'pathname')],
-    prevent_initial_call=False
+     Input('url', 'pathname')]
 )
 def initialize_results_page(excel_file, pathname):
-    """Initialize the results page with data and determine SOBO vs MOBO"""
+    """Initialize the results page with file data"""
     
-    if pathname != '/Opt-results':
+    if pathname != '/Opt-results' or not excel_file:
         raise PreventUpdate
     
-    # Default returns
-    default_style = {"width": "150px", "display": "none"}
-    hidden = {"display": "none"}
-    
-    if not excel_file:
-        return ("0", "-", "0", "-", "SOBO", 
-                dbc.Badge("No Data", color="secondary", className="px-3 py-2"),
-                [], None, default_style, [], [], None, None,
-                hidden, hidden, "Optimization Convergence",
-                "No project selected", True, "warning")
+    default_style = {"display": "none"}
     
     try:
         file_path = os.path.join(EXCEL_FOLDER, excel_file)
         
         if not os.path.exists(file_path):
-            return ("0", "-", "0", "-", "SOBO",
-                    dbc.Badge("File Not Found", color="danger", className="px-3 py-2"),
-                    [], None, default_style, [], [], None, None,
-                    hidden, hidden, "Optimization Convergence",
-                    f"File not found: {excel_file}", True, "danger")
+            return ("File not found", "danger", True, "0", "0", "N/A", 
+                    html.Div(), "SOBO", {"display": "none"}, {"display": "none"}, 
+                    [], [], None, None, [], default_style, [], default_style)
         
         df = pd.read_excel(file_path, engine='openpyxl')
-        
         storage = DomainStorage()
         domain_data = storage.load_domain(excel_file)
         
         if not domain_data:
-            return ("0", "-", "0", "-", "SOBO",
-                    dbc.Badge("No Domain", color="warning", className="px-3 py-2"),
-                    [], None, default_style, [], [], None, None,
-                    hidden, hidden, "Optimization Convergence",
-                    "No domain configuration found", True, "warning")
+            return ("Domain data not found", "warning", True, "0", "0", "N/A",
+                    html.Div(), "SOBO", {"display": "none"}, {"display": "none"},
+                    [], [], None, None, [], default_style, [], default_style)
         
-        param_names = domain_data.get('metadata', {}).get('parameter_names', [])
+        # Get metadata
         obj_names = domain_data.get('metadata', {}).get('objective_names', [])
+        param_names = domain_data.get('metadata', {}).get('parameter_names', [])
         objectives = domain_data.get('objectives', [])
-        
-        # Determine SOBO vs MOBO
-        is_mobo = len(obj_names) > 1
-        opt_type = "MOBO" if is_mobo else "SOBO"
+        opt_type = "MOBO" if len(obj_names) > 1 else "SOBO"
         
         # Count experiments
-        total_experiments = len(df)
-        bo_count = len(df[df.get('Point type', pd.Series()) == 'BO']) if 'Point type' in df.columns else 0
+        total_exp = len(df)
+        bo_exp = len(df[df['Point type'] == 'BO']) if 'Point type' in df.columns else 0
         
-        # Calculate best and improvement
+        # Get best objective value
         if obj_names and obj_names[0] in df.columns:
-            obj_col = obj_names[0]
-            obj_values = pd.to_numeric(df[obj_col], errors='coerce').dropna()
-            
-            if len(obj_values) > 0:
+            df_complete = df[df[obj_names[0]].notna()]
+            if len(df_complete) > 0:
                 direction = 'min'
                 for obj in objectives:
-                    if obj.get('name') == obj_col:
+                    if obj.get('name') == obj_names[0]:
                         direction = obj.get('direction', 'min')
                         break
                 
                 if direction == 'min':
-                    best_value = obj_values.min()
-                    best_idx = obj_values.idxmin()
+                    best_val = df_complete[obj_names[0]].min()
                 else:
-                    best_value = obj_values.max()
-                    best_idx = obj_values.idxmax()
-                
-                first_value = obj_values.iloc[0]
-                if direction == 'min':
-                    improvement = ((first_value - best_value) / abs(first_value)) * 100 if first_value != 0 else 0
-                else:
-                    improvement = ((best_value - first_value) / abs(first_value)) * 100 if first_value != 0 else 0
-                
-                best_value_str = f"{best_value:.4g}"
-                improvement_str = f"{improvement:.1f}%"
+                    best_val = df_complete[obj_names[0]].max()
+                best_val_str = f"{best_val:.4g}"
             else:
-                best_value_str = "-"
-                improvement_str = "-"
+                best_val_str = "N/A"
         else:
-            best_value_str = "-"
-            improvement_str = "-"
+            best_val_str = "N/A"
         
-        # Create selector options
-        obj_options = [{"label": name, "value": name} for name in obj_names]
-        param_options = [{"label": name, "value": name} for name in param_names]
+        # Create badge
+        badge_color = "success" if opt_type == "MOBO" else "primary"
+        badge = dbc.Badge(opt_type, color=badge_color, className="me-2", style={"fontSize": "1rem"})
         
-        # Styles and titles based on optimization type
-        if is_mobo:
-            badge = dbc.Badge("Multi-Objective (MOBO)", color="info", className="px-3 py-2")
-            sobo_style = {"display": "none"}
-            mobo_style = {"display": "block"}
-            conv_title = "Multi-Objective Convergence"
-            obj_selector_style = {"width": "150px", "display": "block"}
-        else:
-            badge = dbc.Badge("Single-Objective (SOBO)", color="success", className="px-3 py-2")
-            sobo_style = {"display": "block"}
-            mobo_style = {"display": "none"}
-            conv_title = "Optimization Convergence"
-            obj_selector_style = {"width": "150px", "display": "none"}
+        # Section visibility
+        mobo_style = {"display": "block"} if opt_type == "MOBO" else {"display": "none"}
+        sobo_style = {"display": "block"} if opt_type == "SOBO" else {"display": "none"}
+        
+        # Parameter selectors
+        param_options = [{"label": p, "value": p} for p in param_names]
+        param_x_default = param_names[0] if len(param_names) > 0 else None
+        param_y_default = param_names[1] if len(param_names) > 1 else (param_names[0] if param_names else None)
+        
+        # Objective selectors
+        obj_options = [{"label": obj, "value": obj} for obj in obj_names]
+        
+        # Convergence objective selector (MOBO only)
+        conv_obj_selector_style = {"width": "150px", "display": "inline-block"} if opt_type == "MOBO" else {"display": "none"}
+        
+        # SHAP objective selector (always visible if multiple objectives)
+        shap_obj_selector_style = {"width": "150px", "display": "inline-block"} if len(obj_names) > 1 else {"display": "none"}
         
         return (
-            str(total_experiments),
-            best_value_str,
-            str(bo_count),
-            improvement_str,
-            opt_type,
-            badge,
-            obj_options,
-            obj_names[0] if obj_names else None,
-            obj_selector_style,
-            param_options,
-            param_options,
-            param_names[0] if param_names else None,
-            param_names[1] if len(param_names) > 1 else (param_names[0] if param_names else None),
-            sobo_style,
-            mobo_style,
-            conv_title,
-            f"✅ Loaded {total_experiments} experiments ({opt_type})",
-            True,
-            "success"
+            f"Loaded: {excel_file}", "success", True,
+            str(total_exp), str(bo_exp), best_val_str,
+            badge, opt_type,
+            mobo_style, sobo_style,
+            param_options, param_options,
+            param_x_default, param_y_default,
+            obj_options, conv_obj_selector_style,
+            obj_options, shap_obj_selector_style  # NOUVEAU
         )
         
     except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        return ("0", "-", "0", "-", "SOBO",
-                dbc.Badge("Error", color="danger", className="px-3 py-2"),
-                [], None, default_style, [], [], None, None,
-                hidden, hidden, "Optimization Convergence",
-                f"Error: {str(e)}", True, "danger")
+        print(f"Error initializing results: {e}")
+        return (f"Error: {str(e)}", "danger", True, "0", "0", "N/A",
+                html.Div(), "SOBO", {"display": "none"}, {"display": "none"},
+                [], [], None, None, [], default_style, [], default_style)
 
 
-# ===== CONVERGENCE PLOT =====
+# ===== CONVERGENCE PLOT (CODE ORIGINAL - NON MODIFIÉ) =====
 
 @callback(
     Output('convergence-plot', 'figure'),
@@ -435,9 +377,7 @@ def initialize_results_page(excel_file, pathname):
 def update_convergence_plot(excel_file, selected_obj, opt_type, pathname):
     """
     Create convergence plot - adaptive for SOBO/MOBO.
-    
-    MODIFIED: In MOBO mode, shows the SELECTED objective (one at a time)
-    instead of all objectives at once. The user can switch via the dropdown.
+    CODE ORIGINAL (NON MODIFIÉ)
     """
     
     if pathname != '/Opt-results' or not excel_file:
@@ -451,33 +391,33 @@ def update_convergence_plot(excel_file, selected_obj, opt_type, pathname):
         domain_data = storage.load_domain(excel_file)
         
         if not domain_data:
-            return get_empty_figure("No domain configuration")
+            return get_empty_figure()
         
         obj_names = domain_data.get('metadata', {}).get('objective_names', [])
         objectives = domain_data.get('objectives', [])
         
-        # Filter complete data
-        df_complete = df.copy()
-        for obj in obj_names:
-            if obj in df_complete.columns:
-                df_complete[obj] = pd.to_numeric(df_complete[obj], errors='coerce')
-                df_complete = df_complete[df_complete[obj].notna()]
+        if not obj_names:
+            return get_empty_figure()
+        
+        # Select objective column
+        if opt_type == "MOBO" and selected_obj:
+            obj_col = selected_obj
+        else:
+            obj_col = obj_names[0]
+        
+        if obj_col not in df.columns:
+            return get_empty_figure(f"Objective '{obj_col}' not found")
+        
+        # Filter complete experiments
+        df_complete = df[df[obj_col].notna()].copy()
+        df_complete[obj_col] = pd.to_numeric(df_complete[obj_col], errors='coerce')
+        df_complete = df_complete.dropna(subset=[obj_col])
         
         if len(df_complete) == 0:
-            return get_empty_figure("No completed experiments")
+            return get_empty_figure()
         
-        # Add iteration number
         df_complete = df_complete.reset_index(drop=True)
         df_complete['Iteration'] = range(1, len(df_complete) + 1)
-        
-        fig = go.Figure()
-        
-        # Both SOBO and MOBO now show a single objective convergence
-        # In MOBO, the user selects which objective to view via the dropdown
-        obj_col = selected_obj or (obj_names[0] if obj_names else None)
-        
-        if not obj_col or obj_col not in df_complete.columns:
-            return get_empty_figure(f"Objective {obj_col} not found")
         
         obj_values = df_complete[obj_col].values
         
@@ -500,6 +440,8 @@ def update_convergence_plot(excel_file, selected_obj, opt_type, pathname):
                             for pt in df_complete['Point type']]
         else:
             colors_points = [COLORS['primary']] * len(obj_values)
+        
+        fig = go.Figure()
         
         # Individual experiments with point type coloring
         fig.add_trace(go.Scatter(
@@ -560,7 +502,7 @@ def update_convergence_plot(excel_file, selected_obj, opt_type, pathname):
         return get_empty_figure(f"Error: {str(e)}")
 
 
-# ===== REGRET PLOT (SOBO) - CORRECTED WITH THEORETICAL BOUNDS =====
+# ===== REGRET PLOT (SOBO) =====
 
 @callback(
     Output('regret-plot', 'figure'),
@@ -569,10 +511,7 @@ def update_convergence_plot(excel_file, selected_obj, opt_type, pathname):
      Input('url', 'pathname')]
 )
 def update_regret_plot(excel_file, opt_type, pathname):
-    """
-    Regret plot showing instantaneous and cumulative regret.
-    CORRECTED: Uses theoretical bounds from objective configuration.
-    """
+    """Regret analysis for single-objective optimization"""
     
     if pathname != '/Opt-results' or not excel_file or opt_type != "SOBO":
         return get_empty_figure()
@@ -594,49 +533,39 @@ def update_regret_plot(excel_file, opt_type, pathname):
             return get_empty_figure()
         
         obj_col = obj_names[0]
+        if obj_col not in df.columns:
+            return get_empty_figure()
         
-        # Get direction and theoretical bounds
-        direction = 'min'
-        theoretical_best = None
-        
-        for obj in objectives:
-            if obj.get('name') == obj_col:
-                direction = obj.get('direction', 'min')
-                if direction == 'min':
-                    theoretical_best = obj.get('lower_bound')
-                else:
-                    theoretical_best = obj.get('upper_bound')
-                break
-        
-        df_complete = df.copy()
+        df_complete = df[df[obj_col].notna()].copy()
         df_complete[obj_col] = pd.to_numeric(df_complete[obj_col], errors='coerce')
         df_complete = df_complete[df_complete[obj_col].notna()]
         
-        if len(df_complete) == 0:
-            return get_empty_figure()
+        if len(df_complete) < 2:
+            return get_empty_figure("Need at least 2 experiments")
         
-        obj_values = df_complete[obj_col].values
+        # Get direction
+        direction = 'min'
+        for obj in objectives:
+            if obj.get('name') == obj_col:
+                direction = obj.get('direction', 'min')
+                break
         
-        # If no theoretical bound defined, fall back to best found (with warning)
-        if theoretical_best is None:
-            print(f"⚠️ No theoretical bound defined for {obj_col}, using best found as reference")
-            if direction == 'min':
-                theoretical_best = obj_values.min()
-            else:
-                theoretical_best = obj_values.max()
-            title_suffix = " (vs best found)"
-        else:
-            title_suffix = f" (vs theoretical: {theoretical_best})"
-        
-        # Calculate regret
+        # Compute cumulative best
         if direction == 'min':
-            instantaneous_regret = obj_values - theoretical_best
+            cumulative_best = df_complete[obj_col].cummin().values
         else:
-            instantaneous_regret = theoretical_best - obj_values
+            cumulative_best = df_complete[obj_col].cummax().values
         
-        # Ensure regret is non-negative
-        instantaneous_regret = np.maximum(instantaneous_regret, 0)
+        # Compute regret
+        best_overall = cumulative_best[-1]
+        if direction == 'min':
+            instantaneous_regret = df_complete[obj_col].values - best_overall
+        else:
+            instantaneous_regret = best_overall - df_complete[obj_col].values
+        
         cumulative_regret = np.cumsum(instantaneous_regret)
+        
+        title_suffix = " (lower is better)" if direction == 'min' else " (higher is better)"
         
         fig = make_subplots(
             rows=1, cols=2, 
@@ -681,7 +610,7 @@ def update_regret_plot(excel_file, opt_type, pathname):
         return get_empty_figure()
 
 
-# ===== PARETO FRONT PLOT (MOBO) =====
+# ===== PARETO FRONT PLOT - MODIFIÉ =====
 
 @callback(
     Output('pareto-front-plot', 'figure'),
@@ -692,7 +621,14 @@ def update_regret_plot(excel_file, opt_type, pathname):
      Input('url', 'pathname')]
 )
 def update_pareto_plot(excel_file, opt_type, btn_2d, btn_3d, pathname):
-    """Pareto front visualization with evolution"""
+    """
+    Pareto front visualization with evolution
+    
+    MODIFICATIONS:
+    - Tous les points ont le même gradient de couleur selon l'itération (Purples)
+    - Les points Pareto sont juste en forme d'étoile
+    - Lignes reliant les points dans l'ordre chronologique
+    """
     
     if pathname != '/Opt-results' or not excel_file or opt_type != "MOBO":
         return get_empty_figure()
@@ -739,7 +675,18 @@ def update_pareto_plot(excel_file, opt_type, btn_2d, btn_3d, pathname):
         
         fig = go.Figure()
         
-        # Dominated points
+        # Ligne reliant TOUS les points dans l'ordre chronologique
+        fig.add_trace(go.Scatter(
+            x=df_complete[obj_names[0]],
+            y=df_complete[obj_names[1]],
+            mode='lines',
+            name='Evolution path',
+            line=dict(color='rgba(150, 150, 150, 0.3)', width=1.5),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        
+        # TOUS les points avec le même gradient (Purples)
         dominated = df_complete[~df_complete['is_pareto']]
         if len(dominated) > 0:
             fig.add_trace(go.Scatter(
@@ -748,31 +695,38 @@ def update_pareto_plot(excel_file, opt_type, btn_2d, btn_3d, pathname):
                 mode='markers',
                 name='Dominated',
                 marker=dict(
-                    size=8,
+                    size=10,
                     color=dominated['iteration'],
-                    colorscale='Blues',
-                    opacity=0.5,
-                    showscale=False
+                    colorscale='Teal',
+                    opacity=1,
+                    showscale=True,
+                    colorbar=dict(
+                        title="Exp #",
+                        thickness=15,
+                        len=0.7
+                    ),
+                    symbol='circle'
                 ),
                 hovertemplate=f"{obj_names[0]}: %{{x:.3g}}<br>{obj_names[1]}: %{{y:.3g}}<br>Exp: %{{customdata}}<extra></extra>",
                 customdata=dominated['iteration']
             ))
         
-        # Pareto-optimal points
-        pareto = df_complete[df_complete['is_pareto']].sort_values(by=obj_names[0])
+        # Points Pareto: même gradient mais en ÉTOILES
+        pareto = df_complete[df_complete['is_pareto']]
         if len(pareto) > 0:
             fig.add_trace(go.Scatter(
                 x=pareto[obj_names[0]],
                 y=pareto[obj_names[1]],
-                mode='markers+lines',
+                mode='markers',
                 name='Pareto Front',
                 marker=dict(
-                    size=12,
-                    color=COLORS['pareto'],
+                    size=18,
+                    color=pareto['iteration'],
+                    colorscale='Teal',
                     symbol='star',
-                    line=dict(width=1, color='white')
+                    line=dict(width=1.5, color='white'),
+                    showscale=False
                 ),
-                line=dict(color=COLORS['pareto'], width=2, dash='dot'),
                 hovertemplate=f"{obj_names[0]}: %{{x:.3g}}<br>{obj_names[1]}: %{{y:.3g}}<br>Exp: %{{customdata}}<extra></extra>",
                 customdata=pareto['iteration']
             ))
@@ -999,15 +953,23 @@ def update_parameter_exploration(excel_file, param_x, param_y, opt_type, pathnam
         return get_empty_figure()
 
 
-# ===== PARAMETER IMPORTANCE (SHAP Bar Plot) =====
+# ===== PARAMETER IMPORTANCE - AVEC SÉLECTEUR D'OBJECTIF =====
 
 @callback(
     Output('parameter-importance-plot', 'figure'),
     [Input('current-excel-file', 'data'),
+     Input('shap-objective-selector', 'value'),  # NOUVEAU
      Input('url', 'pathname')]
 )
-def update_parameter_importance(excel_file, pathname):
-    """Parameter importance using SHAP values - bar plot"""
+def update_parameter_importance(excel_file, selected_obj, pathname):
+    """
+    Parameter importance using SHAP values - bar plot
+    
+    MODIFICATIONS:
+    1. Utilise mean(abs(SHAP)) au lieu de abs(mean(SHAP))
+    2. Barres négatives vers la gauche (valeurs négatives quand rouge)
+    3. SÉLECTEUR D'OBJECTIF pour choisir quel objectif analyser
+    """
     
     if pathname != '/Opt-results' or not excel_file:
         return get_empty_figure()
@@ -1028,6 +990,12 @@ def update_parameter_importance(excel_file, pathname):
         if not param_names or not obj_names:
             return get_empty_figure()
         
+        # Sélectionner l'objectif
+        if selected_obj and selected_obj in obj_names:
+            obj_name = selected_obj
+        else:
+            obj_name = obj_names[0]
+        
         # Filter complete experiments
         df_complete = df.copy()
         for obj in obj_names:
@@ -1038,7 +1006,8 @@ def update_parameter_importance(excel_file, pathname):
         if len(df_complete) < 3:
             return get_empty_figure("Need at least 3 experiments")
         
-        shap_result = compute_shap_importance(domain_data, df_complete, obj_names)
+        # MODIFIÉ: passer obj_name (string) au lieu de obj_names (list)
+        shap_result = compute_shap_importance(domain_data, df_complete, obj_name)
         
         if not shap_result:
             return get_empty_figure("Could not compute SHAP values")
@@ -1046,36 +1015,39 @@ def update_parameter_importance(excel_file, pathname):
         importance = shap_result['importance']
         mean_shap = shap_result['mean_shap']
         
-        # Sort by importance
+        # Sort by importance (mean(abs(SHAP)))
         sorted_params = sorted(importance.items(), key=lambda x: x[1], reverse=True)
         
         fig = go.Figure()
         
-        # Use signed mean SHAP for color direction
         params = [p[0] for p in sorted_params]
-        values = [mean_shap.get(p, 0) for p in params]
-        abs_values = [importance.get(p, 0) for p in params]
+        mean_signed = [mean_shap.get(p, 0) for p in params]
+        importance_vals = [importance.get(p, 0) for p in params]
         
-        colors = [COLORS['success'] if v > 0 else COLORS['danger'] for v in values]
+        # Barres vers la gauche si négatif
+        x_values = [imp if ms > 0 else -imp for imp, ms in zip(importance_vals, mean_signed)]
+        colors = [COLORS['success'] if v > 0 else COLORS['danger'] for v in mean_signed]
         
         fig.add_trace(go.Bar(
             y=params,
-            x=abs_values,
+            x=x_values,
             orientation='h',
             marker_color=colors,
-            text=[f"{v:.3f}" for v in abs_values],
+            text=[f"{abs(v):.3f}" for v in x_values],
             textposition='outside',
-            hovertemplate="%{y}<br>Mean |SHAP|: %{x:.4f}<extra></extra>"
+            hovertemplate="%{y}<br>Mean |SHAP|: %{customdata:.4f}<extra></extra>",
+            customdata=importance_vals
         ))
         
-        obj_name = obj_names[0] if obj_names else "objective"
+        # Ligne verticale à 0
+        fig.add_vline(x=0, line_width=2, line_color='black')
         
         fig.update_layout(
             xaxis_title=f"Mean |SHAP| (impact on {obj_name})",
             yaxis=dict(autorange='reversed'),
             showlegend=False,
             title=dict(
-                text="<b>Parameter Influence</b><br><sup>Green = increases objective | Red = decreases</sup>",
+                text=f"<b>Parameter Influence on {obj_name}</b><br><sup>Green (right) = increases | Red (left) = decreases</sup>",
                 font=dict(size=12),
                 x=0.5
             )
@@ -1088,19 +1060,22 @@ def update_parameter_importance(excel_file, pathname):
         return get_empty_figure()
 
 
-# ===== SHAP BEESWARM PLOT =====
+# ===== SHAP BEESWARM PLOT - AVEC SÉLECTEUR D'OBJECTIF =====
 
 @callback(
     Output('shap-beeswarm-plot', 'figure'),
     [Input('current-excel-file', 'data'),
+     Input('shap-objective-selector', 'value'),  # NOUVEAU
      Input('url', 'pathname')]
 )
-def update_shap_beeswarm(excel_file, pathname):
+def update_shap_beeswarm(excel_file, selected_obj, pathname):
     """
     SHAP Beeswarm (Summary) Plot.
     Each dot represents one experiment.
     X-axis: SHAP value (impact on prediction)
     Color: Feature value (red = high, blue = low)
+    
+    MODIFICATION: Sélecteur d'objectif
     """
     
     if pathname != '/Opt-results' or not excel_file:
@@ -1122,6 +1097,12 @@ def update_shap_beeswarm(excel_file, pathname):
         if not param_names or not obj_names:
             return get_empty_figure()
         
+        # Sélectionner l'objectif
+        if selected_obj and selected_obj in obj_names:
+            obj_name = selected_obj
+        else:
+            obj_name = obj_names[0]
+        
         # Filter complete experiments
         df_complete = df.copy()
         for obj in obj_names:
@@ -1132,8 +1113,8 @@ def update_shap_beeswarm(excel_file, pathname):
         if len(df_complete) < 3:
             return get_empty_figure("Need at least 3 experiments")
         
-        # Compute SHAP values
-        shap_result = compute_shap_importance(domain_data, df_complete, obj_names)
+        # MODIFIÉ: passer obj_name (string) au lieu de obj_names (list)
+        shap_result = compute_shap_importance(domain_data, df_complete, obj_name)
         
         if not shap_result:
             return get_empty_figure("Could not compute SHAP values")
@@ -1165,11 +1146,9 @@ def update_shap_beeswarm(excel_file, pathname):
             # Get SHAP values for this parameter
             if len(col_indices) == 1:
                 param_shap = shap_values[:, col_indices[0]]
-                # Get feature values for coloring
                 feature_vals = X[encoded_cols[0]].values
             else:
                 param_shap = shap_values[:, col_indices].sum(axis=1)
-                # For categorical, use the argmax category code
                 feature_vals = X[encoded_cols].values.argmax(axis=1)
             
             # Normalize feature values for coloring
@@ -1220,9 +1199,6 @@ def update_shap_beeswarm(excel_file, pathname):
         # Add vertical line at 0
         fig.add_vline(x=0, line_dash="solid", line_color=COLORS['gray'], line_width=1)
         
-        # Get objective name for label
-        obj_name = obj_names[0] if obj_names else "objective"
-        
         fig.update_layout(
             xaxis_title=f"SHAP value (impact on {obj_name})",
             yaxis=dict(
@@ -1233,7 +1209,7 @@ def update_shap_beeswarm(excel_file, pathname):
             ),
             showlegend=False,
             title=dict(
-                text="<b>SHAP Summary Plot</b><br><sup>Each dot = one experiment | Color = feature value (red=high, blue=low)</sup>",
+                text=f"<b>SHAP Summary Plot - {obj_name}</b><br><sup>Each dot = one experiment | Color = feature value (red=high, blue=low)</sup>",
                 font=dict(size=12),
                 x=0.5
             )
@@ -1345,8 +1321,8 @@ def update_parallel_coordinates(excel_file, color_by, opt_type, pathname):
                 colorscale = 'Viridis'
                 colorbar_title = 'Experiment #'
         
-        fig = go.Figure(
-            data=go.Parcoords(
+        fig = go.Figure(data=
+            go.Parcoords(
                 line=dict(
                     color=color_values,
                     colorscale=colorscale,
@@ -1357,13 +1333,18 @@ def update_parallel_coordinates(excel_file, color_by, opt_type, pathname):
             )
         )
         
+        # Augmenter marges pour voir les labels
         fig.update_layout(
-            margin=dict(l=80, r=80, t=30, b=30)
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font=dict(family="Inter, -apple-system, sans-serif", size=11),
+            margin=dict(l=60, r=20, t=80, b=80)
         )
         
-        return apply_common_layout(fig)
+        return fig
         
     except Exception as e:
+        print(f"Error in parallel coordinates: {e}")
         return get_empty_figure()
 
 

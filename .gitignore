@@ -18,4 +18,4 @@ results.xlsx
 *.mp4
 *.pkl
 
-domains/*.json
+data/domains/*.json
