@@ -1,14 +1,21 @@
 """
 Constraints configuration callbacks
-Handles constraints related to solvent boiling points AND melting points
+Handles constraints related to solvent boiling points, melting points,
+AND inter-parameter inequalities.
+
+UPDATED:
+- Constraints card is ALWAYS visible
+- Phase constraints section (BP/MP) shown/hidden based on solvent config
+- Inequality constraints always available
+- save_constraints works even without solvent config
 
 DYNAMIC CONSTRAINTS:
 - Temperature < Boiling Point (avoid boiling)
 - Temperature > Melting Point (avoid freezing)
 
-The constraint adapts to the suggested solvent:
-- Methanol suggested → Temperature < 64.7°C (BP) and > -97.6°C (MP)
-- DMSO suggested → Temperature < 189°C (BP) and > 18.5°C (MP) ⚠️
+INTER-PARAMETER INEQUALITY CONSTRAINTS:
+- Parameter A ≤ Parameter B + offset
+- e.g., T_inlet ≤ T_outlet + 0
 """
 
 from dash import callback, Input, Output, State, ALL, ctx, html, dcc, no_update
@@ -20,7 +27,7 @@ from utils.descriptor_data import SOLVENT_DESCRIPTORS
 
 
 # ============================================================================
-# BOILING POINT FUNCTIONS (existing)
+# BOILING POINT FUNCTIONS
 # ============================================================================
 
 def get_solvent_boiling_point(solvent_name: str) -> float:
@@ -61,7 +68,7 @@ def get_boiling_points_info(solvents: list) -> list:
 
 
 # ============================================================================
-# MELTING POINT FUNCTIONS (NEW)
+# MELTING POINT FUNCTIONS
 # ============================================================================
 
 def get_solvent_melting_point(solvent_name: str) -> float:
@@ -72,11 +79,7 @@ def get_solvent_melting_point(solvent_name: str) -> float:
 
 
 def get_max_melting_point(solvents: list) -> float:
-    """Get the maximum melting point from selected solvents.
-    
-    This is the critical value for the lower temperature constraint:
-    Temperature must be ABOVE this to ensure all solvents are liquid.
-    """
+    """Get the maximum melting point from selected solvents."""
     melting_points = []
     for solvent in solvents:
         mp = get_solvent_melting_point(solvent)
@@ -106,12 +109,26 @@ def get_melting_points_info(solvents: list) -> list:
 
 
 # ============================================================================
-# VALIDATION FUNCTION (updated for both BP and MP)
+# HELPER: Resolve parameter name from ID
+# ============================================================================
+
+def _resolve_param_name(param_id, param_names, param_ids):
+    """Resolve a parameter name from its UUID index."""
+    if param_names and param_ids:
+        for name, pid in zip(param_names, param_ids):
+            if pid['index'] == param_id and name:
+                return name.strip()
+    return None
+
+
+# ============================================================================
+# VALIDATION FUNCTION (BP, MP, AND inequalities)
 # ============================================================================
 
 def validate_and_adjust_suggestion(suggestion_row: dict, constraints_config: dict, solvent_param_name: str) -> tuple:
     """
-    Validate a BO suggestion against dynamic boiling point AND melting point constraints.
+    Validate a BO suggestion against dynamic boiling point, melting point,
+    AND inter-parameter inequality constraints.
     Adjusts parameter values if they violate constraints.
     
     Args:
@@ -121,71 +138,98 @@ def validate_and_adjust_suggestion(suggestion_row: dict, constraints_config: dic
     
     Returns:
         Tuple of (adjusted_row, adjustments_made)
-        - adjusted_row: Dictionary with corrected values
-        - adjustments_made: List of adjustment details for display
     """
-    if not constraints_config or not constraints_config.get('constraints'):
+    if not constraints_config:
         return suggestion_row, []
     
-    # Get the suggested solvent
-    suggested_solvent = suggestion_row.get(solvent_param_name)
-    if not suggested_solvent:
+    has_phase_constraints = constraints_config.get('constraints')
+    has_ineq_constraints = constraints_config.get('inequality_constraints')
+    
+    if not has_phase_constraints and not has_ineq_constraints:
         return suggestion_row, []
     
-    # Get boiling and melting points for the suggested solvent
-    bp_dict = constraints_config.get('boiling_points', {})
-    mp_dict = constraints_config.get('melting_points', {})
-    
-    solvent_bp = bp_dict.get(suggested_solvent)
-    solvent_mp = mp_dict.get(suggested_solvent)
-    
-    # Check and adjust each constrained parameter
     adjusted_row = suggestion_row.copy()
     adjustments_made = []
-    safety_margin = constraints_config.get('safety_margin', 5.0)
     
-    for constraint in constraints_config.get('constraints', []):
-        param_name = constraint['parameter_name']
-        constraint_type = constraint.get('type', 'less_than_bp')
+    # ===== PHASE CONSTRAINTS (BP/MP) =====
+    if has_phase_constraints:
+        suggested_solvent = suggestion_row.get(solvent_param_name)
         
-        if param_name not in adjusted_row:
-            continue
+        if suggested_solvent:
+            bp_dict = constraints_config.get('boiling_points', {})
+            mp_dict = constraints_config.get('melting_points', {})
+            solvent_bp = bp_dict.get(suggested_solvent)
+            solvent_mp = mp_dict.get(suggested_solvent)
+            safety_margin = constraints_config.get('safety_margin', 5.0)
             
-        current_value = adjusted_row[param_name]
-        if current_value is None:
-            continue
+            for constraint in constraints_config.get('constraints', []):
+                param_name = constraint['parameter_name']
+                constraint_type = constraint.get('type', 'less_than_bp')
+                
+                if param_name not in adjusted_row:
+                    continue
+                    
+                current_value = adjusted_row[param_name]
+                if current_value is None:
+                    continue
+                
+                if constraint_type == 'less_than_bp' and solvent_bp is not None:
+                    limit = solvent_bp - safety_margin
+                    if current_value >= limit:
+                        adjusted_value = round(limit - 2.0, 1)
+                        adjusted_row[param_name] = adjusted_value
+                        adjustments_made.append({
+                            'parameter': param_name,
+                            'original': round(current_value, 1),
+                            'adjusted': adjusted_value,
+                            'solvent': suggested_solvent,
+                            'limit_type': 'boiling_point',
+                            'limit_value': solvent_bp,
+                            'reason': f"T >= {limit}°C (BP={solvent_bp}°C - margin)"
+                        })
+                
+                elif constraint_type == 'greater_than_mp' and solvent_mp is not None:
+                    limit = solvent_mp + safety_margin
+                    if current_value <= limit:
+                        adjusted_value = round(limit + 2.0, 1)
+                        adjusted_row[param_name] = adjusted_value
+                        adjustments_made.append({
+                            'parameter': param_name,
+                            'original': round(current_value, 1),
+                            'adjusted': adjusted_value,
+                            'solvent': suggested_solvent,
+                            'limit_type': 'melting_point',
+                            'limit_value': solvent_mp,
+                            'reason': f"T <= {limit}°C (MP={solvent_mp}°C + margin)"
+                        })
+    
+    # ===== INTER-PARAMETER INEQUALITY CONSTRAINTS =====
+    for ineq in constraints_config.get('inequality_constraints', []):
+        left = ineq['param_left']
+        right = ineq['param_right']
+        offset = ineq.get('offset', 0.0)
         
-        # ===== CONSTRAINT: Temperature < Boiling Point =====
-        if constraint_type == 'less_than_bp' and solvent_bp is not None:
-            limit = solvent_bp - safety_margin
-            if current_value >= limit:
-                adjusted_value = round(limit - 2.0, 1)  # Additional 2°C margin
-                adjusted_row[param_name] = adjusted_value
-                adjustments_made.append({
-                    'parameter': param_name,
-                    'original': round(current_value, 1),
-                    'adjusted': adjusted_value,
-                    'solvent': suggested_solvent,
-                    'limit_type': 'boiling_point',
-                    'limit_value': solvent_bp,
-                    'reason': f"T >= {limit}°C (BP={solvent_bp}°C - margin)"
-                })
-        
-        # ===== CONSTRAINT: Temperature > Melting Point =====
-        elif constraint_type == 'greater_than_mp' and solvent_mp is not None:
-            limit = solvent_mp + safety_margin
-            if current_value <= limit:
-                adjusted_value = round(limit + 2.0, 1)  # Additional 2°C margin
-                adjusted_row[param_name] = adjusted_value
-                adjustments_made.append({
-                    'parameter': param_name,
-                    'original': round(current_value, 1),
-                    'adjusted': adjusted_value,
-                    'solvent': suggested_solvent,
-                    'limit_type': 'melting_point',
-                    'limit_value': solvent_mp,
-                    'reason': f"T <= {limit}°C (MP={solvent_mp}°C + margin)"
-                })
+        if left in adjusted_row and right in adjusted_row:
+            val_left = adjusted_row[left]
+            val_right = adjusted_row[right]
+            if val_left is not None and val_right is not None:
+                try:
+                    val_left = float(val_left)
+                    val_right = float(val_right)
+                except (ValueError, TypeError):
+                    continue
+                
+                limit = val_right + offset
+                if val_left > limit:
+                    adjusted_value = round(limit - 1.0, 1)
+                    adjustments_made.append({
+                        'parameter': left,
+                        'original': round(val_left, 1),
+                        'adjusted': adjusted_value,
+                        'limit_type': 'linear_inequality',
+                        'reason': f"{left}={val_left} > {right}+{offset}={limit}"
+                    })
+                    adjusted_row[left] = adjusted_value
     
     return adjusted_row, adjustments_made
 
@@ -195,13 +239,12 @@ def validate_and_adjust_suggestion(suggestion_row: dict, constraints_config: dic
 # ============================================================================
 
 def create_constraint_row(row_id: str, parameter_options: list = None):
-    """Create a single constraint row with constraint type selector."""
+    """Create a single phase constraint row (BP/MP)."""
     if parameter_options is None:
         parameter_options = []
     
     return html.Div([
         dbc.Row([
-            # Parameter selector
             dbc.Col([
                 dcc.Dropdown(
                     id={'type': 'constraint-param-select', 'index': row_id},
@@ -211,7 +254,6 @@ def create_constraint_row(row_id: str, parameter_options: list = None):
                     style={"fontSize": "0.875rem"}
                 )
             ], width=4),
-            # Constraint type selector
             dbc.Col([
                 dcc.Dropdown(
                     id={'type': 'constraint-type-select', 'index': row_id},
@@ -224,7 +266,6 @@ def create_constraint_row(row_id: str, parameter_options: list = None):
                     style={"fontSize": "0.875rem"}
                 )
             ], width=5),
-            # Delete button
             dbc.Col([
                 dbc.Button(
                     html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
@@ -239,27 +280,78 @@ def create_constraint_row(row_id: str, parameter_options: list = None):
     ], id={'type': 'constraint-row', 'index': row_id})
 
 
+def create_inequality_constraint_row(row_id: str, parameter_options: list = None):
+    """Create an inequality constraint row: param_left ≤ param_right + offset."""
+    if parameter_options is None:
+        parameter_options = []
+    
+    return html.Div([
+        dbc.Row([
+            dbc.Col([
+                dcc.Dropdown(
+                    id={'type': 'ineq-param-left', 'index': row_id},
+                    options=parameter_options,
+                    placeholder="Param A",
+                    clearable=True,
+                    style={"fontSize": "0.875rem"}
+                )
+            ], width=3),
+            dbc.Col([
+                html.Div("≤", className="text-center fw-bold",
+                         style={"lineHeight": "38px", "fontSize": "1.1rem", "color": "#495057"})
+            ], width=1, className="px-0"),
+            dbc.Col([
+                dcc.Dropdown(
+                    id={'type': 'ineq-param-right', 'index': row_id},
+                    options=parameter_options,
+                    placeholder="Param B",
+                    clearable=True,
+                    style={"fontSize": "0.875rem"}
+                )
+            ], width=3),
+            dbc.Col([
+                dbc.InputGroup([
+                    dbc.InputGroupText("+", style={"fontSize": "0.8rem", "padding": "0.25rem 0.5rem"}),
+                    dbc.Input(
+                        id={'type': 'ineq-offset', 'index': row_id},
+                        placeholder="0",
+                        type="number",
+                        step="any",
+                        value=0,
+                        size="sm",
+                        style={"borderRadius": "0 6px 6px 0"}
+                    ),
+                ], size="sm")
+            ], width=3),
+            dbc.Col([
+                dbc.Button(
+                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                    id={'type': 'delete-ineq-constraint-row', 'index': row_id},
+                    color="danger",
+                    outline=True,
+                    size="sm",
+                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                )
+            ], width=2),
+        ], className="mb-2 align-items-center"),
+    ], id={'type': 'ineq-constraint-row', 'index': row_id})
+
+
 # ============================================================================
 # CALLBACKS
 # ============================================================================
 
-# ===== SHOW/HIDE CONSTRAINTS CARD =====
+# ===== SHOW/HIDE PHASE CONSTRAINTS SECTION (not the whole card) =====
 
 @callback(
-    Output("constraints-card", "style"),
+    Output("phase-constraints-section", "style"),
     Input("solvent-config-store", "data"),
     prevent_initial_call=True
 )
-def toggle_constraints_card(solvent_config):
-    """Show constraints card when solvents are configured"""
+def toggle_phase_constraints_section(solvent_config):
+    """Show phase constraints section only when solvents are configured."""
     if solvent_config and solvent_config.get('solvents'):
-        return {
-            "display": "block",
-            "borderRadius": "12px",
-            "border": "1px solid #e0e0e0",
-            "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
-            "backgroundColor": "white"
-        }
+        return {"display": "block"}
     return {"display": "none"}
 
 
@@ -286,10 +378,8 @@ def update_bp_mp_info(solvent_config):
             className="mb-2 py-2"
         )
     
-    # Create mp lookup for easy access
     mp_lookup = {s: mp for s, mp in mp_info}
     
-    # Create table-like display with both BP and MP
     rows = []
     critical_solvents = []
     
@@ -297,7 +387,6 @@ def update_bp_mp_info(solvent_config):
         mp = mp_lookup.get(solvent)
         mp_str = f"{mp}°C" if mp is not None else "N/A"
         
-        # Flag solvents with high melting points (> -20°C)
         is_critical = mp is not None and mp > -20
         if is_critical:
             critical_solvents.append((solvent, mp))
@@ -314,7 +403,6 @@ def update_bp_mp_info(solvent_config):
             ])
         )
     
-    # Warning for critical solvents
     warning_div = None
     if critical_solvents:
         warning_text = ", ".join([f"{s} ({mp}°C)" for s, mp in critical_solvents])
@@ -351,7 +439,9 @@ def update_bp_mp_info(solvent_config):
     })
 
 
-# ===== UPDATE PARAMETER OPTIONS IN CONSTRAINT DROPDOWN =====
+# ============================================================================
+# PHASE CONSTRAINT CALLBACKS (BP/MP)
+# ============================================================================
 
 @callback(
     Output({'type': 'constraint-param-select', 'index': ALL}, 'options'),
@@ -362,7 +452,7 @@ def update_bp_mp_info(solvent_config):
     prevent_initial_call=True
 )
 def update_constraint_param_options(param_names, param_types, param_ids, constraint_ids):
-    """Update the parameter options in constraint dropdowns"""
+    """Update the parameter options in phase constraint dropdowns"""
     if not param_names or not constraint_ids:
         raise PreventUpdate
     
@@ -377,8 +467,6 @@ def update_constraint_param_options(param_names, param_types, param_ids, constra
     return [options] * len(constraint_ids)
 
 
-# ===== ADD CONSTRAINT ROW =====
-
 @callback(
     Output("constraint-rows-container", "children", allow_duplicate=True),
     Input("add-constraint-btn", "n_clicks"),
@@ -389,7 +477,7 @@ def update_constraint_param_options(param_names, param_types, param_ids, constra
     prevent_initial_call=True
 )
 def add_constraint_row(n_clicks, current_rows, param_names, param_types, param_ids):
-    """Add a new constraint row"""
+    """Add a new phase constraint row"""
     if not n_clicks:
         raise PreventUpdate
     
@@ -411,8 +499,6 @@ def add_constraint_row(n_clicks, current_rows, param_names, param_types, param_i
     return current_rows + [new_row]
 
 
-# ===== DELETE CONSTRAINT ROW =====
-
 @callback(
     Output("constraint-rows-container", "children", allow_duplicate=True),
     Input({'type': 'delete-constraint-row', 'index': ALL}, 'n_clicks'),
@@ -420,7 +506,7 @@ def add_constraint_row(n_clicks, current_rows, param_names, param_types, param_i
     prevent_initial_call=True
 )
 def delete_constraint_row(n_clicks, current_rows):
-    """Delete a constraint row"""
+    """Delete a phase constraint row"""
     if not any(n_clicks):
         raise PreventUpdate
     
@@ -435,66 +521,149 @@ def delete_constraint_row(n_clicks, current_rows):
         row_id = None
         if hasattr(row, 'id') and isinstance(row.id, dict):
             row_id = row.id.get('index')
-        
         if row_id != row_to_delete:
             updated_rows.append(row)
     
     return updated_rows
 
 
-# ===== SAVE CONSTRAINTS TO STORE =====
+# ============================================================================
+# INEQUALITY CONSTRAINT CALLBACKS
+# ============================================================================
+
+@callback(
+    [Output({'type': 'ineq-param-left', 'index': ALL}, 'options'),
+     Output({'type': 'ineq-param-right', 'index': ALL}, 'options')],
+    [Input({'type': 'parameter-name', 'index': ALL}, 'value'),
+     Input({'type': 'parameter-type', 'index': ALL}, 'value')],
+    [State({'type': 'parameter-name', 'index': ALL}, 'id'),
+     State({'type': 'ineq-param-left', 'index': ALL}, 'id')],
+    prevent_initial_call=True
+)
+def update_ineq_param_options(param_names, param_types, param_ids, ineq_ids):
+    """Update parameter options in inequality constraint dropdowns"""
+    if not param_names or not ineq_ids:
+        raise PreventUpdate
+    
+    options = []
+    for name, ptype, pid in zip(param_names, param_types, param_ids):
+        if name and ptype in ['float', 'int']:
+            options.append({
+                "label": name,
+                "value": pid['index']
+            })
+    
+    return [options] * len(ineq_ids), [options] * len(ineq_ids)
+
+
+@callback(
+    Output("ineq-constraint-rows-container", "children", allow_duplicate=True),
+    Input("add-ineq-constraint-btn", "n_clicks"),
+    [State("ineq-constraint-rows-container", "children"),
+     State({'type': 'parameter-name', 'index': ALL}, 'value'),
+     State({'type': 'parameter-type', 'index': ALL}, 'value'),
+     State({'type': 'parameter-name', 'index': ALL}, 'id')],
+    prevent_initial_call=True
+)
+def add_ineq_constraint_row(n_clicks, current_rows, param_names, param_types, param_ids):
+    """Add a new inequality constraint row"""
+    if not n_clicks:
+        raise PreventUpdate
+    
+    options = []
+    if param_names and param_types and param_ids:
+        for name, ptype, pid in zip(param_names, param_types, param_ids):
+            if name and ptype in ['float', 'int']:
+                options.append({
+                    "label": name,
+                    "value": pid['index']
+                })
+    
+    new_id = str(uuid.uuid4())
+    new_row = create_inequality_constraint_row(new_id, options)
+    
+    if current_rows is None:
+        current_rows = []
+    
+    return current_rows + [new_row]
+
+
+@callback(
+    Output("ineq-constraint-rows-container", "children", allow_duplicate=True),
+    Input({'type': 'delete-ineq-constraint-row', 'index': ALL}, 'n_clicks'),
+    State("ineq-constraint-rows-container", "children"),
+    prevent_initial_call=True
+)
+def delete_ineq_constraint_row(n_clicks, current_rows):
+    """Delete an inequality constraint row"""
+    if not any(n_clicks):
+        raise PreventUpdate
+    
+    triggered = ctx.triggered_id
+    if not isinstance(triggered, dict):
+        raise PreventUpdate
+    
+    row_to_delete = triggered.get('index')
+    
+    updated_rows = []
+    for row in current_rows:
+        row_id = None
+        if hasattr(row, 'id') and isinstance(row.id, dict):
+            row_id = row.id.get('index')
+        if row_id != row_to_delete:
+            updated_rows.append(row)
+    
+    return updated_rows
+
+
+# ============================================================================
+# SAVE ALL CONSTRAINTS TO STORE
+# ============================================================================
 
 @callback(
     Output("constraints-store", "data"),
     [Input({'type': 'constraint-param-select', 'index': ALL}, 'value'),
      Input({'type': 'constraint-type-select', 'index': ALL}, 'value'),
-     Input("solvent-config-store", "data")],
+     Input("solvent-config-store", "data"),
+     Input({'type': 'ineq-param-left', 'index': ALL}, 'value'),
+     Input({'type': 'ineq-param-right', 'index': ALL}, 'value'),
+     Input({'type': 'ineq-offset', 'index': ALL}, 'value')],
     [State({'type': 'constraint-param-select', 'index': ALL}, 'id'),
      State({'type': 'constraint-type-select', 'index': ALL}, 'id'),
      State({'type': 'parameter-name', 'index': ALL}, 'value'),
-     State({'type': 'parameter-name', 'index': ALL}, 'id')],
+     State({'type': 'parameter-name', 'index': ALL}, 'id'),
+     State({'type': 'ineq-param-left', 'index': ALL}, 'id')],
     prevent_initial_call=True
 )
-def save_constraints(constraint_values, constraint_types, solvent_config, 
-                     constraint_ids, constraint_type_ids, param_names, param_ids):
+def save_constraints(constraint_values, constraint_types, solvent_config,
+                     ineq_left_values, ineq_right_values, ineq_offset_values,
+                     constraint_ids, constraint_type_ids, param_names, param_ids,
+                     ineq_left_ids):
     """
     Save constraint configuration to store.
     
-    ✅ UPDATED VERSION with melting points and constraint types
-    
-    The store now contains:
-    - boiling_points: dict mapping solvent name -> boiling point
-    - melting_points: dict mapping solvent name -> melting point
-    - solvent_param_name: name of the solvent parameter
-    - constraints: list of constraint definitions with type
-    - safety_margin: configurable safety margin in °C
+    ✅ Works with or without solvent config.
+    - Phase constraints (BP/MP) require solvent config
+    - Inequality constraints work independently
     """
-    if not solvent_config:
-        return None
+    # ===== SOLVENT INFO (optional) =====
+    bp_dict = {}
+    mp_dict = {}
+    solvents = []
+    solvent_param_name = "Solvent"
+    solvent_param_id = None
     
-    solvents = solvent_config.get('solvents', [])
-    
-    # Get boiling points and melting points for ALL solvents
-    bp_dict = get_boiling_points_dict(solvents)
-    mp_dict = get_melting_points_dict(solvents)
-    
-    if not bp_dict and not mp_dict:
-        return None
-    
-    # ✅ GET SOLVENT PARAMETER NAME (critical for native constraints)
-    solvent_param_name = None
-    solvent_param_id = solvent_config.get('param_id')
-    
-    # Try to find the parameter name from param_ids/param_names
-    if solvent_param_id and param_ids and param_names:
-        for name, pid in zip(param_names, param_ids):
-            if pid['index'] == solvent_param_id and name:
-                solvent_param_name = name.strip()
-                break
-    
-    # Fallback: assume it's called "Solvent"
-    if not solvent_param_name:
-        solvent_param_name = "Solvent"
+    if solvent_config:
+        solvents = solvent_config.get('solvents', [])
+        bp_dict = get_boiling_points_dict(solvents)
+        mp_dict = get_melting_points_dict(solvents)
+        solvent_param_id = solvent_config.get('param_id')
+        
+        if solvent_param_id and param_ids and param_names:
+            for name, pid in zip(param_names, param_ids):
+                if pid['index'] == solvent_param_id and name:
+                    solvent_param_name = name.strip()
+                    break
     
     print(f"🔍 Constraint store - Solvent parameter name: '{solvent_param_name}'")
     
@@ -505,7 +674,7 @@ def save_constraints(constraint_values, constraint_types, solvent_config,
             if name:
                 param_name_lookup[pid['index']] = name
     
-    # Build constraints list with type
+    # ===== PHASE CONSTRAINTS (BP/MP) =====
     constraints = []
     if constraint_values and constraint_ids and constraint_types:
         for value, cid, ctype in zip(constraint_values, constraint_ids, constraint_types):
@@ -527,17 +696,45 @@ def save_constraints(constraint_values, constraint_types, solvent_config,
                         'description': description
                     })
     
-    print(f"🔍 Constraint store - {len(constraints)} constraint(s) configured")
+    print(f"🔍 Constraint store - {len(constraints)} phase constraint(s)")
     for c in constraints:
         print(f"   - {c['description']} (type: {c['type']})")
     
-    # ✅ RETURN WITH both boiling_points and melting_points
+    # ===== INEQUALITY CONSTRAINTS =====
+    inequality_constraints = []
+    if ineq_left_values and ineq_right_values:
+        for left_val, right_val, offset_val, left_id in zip(
+            ineq_left_values, ineq_right_values, ineq_offset_values, ineq_left_ids
+        ):
+            if left_val and right_val:
+                left_name = _resolve_param_name(left_val, param_names, param_ids)
+                right_name = _resolve_param_name(right_val, param_names, param_ids)
+                if left_name and right_name and left_name != right_name:
+                    offset = float(offset_val) if offset_val is not None else 0.0
+                    inequality_constraints.append({
+                        'id': left_id['index'],
+                        'type': 'linear_inequality',
+                        'param_left': left_name,
+                        'param_right': right_name,
+                        'offset': offset,
+                        'description': f"{left_name} ≤ {right_name} + {offset}"
+                    })
+    
+    print(f"🔍 Constraint store - {len(inequality_constraints)} inequality constraint(s)")
+    for ic in inequality_constraints:
+        print(f"   - {ic['description']}")
+    
+    # ✅ Return data even without solvents (inequality constraints still need saving)
+    if not constraints and not inequality_constraints and not bp_dict and not mp_dict:
+        return None
+    
     return {
-        'boiling_points': bp_dict,      # Dict: solvent -> BP
-        'melting_points': mp_dict,      # Dict: solvent -> MP (NEW)
+        'boiling_points': bp_dict,
+        'melting_points': mp_dict,
         'solvents': solvents,
         'solvent_param_id': solvent_param_id,
         'solvent_param_name': solvent_param_name,
         'constraints': constraints,
-        'safety_margin': 5.0            # Configurable safety margin
+        'inequality_constraints': inequality_constraints,
+        'safety_margin': 5.0
     }

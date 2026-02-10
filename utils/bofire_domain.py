@@ -413,12 +413,18 @@ def create_bofire_domain_from_store(
 
     outputs = Outputs(features=output_features)
 
-    # ===== ✅ CREATE NATIVE CONSTRAINTS (BP AND MP) =====
+def _UPDATED_CONSTRAINTS_SECTION():
+    """
+    This is not a real function — it's the code to paste into 
+    create_bofire_domain_from_store() replacing the constraints section.
+    """
+    
+    # ===== ✅ CREATE NATIVE CONSTRAINTS (BP, MP, AND LINEAR INEQUALITIES) =====
     constraint_list = []
     
-    # Read constraints from base_config (where constraint callback stores them)
-    if base_config and base_config.get('constraints'):
-        print(f"🔧 Processing {len(base_config['constraints'])} constraint(s)...")
+    # ----- PHASE CONSTRAINTS (BP/MP) from constraints_config -----
+    if constraints_config  and constraints_config.get('constraints'):
+        print(f"🔧 Processing {len(base_config['constraints'])} phase constraint(s)...")
         
         # Get solvent info from solvent_config
         solvent_param_name = None
@@ -431,7 +437,6 @@ def create_bofire_domain_from_store(
             solvents = solvent_config.get('solvents', [])
             solvent_param_name = solvent_config.get('param_name', 'Solvent')
             
-            # Calculate bp_dict and mp_dict from SOLVENT_DESCRIPTORS
             for s in solvents:
                 if s in SOLVENT_DESCRIPTORS:
                     if 'bp' in SOLVENT_DESCRIPTORS[s]:
@@ -443,29 +448,25 @@ def create_bofire_domain_from_store(
             print(f"✅ Found {len(mp_dict)} solvents with melting points")
             print(f"✅ Using solvent_param_name: '{solvent_param_name}'")
         else:
-            print(f"⚠️ No solvent_config provided, cannot create constraints")
+            print(f"⚠️ No solvent_config provided, cannot create phase constraints")
         
-        # Verify that solvent parameter exists in input features
         solvent_feature = next((f for f in input_features if f.key == solvent_param_name), None) if solvent_param_name else None
         
         if not solvent_feature:
             print(f"⚠️ Solvent parameter '{solvent_param_name}' not found in inputs!")
             print(f"   Available parameters: {[f.key for f in input_features]}")
-            print(f"   Skipping constraint creation")
+            print(f"   Skipping phase constraint creation")
         elif not bp_dict and not mp_dict:
-            print(f"⚠️ No boiling/melting points available, skipping constraint creation")
+            print(f"⚠️ No boiling/melting points available, skipping phase constraint creation")
         else:
             print(f"✅ Found solvent parameter: {solvent_param_name}")
             
-            # Get safety margin from base_config
-            safety_margin = base_config.get('safety_margin', 5.0)
+            safety_margin = constraints_config.get('safety_margin', 5.0)
             
-            # Process each constraint
-            for constraint in base_config.get('constraints', []):
+            for constraint in constraints_config.get('constraints', []):
                 constraint_type = constraint.get('type', 'less_than_bp')
                 param_name = constraint['parameter_name']
                 
-                # Check if parameter exists in input features
                 param_feature = next((f for f in input_features if f.key == param_name), None)
                 
                 if not param_feature:
@@ -478,26 +479,20 @@ def create_bofire_domain_from_store(
                         print(f"   ⚠️ No boiling points available, skipping less_than_bp constraint")
                         continue
                     
-                    # Create CategoricalExcludeConstraint FOR EACH SOLVENT
                     for solvent_name, bp in bp_dict.items():
                         try:
                             temp_limit = bp - safety_margin
                             
-                            # If parameter is discrete, find the appropriate discrete threshold
                             if isinstance(param_feature, DiscreteInput):
-                                # Find the first value >= limit (to exclude)
                                 invalid_values = [v for v in param_feature.values if v >= temp_limit]
                                 if invalid_values:
                                     temp_limit_discrete = min(invalid_values)
                                 else:
-                                    # All values are valid, no constraint needed for this solvent
                                     print(f"   ℹ️ {solvent_name}: All discrete values below {temp_limit}°C, no BP constraint needed")
                                     continue
                             else:
                                 temp_limit_discrete = temp_limit
                             
-                            # CategoricalExcludeConstraint excludes combinations where:
-                            # Solvent == solvent_name AND Parameter >= temp_limit (too hot!)
                             native_constraint = CategoricalExcludeConstraint(
                                 features=[solvent_param_name, param_name],
                                 conditions=[
@@ -514,33 +509,26 @@ def create_bofire_domain_from_store(
                             import traceback
                             traceback.print_exc()
                 
-                # ===== CONSTRAINT TYPE: greater_than_mp (Melting Point) - NEW =====
+                # ===== CONSTRAINT TYPE: greater_than_mp (Melting Point) =====
                 elif constraint_type == 'greater_than_mp':
                     if not mp_dict:
                         print(f"   ⚠️ No melting points available, skipping greater_than_mp constraint")
                         continue
                     
-                    # Create CategoricalExcludeConstraint FOR EACH SOLVENT
                     for solvent_name, mp in mp_dict.items():
                         try:
-                            # T must be > MP, so we exclude T <= (MP + margin)
                             temp_limit = mp + safety_margin
                             
-                            # If parameter is discrete, find the appropriate discrete threshold
                             if isinstance(param_feature, DiscreteInput):
-                                # Find the last value <= limit (values to exclude)
                                 invalid_values = [v for v in param_feature.values if v <= temp_limit]
                                 if invalid_values:
                                     temp_limit_discrete = max(invalid_values)
                                 else:
-                                    # All values are valid (above melting point), no constraint needed
                                     print(f"   ℹ️ {solvent_name}: All discrete values above {temp_limit}°C, no MP constraint needed")
                                     continue
                             else:
                                 temp_limit_discrete = temp_limit
                             
-                            # CategoricalExcludeConstraint excludes combinations where:
-                            # Solvent == solvent_name AND Parameter <= temp_limit (too cold!)
                             native_constraint = CategoricalExcludeConstraint(
                                 features=[solvent_param_name, param_name],
                                 conditions=[
@@ -560,12 +548,53 @@ def create_bofire_domain_from_store(
                 else:
                     print(f"   ⚠️ Unknown constraint type: {constraint_type}")
     else:
-        print(f"ℹ️ No constraints configured")
+        print(f"ℹ️ No phase constraints configured")
+    
+    # ----- LINEAR INEQUALITY CONSTRAINTS (NEW) -----
+    # These come from constraints_config (not base_config) and represent
+    # inter-parameter relationships like param_left ≤ param_right + offset
+    if constraints_config and constraints_config.get('inequality_constraints'):
+        ineq_list = constraints_config['inequality_constraints']
+        print(f"🔧 Processing {len(ineq_list)} inequality constraint(s)...")
+        
+        for ineq in ineq_list:
+            param_left = ineq['param_left']
+            param_right = ineq['param_right']
+            offset = ineq.get('offset', 0.0)
+            
+            # Verify both parameters exist in input features
+            left_feat = next((f for f in input_features if f.key == param_left), None)
+            right_feat = next((f for f in input_features if f.key == param_right), None)
+            
+            if left_feat and right_feat:
+                try:
+                    # param_left ≤ param_right + offset
+                    # Rewritten as: 1*param_left + (-1)*param_right ≤ offset
+                    linear_constraint = LinearInequalityConstraint(
+                        features=[param_left, param_right],
+                        coefficients=[1.0, -1.0],
+                        rhs=offset,
+                    )
+                    constraint_list.append(linear_constraint)
+                    print(f"   ✅ Linear inequality: {param_left} ≤ {param_right} + {offset}")
+                except Exception as e:
+                    print(f"   ❌ Failed to create inequality constraint: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                missing = []
+                if not left_feat:
+                    missing.append(param_left)
+                if not right_feat:
+                    missing.append(param_right)
+                print(f"   ⚠️ Inequality constraint skipped: missing parameter(s) {missing}")
+    else:
+        print(f"ℹ️ No inequality constraints configured")
     
     # Create Constraints object if we have any constraints
     if constraint_list:
         constraints = Constraints(constraints=constraint_list)
-        print(f"🎯 Created {len(constraint_list)} NATIVE constraint(s) for domain")
+        print(f"🎯 Created {len(constraint_list)} TOTAL constraint(s) for domain")
     else:
         constraints = None
         print(f"ℹ️ No constraints added to domain")

@@ -101,7 +101,7 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
         ]
     
     # ===== 2. FILTER BY CONSTRAINTS (BP/MP) =====
-    if constraints_config and constraints_config.get('constraints'):
+    if constraints_config and (constraints_config.get('constraints') or constraints_config.get('inequality_constraints')):
         feasible = _filter_constraints(candidate_pool, constraints_config)
     else:
         feasible = candidate_pool
@@ -147,7 +147,7 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
 
 
 def _filter_constraints(candidate_pool, constraints_config):
-    """Filter candidate points by BP/MP constraints."""
+    """Filter candidate points by BP/MP constraints AND linear inequality constraints."""
     safety_margin = constraints_config.get('safety_margin', 5.0)
     solvent_param = constraints_config.get('solvent_param_name')
     boiling_points = constraints_config.get('boiling_points', {})
@@ -158,6 +158,7 @@ def _filter_constraints(candidate_pool, constraints_config):
         valid = True
         solvent_name = point.get(solvent_param)
         
+        # ===== PHASE CONSTRAINTS (BP/MP) =====
         if solvent_name:
             for c in constraints_config.get('constraints', []):
                 param_val = point.get(c.get('parameter_name'))
@@ -173,11 +174,29 @@ def _filter_constraints(candidate_pool, constraints_config):
                     if mp is not None and param_val <= (mp + safety_margin):
                         valid = False
                         break
+        
+        # ===== LINEAR INEQUALITY CONSTRAINTS (NEW) =====
+        if valid:
+            for ineq in constraints_config.get('inequality_constraints', []):
+                left = ineq['param_left']
+                right = ineq['param_right']
+                offset = ineq.get('offset', 0.0)
+                
+                val_left = point.get(left)
+                val_right = point.get(right)
+                
+                if val_left is not None and val_right is not None:
+                    try:
+                        if float(val_left) > float(val_right) + offset:
+                            valid = False
+                            break
+                    except (ValueError, TypeError):
+                        pass  # Skip non-numeric values
+        
         if valid:
             feasible.append(point)
     
     return feasible
-
 def get_available_acquisition_functions(is_multi_objective=False):
     """
     Get available acquisition functions for single or multi-objective optimization.

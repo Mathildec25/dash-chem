@@ -5,6 +5,7 @@ import uuid
 # Import custom form generators from callbacks
 from callbacks.opti_param_callbacks.solvents_callbacks import create_custom_solvent_form
 from callbacks.opti_param_callbacks.base_callbacks import create_custom_base_form
+from components.constraints_card import create_constraints_card
 
 initial_id = str(uuid.uuid4())
 initial_objective_id = str(uuid.uuid4())
@@ -139,10 +140,9 @@ def create_opti_param_layout():
                                                 dbc.Col([
                                                     dbc.Input(
                                                         id={'type': 'parameter-step', 'index': initial_id},
-                                                        placeholder="Step (opt)",
+                                                        placeholder="Step",
                                                         type="number",
                                                         step="any",
-                                                        min=0.001,
                                                         size="sm",
                                                         style={"borderRadius": "6px"}
                                                     )
@@ -150,6 +150,12 @@ def create_opti_param_layout():
                                             ])
                                         ])
                                     ], width=5),
+                                    dbc.Col([
+                                        html.Div(
+                                            id={'type': 'parameter-categories', 'index': initial_id},
+                                            style={"display": "none"}
+                                        )
+                                    ], width=0),
                                     dbc.Col([
                                         dbc.Button(
                                             html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
@@ -258,69 +264,10 @@ def create_opti_param_layout():
             ], md=6, className="mb-3"),
         ]),
         
-        # ========== CONSTRAINTS CARD (NEW) ==========
+        # ========== CONSTRAINTS CARD ==========
         dbc.Row([
             dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.H5([
-                                html.I(className="bi bi-sliders me-2", style={"color": "#6c757d"}),
-                                "Constraints"
-                            ], className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
-                            dbc.Button([
-                                html.I(className="bi bi-plus-lg me-1"),
-                                "Add"
-                            ],
-                            id="add-constraint-btn",
-                            color="primary",
-                            size="sm",
-                            className="float-end",
-                            style={"borderRadius": "6px", "padding": "0.25rem 0.75rem"}
-                            ),
-                        ], className="mb-3"),
-                        
-                        html.P([
-                            html.I(className="bi bi-info-circle me-2"),
-                            "Define constraints to ensure parameters stay below solvent boiling points."
-                        ], className="text-muted small mb-3"),
-                        
-                        html.Div(id="bp-info-display", className="mb-3"),
-                        
-                        html.Div([
-                            html.Label("Constraint Type", className="form-label small text-muted"),
-                            dcc.Dropdown(
-                                id="constraint-type-select",
-                                options=[
-                                    {"label": "Parameter < Minimum Boiling Point", "value": "less_than_min_bp"},
-                                ],
-                                value="less_than_min_bp",
-                                clearable=False,
-                                style={"fontSize": "0.875rem"},
-                                disabled=True
-                            )
-                        ], className="mb-3"),
-                        
-                        html.Div(id="constraint-rows-container", children=[]),
-                        
-                        html.Div([
-                            html.Hr(className="my-3"),
-                            html.Small([
-                                html.Strong("How it works: "),
-                                "When you add a constraint, the selected parameter will be ",
-                                "limited to stay below the minimum boiling point of your selected solvents."
-                            ], className="text-muted")
-                        ])
-                    ], style={"padding": "1.25rem"})
-                ], 
-                id="constraints-card",
-                style={
-                    "display": "none",
-                    "borderRadius": "12px",
-                    "border": "1px solid #e0e0e0",
-                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
-                    "backgroundColor": "white"
-                })
+                create_constraints_card()
             ], md=12)
         ], className="mb-3"),
         # ========== END CONSTRAINTS CARD ==========
@@ -362,7 +309,7 @@ def create_opti_param_layout():
                         "backgroundColor": "white"
                     })
                 ], id="extra-columns-collapse", is_open=False),
-            ], md=12)
+            ], md=12, className="mb-3")
         ]),
         
         # Sampling Configuration Card
