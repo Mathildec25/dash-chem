@@ -6,6 +6,7 @@ MODIFICATIONS FOR DISCRETE + NATIVE CONSTRAINTS:
 - Converts float parameters to DiscreteInput when discretization step is provided
 - Uses CategoricalExcludeConstraint for native boiling point AND melting point constraints
 - Eliminates need for post-filtering of suggestions
+- Supports LinearInequalityConstraint for inter-parameter inequalities
 
 Best Practices for Bayesian Optimization in Chemistry:
 - Normalize inputs to [0, 1] for better GP performance
@@ -259,6 +260,7 @@ def _create_categorical_descriptor_safely(name, categories, descriptors, values)
         print(f"   ✅ Created with model_construct")
         return feature
 
+
 def create_bofire_domain_from_store(
     parameter_data: List[Dict],
     objective_data: Optional[List[Dict]] = None,
@@ -270,14 +272,14 @@ def create_bofire_domain_from_store(
     """
     Create a BoFire Domain using saved parameters and objectives from Dash stores.
     
-    ✅ UPDATED: Supports both boiling point (BP) and melting point (MP) constraints
+    ✅ UPDATED: Supports BP, MP, AND linear inequality constraints
     
     Args:
         parameter_data (list of dicts): Output from parameter-store.
         objective_data (list of dicts): Output from objective-store.
         solvent_config (dict): Configuration for solvent parameter with descriptors.
         base_config (dict): Configuration for base parameter with descriptors.
-        constraints_config (dict): Configuration for constraints (BP and MP limits).
+        constraints_config (dict): Configuration for constraints (BP, MP, inequalities).
         discretization_config (dict): Configuration for discretization steps.
             Example: {'Temperature': 5.0, 'Concentration': 0.1}
     
@@ -413,18 +415,12 @@ def create_bofire_domain_from_store(
 
     outputs = Outputs(features=output_features)
 
-def _UPDATED_CONSTRAINTS_SECTION():
-    """
-    This is not a real function — it's the code to paste into 
-    create_bofire_domain_from_store() replacing the constraints section.
-    """
-    
     # ===== ✅ CREATE NATIVE CONSTRAINTS (BP, MP, AND LINEAR INEQUALITIES) =====
     constraint_list = []
     
     # ----- PHASE CONSTRAINTS (BP/MP) from constraints_config -----
-    if constraints_config  and constraints_config.get('constraints'):
-        print(f"🔧 Processing {len(base_config['constraints'])} phase constraint(s)...")
+    if constraints_config and constraints_config.get('constraints'):
+        print(f"🔧 Processing {len(constraints_config['constraints'])} phase constraint(s)...")
         
         # Get solvent info from solvent_config
         solvent_param_name = None
@@ -432,7 +428,7 @@ def _UPDATED_CONSTRAINTS_SECTION():
         mp_dict = {}
         
         if solvent_config:
-            from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
+            from utils.descriptor_data import SOLVENT_DESCRIPTORS
             
             solvents = solvent_config.get('solvents', [])
             solvent_param_name = solvent_config.get('param_name', 'Solvent')
@@ -550,9 +546,8 @@ def _UPDATED_CONSTRAINTS_SECTION():
     else:
         print(f"ℹ️ No phase constraints configured")
     
-    # ----- LINEAR INEQUALITY CONSTRAINTS (NEW) -----
-    # These come from constraints_config (not base_config) and represent
-    # inter-parameter relationships like param_left ≤ param_right + offset
+    # ----- LINEAR INEQUALITY CONSTRAINTS -----
+    # Inter-parameter relationships like param_left ≤ param_right + offset
     if constraints_config and constraints_config.get('inequality_constraints'):
         ineq_list = constraints_config['inequality_constraints']
         print(f"🔧 Processing {len(ineq_list)} inequality constraint(s)...")
@@ -591,7 +586,7 @@ def _UPDATED_CONSTRAINTS_SECTION():
     else:
         print(f"ℹ️ No inequality constraints configured")
     
-    # Create Constraints object if we have any constraints
+    # --- Create Constraints object if we have any ---
     if constraint_list:
         constraints = Constraints(constraints=constraint_list)
         print(f"🎯 Created {len(constraint_list)} TOTAL constraint(s) for domain")
@@ -600,7 +595,6 @@ def _UPDATED_CONSTRAINTS_SECTION():
         print(f"ℹ️ No constraints added to domain")
 
     # --- Create domain ---
-    # Only pass constraints if we have some
     if constraints is not None:
         domain = Domain(inputs=inputs, outputs=outputs, constraints=constraints)
     else:

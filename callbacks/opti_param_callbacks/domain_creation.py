@@ -151,11 +151,16 @@ def create_domain_and_excel(n_clicks, project_name,
                     alert = dbc.Alert(f"❌ Parameter '{name}' missing min or max value", color="danger")
                     return no_update, no_update, alert, True
                 
+                type_info = {'range': [float(lb), float(ub)]}
+                step = steps_dict.get(idx)
+                if step is not None:
+                    type_info['step'] = float(step)
+                
                 parameters.append({
                     'id': idx,
                     'name': name.strip(),
                     'type': 'float',
-                    'type_info': {'range': [float(lb), float(ub)]}
+                    'type_info': type_info
                 })
             
             elif ptype == 'int':
