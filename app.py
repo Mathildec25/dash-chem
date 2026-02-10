@@ -13,6 +13,7 @@ from callbacks.opti_home_callbacks import new_proj_callbacks, already_created_ca
 from callbacks.opti_param_callbacks import parameter_part, domain_creation, solvents_callbacks, base_callbacks, constraints_callbacks
 from callbacks.opti_run_callbacks import run_optimization
 from callbacks.opti_results_callbacks import results_analysis
+from callbacks.opti_run_callbacks import online_analysis_callbacks
 from components.sidebar import generate_sidebar 
 from callbacks import advanced_bo_callbacks
 
