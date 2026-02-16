@@ -21,6 +21,8 @@ from itertools import product as itertools_product
 def sampling(domain, sampling_method: str, nb_points: int):
     """
     Run a sampling method for a given domain.
+    Falls back to manual enumeration + random selection for fully discrete
+    domains with constraints (BoFire bug workaround).
 
     Args:
         domain (Domain): BoFire domain.
@@ -30,14 +32,101 @@ def sampling(domain, sampling_method: str, nb_points: int):
     Returns:
         pd.DataFrame: Sampled points.
     """
+    from bofire.data_models.features.api import DiscreteInput
+
     try:
         method_enum = SamplingMethodEnum[sampling_method]
     except KeyError:
         raise ValueError(f"Invalid sampling method '{sampling_method}'. Must be one of {list(SamplingMethodEnum.__members__.keys())}.")
 
+    # ===== WORKAROUND: BoFire bug with fully discrete + constraints =====
+    # RandomStrategy returns a scalar instead of a Series when all features
+    # are DiscreteInput and constraints are present, causing a TypeError
+    # in validate_candidates. We detect this case and fall back to manual sampling.
+    all_discrete = all(
+        isinstance(f, DiscreteInput) for f in domain.inputs.features
+    )
+    has_constraints = domain.constraints and len(domain.constraints.constraints) > 0
+
+    if all_discrete and has_constraints:
+        print("⚠️ Fully discrete domain with constraints detected — using manual sampling fallback")
+        return _manual_discrete_sampling(domain, nb_points)
+
+    # Normal BoFire sampling
     datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum)
     sampler = strategies.map(datamodel)
     return sampler.ask(nb_points)
+
+
+def _manual_discrete_sampling(domain, nb_points: int):
+    """
+    Manual sampling for fully discrete domains with constraints.
+    Enumerates combinations, validates against domain constraints,
+    then randomly selects nb_points.
+
+    Args:
+        domain: BoFire Domain object (all DiscreteInput features)
+        nb_points: Number of points to sample
+
+    Returns:
+        pd.DataFrame: Sampled feasible points
+    """
+    from bofire.data_models.features.api import DiscreteInput
+
+    feature_keys = [f.key for f in domain.inputs.features]
+    all_values = {}
+
+    for feature in domain.inputs.features:
+        if isinstance(feature, DiscreteInput):
+            all_values[feature.key] = list(feature.values)
+        else:
+            raise ValueError(f"Unexpected feature type for {feature.key}: {type(feature)}")
+
+    # Calculate total combinations
+    total = 1
+    for v in all_values.values():
+        total *= len(v)
+    print(f"   📊 Total combinations: {total}")
+
+    if total > 500_000:
+        # Too large to enumerate: random sample then filter
+        print(f"   ⚠️ Large space ({total}), using random subset of 100,000")
+        rng = np.random.default_rng(42)
+        candidates = []
+        for _ in range(100_000):
+            combo = {k: float(rng.choice(v)) for k, v in all_values.items()}
+            candidates.append(combo)
+        df_candidates = pd.DataFrame(candidates)
+    else:
+        # Enumerate all combinations
+        value_lists = [all_values[k] for k in feature_keys]
+        candidates = [
+            dict(zip(feature_keys, combo))
+            for combo in itertools_product(*value_lists)
+        ]
+        df_candidates = pd.DataFrame(candidates)
+
+    # Filter by domain constraints using BoFire's is_fulfilled
+    feasible_mask = pd.Series(True, index=df_candidates.index)
+    for constraint in domain.constraints.constraints:
+        if hasattr(constraint, 'is_fulfilled'):
+            fulfilled = constraint.is_fulfilled(df_candidates, tol=1e-6)
+            feasible_mask &= fulfilled
+
+    df_feasible = df_candidates[feasible_mask].reset_index(drop=True)
+    print(f"   ✅ {len(df_feasible)} feasible out of {len(df_candidates)} candidates")
+
+    if len(df_feasible) == 0:
+        raise ValueError("No feasible points found. Check constraints and parameter bounds.")
+
+    if nb_points >= len(df_feasible):
+        print(f"   ⚠️ Requested {nb_points} but only {len(df_feasible)} feasible — returning all")
+        return df_feasible[feature_keys]
+
+    # Random selection
+    selected = df_feasible.sample(n=nb_points, random_state=42).reset_index(drop=True)
+    return selected[feature_keys]
+
 
 def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, random_state: int = 42):
     """
@@ -47,8 +136,8 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
     then selects nb_points via k-Means for optimal space-filling coverage.
     
     References:
-        - Shields et al., Nature 590, 89–96 (2021)
-        - Kaneko, ACS Omega 7, 47789–47795 (2022)
+        - Shields et al., Nature 590, 89-96 (2021)
+        - Kaneko, ACS Omega 7, 47789-47795 (2022)
     
     Args:
         domain: BoFire Domain object
@@ -88,11 +177,15 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
         total *= len(v)
     
     if total > 100_000:
-        # Too large: use random pool via BoFire sampling
-        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=SamplingMethodEnum.UNIFORM)
-        sampler = strategies.map(datamodel)
-        pool_df = sampler.ask(10_000)
-        candidate_pool = [dict(row) for _, row in pool_df.iterrows()]
+        # Too large to enumerate: manual random sampling
+        # (BoFire RandomStrategy bugs on fully discrete + constraints)
+        print(f"   ⚠️ Large space ({total}), using random subset of 100,000")
+        rng = np.random.default_rng(random_state)
+        value_lists_for_random = [all_values[k] for k in feature_keys]
+        candidate_pool = []
+        for _ in range(100_000):
+            combo = {k: rng.choice(v) for k, v in zip(feature_keys, value_lists_for_random)}
+            candidate_pool.append(combo)
     else:
         value_lists = [all_values[k] for k in feature_keys]
         candidate_pool = [
@@ -113,7 +206,7 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
         return pd.DataFrame(feasible)[feature_keys]
     
     # ===== 3. ENCODE FOR k-MEANS =====
-    # Categoricals → integer index, numerics → raw value
+    # Categoricals -> integer index, numerics -> raw value
     cat_maps = {}
     for key in feature_keys:
         if feature_types[key] == 'cat':
@@ -175,7 +268,7 @@ def _filter_constraints(candidate_pool, constraints_config):
                         valid = False
                         break
         
-        # ===== LINEAR INEQUALITY CONSTRAINTS (NEW) =====
+        # ===== LINEAR INEQUALITY CONSTRAINTS =====
         if valid:
             for ineq in constraints_config.get('inequality_constraints', []):
                 left = ineq['param_left']
@@ -197,6 +290,8 @@ def _filter_constraints(candidate_pool, constraints_config):
             feasible.append(point)
     
     return feasible
+
+
 def get_available_acquisition_functions(is_multi_objective=False):
     """
     Get available acquisition functions for single or multi-objective optimization.
@@ -345,7 +440,7 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
     # Provide past experiments
     strat.tell(experiments=experiments)
     
-        # Inspecte le modèle BoTorch sous-jacent
+    # Inspect the underlying BoTorch model
     if hasattr(strat, 'model'):
         print("🔍 Model type:", type(strat.model))
         print("🔍 Input transform:", getattr(strat.model, 'input_transform', 'NONE'))
@@ -353,7 +448,6 @@ def bayesian_optimization(domain, experiments, n_candidates=1, acquisition_funct
     
     # Ask for next candidates
     return strat.ask(candidate_count=n_candidates)
-
 
 
 def get_optimization_type(domain):
