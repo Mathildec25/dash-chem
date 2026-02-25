@@ -193,7 +193,7 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
             for combo in itertools_product(*value_lists)
         ]
     
-    # ===== 2. FILTER BY CONSTRAINTS (BP/MP) =====
+    # ===== 2. FILTER BY CONSTRAINTS (BP/MP + linear) =====
     if constraints_config and (constraints_config.get('constraints') or constraints_config.get('inequality_constraints')):
         feasible = _filter_constraints(candidate_pool, constraints_config)
     else:
@@ -240,7 +240,7 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
 
 
 def _filter_constraints(candidate_pool, constraints_config):
-    """Filter candidate points by BP/MP constraints AND linear inequality constraints."""
+    """Filter candidate points by BP/MP constraints AND linear constraints (inequality + equality)."""
     safety_margin = constraints_config.get('safety_margin', 5.0)
     solvent_param = constraints_config.get('solvent_param_name')
     boiling_points = constraints_config.get('boiling_points', {})
@@ -268,21 +268,31 @@ def _filter_constraints(candidate_pool, constraints_config):
                         valid = False
                         break
         
-        # ===== LINEAR INEQUALITY CONSTRAINTS =====
+        # ===== LINEAR CONSTRAINTS (inequality + equality) =====
         if valid:
             for ineq in constraints_config.get('inequality_constraints', []):
                 left = ineq['param_left']
                 right = ineq['param_right']
                 offset = ineq.get('offset', 0.0)
+                relation = ineq.get('relation', 'leq')  # ✅ NEW: backward compatible
                 
                 val_left = point.get(left)
                 val_right = point.get(right)
                 
                 if val_left is not None and val_right is not None:
                     try:
-                        if float(val_left) > float(val_right) + offset:
-                            valid = False
-                            break
+                        vl = float(val_left)
+                        vr = float(val_right)
+                        if relation == "eq":
+                            # ✅ Equality: must be exactly equal (with tolerance)
+                            if abs(vl - (vr + offset)) > 1e-6:
+                                valid = False
+                                break
+                        else:
+                            # Inequality: val_left ≤ val_right + offset
+                            if vl > vr + offset:
+                                valid = False
+                                break
                     except (ValueError, TypeError):
                         pass  # Skip non-numeric values
         

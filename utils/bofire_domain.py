@@ -34,6 +34,7 @@ from bofire.data_models.objectives.api import MinimizeObjective, MaximizeObjecti
 # ✅ IMPORTS FOR NATIVE CONSTRAINTS
 from bofire.data_models.constraints.api import (
     LinearInequalityConstraint,
+    LinearEqualityConstraint,
     CategoricalExcludeConstraint,
     SelectionCondition,
     ThresholdCondition
@@ -546,16 +547,19 @@ def create_bofire_domain_from_store(
     else:
         print(f"ℹ️ No phase constraints configured")
     
-    # ----- LINEAR INEQUALITY CONSTRAINTS -----
+
+    # ----- LINEAR CONSTRAINTS (inequality ≤ + equality =) -----
     # Inter-parameter relationships like param_left ≤ param_right + offset
+    # or param_left = param_right + offset
     if constraints_config and constraints_config.get('inequality_constraints'):
         ineq_list = constraints_config['inequality_constraints']
-        print(f"🔧 Processing {len(ineq_list)} inequality constraint(s)...")
+        print(f"🔧 Processing {len(ineq_list)} linear constraint(s)...")
         
         for ineq in ineq_list:
             param_left = ineq['param_left']
             param_right = ineq['param_right']
             offset = ineq.get('offset', 0.0)
+            relation = ineq.get('relation', 'leq')  # ✅ backward compatible default
             
             # Verify both parameters exist in input features
             left_feat = next((f for f in input_features if f.key == param_left), None)
@@ -563,17 +567,28 @@ def create_bofire_domain_from_store(
             
             if left_feat and right_feat:
                 try:
-                    # param_left ≤ param_right + offset
-                    # Rewritten as: 1*param_left + (-1)*param_right ≤ offset
-                    linear_constraint = LinearInequalityConstraint(
-                        features=[param_left, param_right],
-                        coefficients=[1.0, -1.0],
-                        rhs=offset,
-                    )
-                    constraint_list.append(linear_constraint)
-                    print(f"   ✅ Linear inequality: {param_left} ≤ {param_right} + {offset}")
+                    if relation == "eq":
+                        # ✅ Equality: param_left = param_right + offset
+                        # Written as: 1*param_left + (-1)*param_right = offset
+                        linear_constraint = LinearEqualityConstraint(
+                            features=[param_left, param_right],
+                            coefficients=[1.0, -1.0],
+                            rhs=offset,
+                        )
+                        constraint_list.append(linear_constraint)
+                        print(f"   ✅ Linear equality: {param_left} = {param_right} + {offset}")
+                    else:
+                        # Inequality: param_left ≤ param_right + offset
+                        # Written as: 1*param_left + (-1)*param_right ≤ offset
+                        linear_constraint = LinearInequalityConstraint(
+                            features=[param_left, param_right],
+                            coefficients=[1.0, -1.0],
+                            rhs=offset,
+                        )
+                        constraint_list.append(linear_constraint)
+                        print(f"   ✅ Linear inequality: {param_left} ≤ {param_right} + {offset}")
                 except Exception as e:
-                    print(f"   ❌ Failed to create inequality constraint: {e}")
+                    print(f"   ❌ Failed to create linear constraint: {e}")
                     import traceback
                     traceback.print_exc()
             else:
@@ -582,10 +597,10 @@ def create_bofire_domain_from_store(
                     missing.append(param_left)
                 if not right_feat:
                     missing.append(param_right)
-                print(f"   ⚠️ Inequality constraint skipped: missing parameter(s) {missing}")
+                print(f"   ⚠️ Linear constraint skipped: missing parameter(s) {missing}")
     else:
-        print(f"ℹ️ No inequality constraints configured")
-    
+        print(f"ℹ️ No linear constraints configured")
+
     # --- Create Constraints object if we have any ---
     if constraint_list:
         constraints = Constraints(constraints=constraint_list)

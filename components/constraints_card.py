@@ -5,7 +5,7 @@ Card for defining constraints in domain configuration
 UPDATED: 
 - Card is ALWAYS visible (not hidden by default)
 - Phase constraints section (BP/MP) shown/hidden based on solvent config
-- Inequality constraints section always visible
+- Linear constraints section always visible (inequality ≤ and equality =)
 """
 
 import dash_bootstrap_components as dbc
@@ -18,7 +18,7 @@ def create_constraints_card():
     
     This card is ALWAYS visible and contains two sections:
     1. Phase constraints (BP/MP) — shown only when solvents are configured
-    2. Inter-parameter inequalities — always available
+    2. Inter-parameter linear constraints — always available (≤ or =)
     
     Returns:
         dbc.Card: The constraints card component
@@ -92,14 +92,14 @@ def create_constraints_card():
             ),
             
             # ================================================================
-            # SECTION 2: INTER-PARAMETER INEQUALITY CONSTRAINTS — always visible
+            # SECTION 2: INTER-PARAMETER LINEAR CONSTRAINTS — always visible
             # ================================================================
             
             # Section header with add button
             html.Div([
                 html.H6([
                     html.I(className="bi bi-arrow-left-right me-2", style={"color": "#6c757d"}),
-                    "Parameter Inequalities"
+                    "Linear Constraints"
                 ], className="mb-0", style={"fontWeight": "600", "display": "inline-block"}),
                 dbc.Button([
                     html.I(className="bi bi-plus-lg me-1"),
@@ -117,19 +117,31 @@ def create_constraints_card():
             # Info text
             html.P([
                 html.I(className="bi bi-info-circle me-2"),
-                "Define inequalities between two numerical parameters ",
-                "(e.g., T\u2081 \u2264 T\u2082 + offset)."
+                "Define relationships between two numerical parameters ",
+                "(e.g., T\u2081 \u2264 T\u2082 + offset or C\u2081 = C\u2082 + offset)."
             ], className="text-muted small mb-3"),
             
-            # Inequality constraints container
+            # Linear constraints container
             html.Div(id="ineq-constraint-rows-container", children=[]),
             
-            # Help text for inequality constraints
+            # Help text for linear constraints
             html.Div([
                 html.Small([
                     html.Strong("How it works: "),
-                    "The optimizer will only suggest experiments where ",
-                    html.Code("Parameter A \u2264 Parameter B + offset",
+                    "Choose ",
+                    html.Code("\u2264",
+                             style={"fontSize": "0.85rem", "backgroundColor": "#f0f0f0", 
+                                    "padding": "2px 6px", "borderRadius": "3px"}),
+                    " for inequality or ",
+                    html.Code("=",
+                             style={"fontSize": "0.85rem", "backgroundColor": "#f0f0f0", 
+                                    "padding": "2px 6px", "borderRadius": "3px"}),
+                    " for equality between ",
+                    html.Code("Parameter A",
+                             style={"fontSize": "0.8rem", "backgroundColor": "#f0f0f0", 
+                                    "padding": "2px 4px", "borderRadius": "3px"}),
+                    " and ",
+                    html.Code("Parameter B + offset",
                              style={"fontSize": "0.8rem", "backgroundColor": "#f0f0f0", 
                                     "padding": "2px 4px", "borderRadius": "3px"}),
                     ". The offset can be 0 (strict) or any positive/negative value."
