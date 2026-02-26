@@ -15,6 +15,7 @@ from callbacks.opti_run_callbacks import run_optimization
 from callbacks.opti_results_callbacks import results_analysis
 from components.sidebar import generate_sidebar 
 from callbacks import advanced_bo_callbacks
+from callbacks import sensitivity_callbacks
 
 # Initialisation of the Dash app 
 app = dash.Dash(

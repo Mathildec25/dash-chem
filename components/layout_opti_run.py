@@ -260,6 +260,7 @@ def create_opti_run_layout():
         ], id="opti-delete-column-modal", is_open=False),
         
         # Navigation
+# Navigation
         dbc.Row([
             dbc.Col([
                 html.Div([
@@ -269,6 +270,14 @@ def create_opti_run_layout():
                             "Back to Parameters"
                         ], color="secondary", outline=True, className="me-2"),
                         href="/Opt-param"
+                    ),
+                    dcc.Link(
+                        dbc.Button([
+                            html.I(className="bi bi-bullseye me-2"),
+                            "Sensitivity Screen"
+                        ], color="primary", outline=True, className="me-2",
+                        style={"borderColor": "#6366f1", "color": "#6366f1"}),
+                        href="/sensitivity"
                     ),
                     dcc.Link(
                         dbc.Button([
