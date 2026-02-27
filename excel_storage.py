@@ -9,6 +9,7 @@ import datetime
 
 from config_path import EXCEL_FOLDER, TRACKING_FILE, TRACKING_FILENAME, DOMAIN_TRACKING_FILENAME, EXCLUDED_FILES
 from domain_storage import DomainStorage, check_domain_availability
+from utils.safe_excel import safe_excel_save, safe_excel_read
 
 # Valid extensions
 valid_extensions = ('.xlsx', '.xls', '.csv')
@@ -30,8 +31,8 @@ def get_uploaded_excel_files():
     """Get Excel files from tracking file, excluding tracking files"""
     try:
         if os.path.exists(TRACKING_FILE):
-            df = pd.read_excel(TRACKING_FILE, engine='openpyxl')
-            if 'filename' in df.columns:
+            df, _ = safe_excel_read(TRACKING_FILE)
+            if df is not None and 'filename' in df.columns:
                 # Filter out tracking files and ensure only Excel files
                 excel_files = df["filename"][
                     df["filename"].str.lower().str.endswith(('.xlsx', '.xls')) &
@@ -71,7 +72,9 @@ def update_tracking_file(filename):
         
         # Create or load tracking file
         if os.path.exists(TRACKING_FILE):
-            df = pd.read_excel(TRACKING_FILE, engine='openpyxl')
+            df, _ = safe_excel_read(TRACKING_FILE)
+            if df is None:
+                df = pd.DataFrame(columns=["filename"])
         else:
             df = pd.DataFrame(columns=["filename"])
 
@@ -79,7 +82,7 @@ def update_tracking_file(filename):
         if filename not in df["filename"].values:
             new_row = pd.DataFrame([{"filename": filename}])
             df = pd.concat([df, new_row], ignore_index=True)
-            df.to_excel(TRACKING_FILE, index=False, engine='openpyxl')
+            safe_excel_save(TRACKING_FILE, lambda p: df.to_excel(p, index=False, engine='openpyxl'))
             
         return None  # Success
     except Exception as e:
@@ -219,7 +222,15 @@ def cleanup_orphaned_domains():
 def validate_excel_structure(file_path, expected_structure=None):
     """Validate Excel file structure against expected format"""
     try:
-        df = pd.read_excel(file_path, engine='openpyxl')
+        df, _ = safe_excel_read(file_path)
+        if df is None:
+            return {
+                'valid': False,
+                'message': 'File is corrupted or unreadable',
+                'columns': [],
+                'rows': 0,
+                'issues': ['File could not be read']
+            }
         
         validation_result = {
             'valid': True,
@@ -274,7 +285,7 @@ def get_file_info(filename):
         # Get file stats
         stat = os.stat(file_path)
         file_size = stat.st_size
-        file_modified = datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+        file_modified = datetime.datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
         
         # Get Excel info
         if filename.endswith('.csv'):

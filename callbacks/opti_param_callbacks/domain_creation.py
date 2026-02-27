@@ -15,6 +15,7 @@ import uuid
 from domain_storage import DomainStorage
 from utils.BoFire import create_bofire_domain_from_store
 from utils.bofire_optimization import sampling, kmeans_sampling
+from utils.safe_excel import safe_excel_save, safe_excel_read
 from config_path import EXCEL_FOLDER, TRACKING_FILE
 
 
@@ -422,27 +423,33 @@ def create_domain_and_excel(n_clicks, project_name,
         # ===== 8. SAVE EXCEL FILE =====
         os.makedirs(EXCEL_FOLDER, exist_ok=True)
         
-        with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-            df_excel.to_excel(writer, index=False, sheet_name='Experiments')
-            
-            # Format headers
-            from openpyxl.styles import Font, PatternFill, Alignment
-            worksheet = writer.sheets['Experiments']
-            
-            for i, cell in enumerate(worksheet[1]):
-                cell.font = Font(bold=True, color="FFFFFF")
-                cell.alignment = Alignment(horizontal='center', vertical='center')
+        def write_new_excel(path):
+            with pd.ExcelWriter(path, engine='openpyxl') as writer:
+                df_excel.to_excel(writer, index=False, sheet_name='Experiments')
                 
-                col_info = all_columns[i]
-                if col_info['type'] == 'extra':
-                    if col_info['name'] == 'Point type':
-                        cell.fill = PatternFill(start_color="FF6B35", end_color="FF6B35", fill_type="solid")
-                    else:
-                        cell.fill = PatternFill(start_color="6C757D", end_color="6C757D", fill_type="solid")
-                elif col_info['type'] == 'parameter':
-                    cell.fill = PatternFill(start_color="007BFF", end_color="007BFF", fill_type="solid")
-                elif col_info['type'] == 'objective':
-                    cell.fill = PatternFill(start_color="28A745", end_color="28A745", fill_type="solid")
+                # Format headers
+                from openpyxl.styles import Font, PatternFill, Alignment
+                worksheet = writer.sheets['Experiments']
+                
+                for i, cell in enumerate(worksheet[1]):
+                    cell.font = Font(bold=True, color="FFFFFF")
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    col_info = all_columns[i]
+                    if col_info['type'] == 'extra':
+                        if col_info['name'] == 'Point type':
+                            cell.fill = PatternFill(start_color="FF6B35", end_color="FF6B35", fill_type="solid")
+                        else:
+                            cell.fill = PatternFill(start_color="6C757D", end_color="6C757D", fill_type="solid")
+                    elif col_info['type'] == 'parameter':
+                        cell.fill = PatternFill(start_color="007BFF", end_color="007BFF", fill_type="solid")
+                    elif col_info['type'] == 'objective':
+                        cell.fill = PatternFill(start_color="28A745", end_color="28A745", fill_type="solid")
+        
+        save_ok, save_msg = safe_excel_save(file_path, write_new_excel, backup=False)
+        if not save_ok:
+            alert = dbc.Alert(f"❌ Excel save failed: {save_msg}", color="danger")
+            return no_update, no_update, alert, True
         
         print(f"✅ Excel file saved: {file_path}")
         
@@ -474,13 +481,15 @@ def create_domain_and_excel(n_clicks, project_name,
         
         # ===== 10. UPDATE TRACKING =====
         if os.path.exists(TRACKING_FILE):
-            df_track = pd.read_excel(TRACKING_FILE, engine='openpyxl')
+            df_track, _ = safe_excel_read(TRACKING_FILE)
+            if df_track is None:
+                df_track = pd.DataFrame(columns=['filename'])
         else:
             df_track = pd.DataFrame(columns=['filename'])
         
         if excel_name not in df_track['filename'].values:
             df_track = pd.concat([df_track, pd.DataFrame([{'filename': excel_name}])], ignore_index=True)
-            df_track.to_excel(TRACKING_FILE, index=False, engine='openpyxl')
+            safe_excel_save(TRACKING_FILE, lambda p: df_track.to_excel(p, index=False, engine='openpyxl'))
         
         # ===== 11. SUCCESS - REDIRECT =====
         alert = dbc.Alert([
