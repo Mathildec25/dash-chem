@@ -10,6 +10,134 @@ from components.constraints_card import create_constraints_card
 initial_id = str(uuid.uuid4())
 initial_objective_id = str(uuid.uuid4())
 
+def _make_objective_row(row_id: str) -> html.Div:
+    """
+    Build one objective row with a constraint toggle button.
+
+    Layout per row:
+        [Name 4col] [Direction 2col] [Min 2col] [Max 2col] [🔒 1col] [🗑 1col]
+
+    When the 🔒 button is active (toggled), a second sub-row appears:
+        [constraint direction >=/<= 2col] [threshold value 2col]
+    """
+    return html.Div([
+        # --- Main row ---
+        dbc.Row([
+            # Objective name
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'objective-name', 'index': row_id},
+                    placeholder="Objective name",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=4),
+
+            # Optimize direction
+            dbc.Col([
+                dcc.Dropdown(
+                    id={'type': 'objective-direction', 'index': row_id},
+                    options=[
+                        {"label": "Minimize", "value": "min"},
+                        {"label": "Maximize", "value": "max"},
+                    ],
+                    placeholder="Direction",
+                    clearable=False,
+                    style={"fontSize": "0.875rem"}
+                )
+            ], width=2),
+
+            # Min bound
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'objective-lower', 'index': row_id},
+                    placeholder="Min",
+                    type="number",
+                    step="any",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=2),
+
+            # Max bound
+            dbc.Col([
+                dbc.Input(
+                    id={'type': 'objective-upper', 'index': row_id},
+                    placeholder="Max",
+                    type="number",
+                    step="any",
+                    size="sm",
+                    style={"borderRadius": "6px"}
+                )
+            ], width=2),
+
+            # 🔒 Constraint toggle button
+            dbc.Col([
+                dbc.Button(
+                    [html.I(className="bi bi-lock", style={"fontSize": "0.875rem"})],
+                    id={'type': 'objective-constraint-toggle', 'index': row_id},
+                    color="secondary",
+                    outline=True,
+                    size="sm",
+                    n_clicks=0,
+                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"},
+                    title="Set a minimum/maximum threshold on this output (Probability of Feasibility)"
+                )
+            ], width=1),
+
+            # 🗑 Delete button
+            dbc.Col([
+                dbc.Button(
+                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
+                    id={'type': 'delete-objective', 'index': row_id},
+                    color="danger",
+                    outline=True,
+                    size="sm",
+                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
+                )
+            ], width=1),
+        ], className="mb-1 align-items-center"),
+
+        # --- Constraint sub-row (hidden by default) ---
+        dbc.Collapse(
+            dbc.Row([
+                dbc.Col(width=4),  # spacer
+                dbc.Col([
+                    dcc.Dropdown(
+                        id={'type': 'objective-constraint-direction', 'index': row_id},
+                        options=[
+                            {"label": "≥  (must be ABOVE threshold)", "value": ">="},
+                            {"label": "≤  (must be BELOW threshold)", "value": "<="},
+                        ],
+                        value=">=",
+                        clearable=False,
+                        style={"fontSize": "0.8rem"}
+                    )
+                ], width=3),
+                dbc.Col([
+                    dbc.Input(
+                        id={'type': 'objective-constraint-threshold', 'index': row_id},
+                        placeholder="Threshold value",
+                        type="number",
+                        step="any",
+                        size="sm",
+                        style={"borderRadius": "6px", "borderColor": "#f59e0b"}
+                    )
+                ], width=3),
+                dbc.Col([
+                    html.Small(
+                        "PoF constraint",
+                        className="text-warning",
+                        style={"fontSize": "0.75rem"}
+                    )
+                ], width=2),
+            ], className="mb-2 align-items-center"),
+            id={'type': 'objective-constraint-collapse', 'index': row_id},
+            is_open=False,
+        ),
+
+    ], id={'type': 'objective-row', 'index': row_id})
+
 def create_opti_param_layout():
     return dbc.Container([
         # Header with back button
@@ -198,60 +326,7 @@ def create_opti_param_layout():
                         
                         # Objectives container with initial row
                         html.Div(id="objective-container", children=[
-                            html.Div([
-                                dbc.Row([
-                                    dbc.Col([
-                                        dbc.Input(
-                                            id={'type': 'objective-name', 'index': initial_objective_id},
-                                            placeholder="Objective name",
-                                            size="sm",
-                                            style={"borderRadius": "6px"}
-                                        )
-                                    ], width=4),
-                                    dbc.Col([
-                                        dcc.Dropdown(
-                                            id={'type': 'objective-direction', 'index': initial_objective_id},
-                                            options=[
-                                                {"label": "Minimize", "value": "min"},
-                                                {"label": "Maximize", "value": "max"}
-                                            ],
-                                            placeholder="Direction",
-                                            clearable=False,
-                                            style={"fontSize": "0.875rem"}
-                                        )
-                                    ], width=2),
-                                    dbc.Col([
-                                        dbc.Input(
-                                            id={'type': 'objective-lower', 'index': initial_objective_id},
-                                            placeholder="Min",
-                                            type="number",
-                                            step="any",
-                                            size="sm",
-                                            style={"borderRadius": "6px"}
-                                        )
-                                    ], width=2),
-                                    dbc.Col([
-                                        dbc.Input(
-                                            id={'type': 'objective-upper', 'index': initial_objective_id},
-                                            placeholder="Max",
-                                            type="number",
-                                            step="any",
-                                            size="sm",
-                                            style={"borderRadius": "6px"}
-                                        )
-                                    ], width=2),
-                                    dbc.Col([
-                                        dbc.Button(
-                                            html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                                            id={'type': 'delete-objective', 'index': initial_objective_id},
-                                            color="danger",
-                                            outline=True,
-                                            size="sm",
-                                            style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                                        )
-                                    ], width=1),
-                                ], className="mb-2 align-items-center"),
-                            ], id={'type': 'objective-row', 'index': initial_objective_id})
+                            _make_objective_row(initial_objective_id)
                         ]),
                     ], style={"padding": "1.25rem"})
                 ], style={
