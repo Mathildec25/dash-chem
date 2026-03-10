@@ -22,6 +22,10 @@ from utils.safe_excel import safe_excel_save, safe_excel_read
 from config_path import EXCEL_FOLDER
 from callbacks.opti_param_callbacks.constraints_callbacks import validate_and_adjust_suggestion
 
+from utils.constrained_mobo import (
+    extract_output_constraints_from_objectives,
+    constrained_mobo_botorch,
+)
 
 # ===== LOAD AND DISPLAY TABLE =====
 
@@ -564,14 +568,25 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         
         print(f"🔧 Running {opt_type} with {acq_func_name}, {n_suggestions} candidates")
         
-        # Lancer l'optimisation avec paramètres personnalisés
-        new_candidates = bayesian_optimization(
-            domain, 
-            experiments_complete, 
-            n_candidates=n_suggestions,
-            acquisition_function=acq_func
-        )
-        
+        # ===== ROUTING : constrained MOBO ou pipeline standard =====
+        output_constraints = extract_output_constraints_from_objectives(objectives)
+
+        if output_constraints and opt_type == 'MOBO':
+            print(f"🔒 Routing to constrained MOBO — {len(output_constraints)} constraint(s)")
+            new_candidates = constrained_mobo_botorch(
+                domain=domain,
+                experiments=experiments_complete,
+                n_candidates=n_suggestions,
+                output_constraints=output_constraints,
+            )
+        else:
+            new_candidates = bayesian_optimization(
+                domain,
+                experiments_complete,
+                n_candidates=n_suggestions,
+                acquisition_function=acq_func
+            )
+            
         if new_candidates is None or (hasattr(new_candidates, 'empty') and new_candidates.empty):
             print("❌ No candidates generated")
             return no_update, "❌ Optimization failed to generate candidates", True, "danger"
