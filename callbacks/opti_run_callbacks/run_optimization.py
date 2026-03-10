@@ -626,7 +626,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                     param_def = param_definitions.get(col)
                     if param_def:
                         if param_def.get('type') == 'float' and isinstance(val, (int, float)):
-                            new_row[col] = round(float(val), 3)
+                            new_row[col] = round(float(val), 2)
                         elif param_def.get('type') == 'cat':
                             new_row[col] = str(val) if val else ''
                         else:
