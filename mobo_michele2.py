@@ -2,15 +2,16 @@
 Constrained MOBO pour synthese chimique - structure 100% inspiree du tutorial BoTorch
 Ref : constrained_multi_objective_bo.ipynb
 
-Adaptation du tutorial C2-DTLZ2 a une reaction chimique :
-    - Objectifs  : Yield (max), TON (max)
-    - Contrainte : Yield >= 0.60  =>  c(x) = 0.60 - Yield  <= 0  (convention BoTorch)
-    - Inputs     : t_res (cont), Temperature (cont), catalyst_loading (cont), Catalyst (OHE)
+Reaction : MD_DMIPP_Phosphorylation
+    - Objectifs   : YIELD (max), STY (max)
+    - Contrainte  : YIELD >= 0.50  =>  c(x) = 0.50 - YIELD <= 0  (convention BoTorch)
+    - Contrainte  : DMIPP <= BUOH  (lineaire, passee via inequality_constraints)
+    - Inputs      : DMIPP (cont), BUOH (cont), T (cont), RES (discret 5 niveaux)
 
 Structure identique au tutorial :
     load_initial_data()      ->  train_x, train_obj, train_con
-    initialize_model()       ->  mll, model  (ModelListGP : GP_Yield, GP_TON, GP_constraint)
-    optimize_qnehvi()        ->  new_x, new_obj, new_con
+    initialize_model()       ->  mll, model  (ModelListGP : GP_YIELD, GP_STY, GP_constraint)
+    optimize_qnehvi()        ->  new_x
     main()                   ->  fit / optimize / suggestion
 """
 
@@ -44,27 +45,27 @@ tkwargs = {
 }
 
 # ── Parametres du probleme ────────────────────────────────────────────────────
-YIELD_THRESHOLD = 0.60   # Yield >= 60%  =>  c(x) = 0.60 - Yield <= 0
-CATALYSTS       = ["P1-L1", "P2-L1", "P1-L2", "P1-L3", "P1-L4", "P1-L5", "P1-L6", "P1-L7"]
+YIELD_THRESHOLD = 0.60   # YIELD >= 60%  =>  c(x) = 0.60 - YIELD <= 0
+STY_MAX         = 73.2   # upper bound reel pour normalisation
 
-# Bornes des inputs continus : t_res (s), Temperature (C), catalyst_loading (mol%)
-CONT_BOUNDS = torch.tensor([[ 60.0, 30.0, 0.5],
-                             [600.0, 110.0, 2.5]], **tkwargs)
+RES_LEVELS = [0.5, 1.0, 1.5, 2.0, 2.5]   # valeurs discretes de RES
 
-# Bornes de TOUS les inputs apres OHE du catalyseur (11 dimensions)
-# dims 0-2 : cont normalises -> [0, 1] apres normalize()
-# dims 3-10 : OHE catalyseur -> deja dans [0, 1]
-D_CONT  = 3
-D_OHE   = len(CATALYSTS)
-D_TOTAL = D_CONT + D_OHE
+# Bornes des inputs continus : DMIPP, BUOH, T, RES
+# RES traite comme continu pour la normalisation, enumere dans fixed_features
+CONT_BOUNDS = torch.tensor(
+    [[1.0,  1.0,  25.0, 0.5],
+     [6.7, 10.9,  80.0, 2.5]],
+    **tkwargs
+)
+
+D_TOTAL = 4   # DMIPP, BUOH, T, RES
 
 # standard_bounds (identique au tutorial) : tout dans [0, 1]^d
 standard_bounds = torch.zeros(2, D_TOTAL, **tkwargs)
 standard_bounds[1] = 1
 
-# Ref point pour le calcul d'hypervolume (a definir selon les donnees)
-# On utilisera un ref point dynamique dans la boucle.
-REF_POINT = torch.tensor([0.0, 0.0], **tkwargs)   # sera mis a jour
+# Ref point pour le calcul d'hypervolume
+REF_POINT = torch.tensor([0.0, 0.0], **tkwargs)
 
 # ── Parametres BO (identique au tutorial) ─────────────────────────────────────
 BATCH_SIZE   = 1
@@ -72,50 +73,62 @@ NUM_RESTARTS = 10
 RAW_SAMPLES  = 128
 MC_SAMPLES   = 128
 
+# ── Contrainte lineaire DMIPP <= BUOH ────────────────────────────────────────
+# En espace normalise : dmipp_n * (6.7-1.0) + 1.0 <= buoh_n * (10.9-1.0) + 1.0
+# => -5.7 * dmipp_n + 9.9 * buoh_n >= 0
+# Format BoTorch : (indices, coefficients, rhs)  avec sum(coeff * x[idx]) >= rhs
+INEQUALITY_CONSTRAINTS = [
+    (torch.tensor([0, 1]), torch.tensor([-5.7, 9.9], **tkwargs), 0.0)
+]
+
 
 # ============================================================================
 # Donnees initiales  -  A REMPLIR PAR L'UTILISATEUR
 #
-# Chaque ligne : catalyst, t_res (s), temperature (C), catalyst_loading (mol%),
-#                yld (fraction 0-1), ton (0-200)
+# Chaque ligne : dmipp, buoh, temperature (T), res,
+#                yld (fraction 0-1), sty (g/L/h, valeurs reelles)
 # ============================================================================
 INITIAL_DATA = [
-    {"catalyst": "P1-L7", "t_res": 333.88, "temperature": 46.67, "catalyst_loading": 1.08, "yld": 0.03393, "ton": 1.152551},
-    {"catalyst": "P1-L2", "t_res": 261.59, "temperature": 53.61, "catalyst_loading": 2.11, "yld": 0.06553, "ton": 5.381159},
-    {"catalyst": "P1-L4", "t_res": 129.89, "temperature": 30.09, "catalyst_loading": 1.27, "yld": 0.03926, "ton": 1.297489},
-    {"catalyst": "P2-L1", "t_res": 495.14, "temperature": 76.44, "catalyst_loading": 2.48, "yld": 0.18012, "ton": 1.473942},
-    {"catalyst": "P1-L3", "t_res": 296.83, "temperature": 103.26, "catalyst_loading": 0.54, "yld": 0.15096, "ton": 27.927135},
-    {"catalyst": "P1-L5", "t_res": 101.02, "temperature": 88.41, "catalyst_loading": 1.71, "yld": 0.22296, "ton": 13.134931},
-    {"catalyst": "P1-L6", "t_res": 589.76, "temperature": 61.75, "catalyst_loading": 0.89, "yld": 0.01535, "ton": 4.959741},
-    {"catalyst": "P1-L1", "t_res": 415.06, "temperature": 91.93, "catalyst_loading": 1.91, "yld": 0.48624, "ton": 26.791769},
-    {"catalyst": "P1-L1", "t_res": 429.17, "temperature": 43.68, "catalyst_loading": 0.5, "yld": 0.0693, "ton": 9.2},
-    {"catalyst": "P1-L1", "t_res": 362.55, "temperature": 106.55, "catalyst_loading": 2.202, "yld": 0.6605, "ton": 31.11153},    
-    {"catalyst": "P1-L1", "t_res": 105.25, "temperature": 110.00, "catalyst_loading": 2.5, "yld": 0.7306, "ton": 32.110088},     
-    {"catalyst": "P1-L1", "t_res": 600, "temperature": 110.00, "catalyst_loading": 2.5, "yld": 0.6486, "ton": 25.110052},
-    {"catalyst": "P1-L1", "t_res": 115.64, "temperature": 110.00, "catalyst_loading": 0.98, "yld": 0.4065, "ton": 36.51},
+    {"dmipp": 5.0, "buoh": 8.2, "temperature": 40.0, "res": 2.5, "yld": 0.27, "sty": 2.9},
+    {"dmipp": 2.2, "buoh": 9.0, "temperature": 65.0, "res": 1.0, "yld": 0.26, "sty": 3.1},
+    {"dmipp": 2.2, "buoh": 6.2, "temperature": 70.0, "res": 2.5, "yld": 0.54, "sty": 2.6},
+    {"dmipp": 5.0, "buoh": 8.5, "temperature": 35.0, "res": 1.0, "yld": 0.06, "sty": 0.1},
+    {"dmipp": 5.0, "buoh": 8.2, "temperature": 65.0, "res": 0.5, "yld": 0.24, "sty": 13.0},
+    {"dmipp": 2.4, "buoh": 6.3, "temperature": 35.0, "res": 0.5, "yld": 0.04, "sty": 1.1},
+    {"dmipp": 2.2, "buoh": 4.4, "temperature": 40.0, "res": 2.0, "yld": 0.35, "sty": 2.1},
+    {"dmipp": 5.0, "buoh": 8.2, "temperature": 70.0, "res": 2.0, "yld": 0.43, "sty": 5.9},
+    {"dmipp": 2.2, "buoh": 8.8, "temperature": 40.0, "res": 2.0, "yld": 0.09, "sty": 0.5},
+    {"dmipp": 2.2, "buoh": 4.2, "temperature": 65.0, "res": 1.0, "yld": 0.59, "sty": 7.2},
 ]
 
+
 # ============================================================================
-# Encodage / decodage  (OHE + normalisation continue)
+# Encodage / decodage  (normalisation continue, RES discret)
 # ============================================================================
 
-def encode(t_res, temperature, catalyst_loading, catalyst):
-    """(t_res, temperature, catalyst_loading, catalyst) -> tenseur normalise [0,1]^11."""
-    cont = normalize(
-        torch.tensor([[t_res, temperature, catalyst_loading]], **tkwargs),
+def encode(dmipp, buoh, temperature, res):
+    """(dmipp, buoh, temperature, res) -> tenseur normalise [0,1]^4."""
+    return normalize(
+        torch.tensor([[dmipp, buoh, temperature, res]], **tkwargs),
         CONT_BOUNDS
-    ).squeeze(0)                              # (3,)
-    ohe = torch.zeros(D_OHE, **tkwargs)
-    ohe[CATALYSTS.index(catalyst)] = 1.0
-    return torch.cat([cont, ohe])             # (11,)
+    ).squeeze(0)   # (4,)
+
+
+def snap(value, step, low, high):
+    """Arrondit value au step le plus proche dans [low, high]."""
+    snapped = round(round((value - low) / step) * step + low, 10)
+    return float(np.clip(snapped, low, high))
 
 
 def decode(x: torch.Tensor):
-    """Tenseur [0,1]^11 -> (t_res, temperature, catalyst_loading, catalyst)."""
-    cont_raw = unnormalize(x[:D_CONT].unsqueeze(0), CONT_BOUNDS).squeeze(0)
-    t_res, temperature, catalyst_loading = cont_raw[0].item(), cont_raw[1].item(), cont_raw[2].item()
-    catalyst = CATALYSTS[x[D_CONT:].argmax().item()]
-    return t_res, temperature, catalyst_loading, catalyst
+    """Tenseur [0,1]^4 -> (dmipp, buoh, temperature, res)."""
+    raw = unnormalize(x.unsqueeze(0), CONT_BOUNDS).squeeze(0)
+    dmipp       = snap(raw[0].item(), step=0.2, low=1.0,  high=6.7)
+    buoh        = snap(raw[1].item(), step=0.1, low=1.0,  high=10.9)
+    temperature = snap(raw[2].item(), step=5.0, low=25.0, high=80.0)
+    # snap RES a la valeur discrete la plus proche
+    res = min(RES_LEVELS, key=lambda v: abs(v - raw[3].item()))
+    return dmipp, buoh, temperature, res
 
 
 # ============================================================================
@@ -127,18 +140,18 @@ def load_initial_data():
     Charge les donnees saisies manuellement dans INITIAL_DATA.
 
     Retourne (train_x, train_obj, train_con) exactement comme le tutorial :
-        train_x   : (n, 11)  inputs normalises + OHE
-        train_obj : (n, 2)   [Yield, TON]
-        train_con : (n, 1)   c(x) = YIELD_THRESHOLD - Yield
+        train_x   : (n, 4)   inputs normalises
+        train_obj : (n, 2)   [YIELD, STY/STY_MAX]
+        train_con : (n, 1)   c(x) = YIELD_THRESHOLD - YIELD
                              negative values imply feasibility  (comme le tutorial)
     """
     rows_x, rows_obj, rows_con = [], [], []
     for row in INITIAL_DATA:
-        rows_x.append(encode(row["t_res"], row["temperature"], row["catalyst_loading"], row["catalyst"]))
-        rows_obj.append(torch.tensor([row["yld"], row["ton"]], **tkwargs))
+        rows_x.append(encode(row["dmipp"], row["buoh"], row["temperature"], row["res"]))
+        rows_obj.append(torch.tensor([row["yld"], row["sty"] / STY_MAX], **tkwargs))
         # negative values imply feasibility in botorch  (comme dans le tutorial)
         rows_con.append(torch.tensor([YIELD_THRESHOLD - row["yld"]], **tkwargs))
-    train_x   = torch.stack(rows_x)    # (n, 11)
+    train_x   = torch.stack(rows_x)    # (n, 4)
     train_obj = torch.stack(rows_obj)  # (n, 2)
     train_con = torch.stack(rows_con)  # (n, 1)
     return train_x, train_obj, train_con
@@ -153,7 +166,7 @@ def initialize_model(train_x, train_obj, train_con):
     Copie exacte de la fonction du tutorial.
 
     train_y = cat([train_obj, train_con], dim=-1)   # (n, 3)
-    Un SingleTaskGP par colonne : GP_Yield, GP_TON, GP_constraint
+    Un SingleTaskGP par colonne : GP_YIELD, GP_STY, GP_constraint
     """
     train_y = torch.cat([train_obj, train_con], dim=-1)   # (n, 3)
     models  = []
@@ -173,8 +186,9 @@ def optimize_qnehvi_and_get_observation(model, train_x, train_obj, train_con, sa
     Structure identique au tutorial.
 
     Differences vs tutorial :
-     - optimize_acqf_mixed au lieu de optimize_acqf  (catalyseur categoriel)
-     - fixed_features_list pour les 8 catalyseurs possibles
+     - optimize_acqf_mixed au lieu de optimize_acqf  (RES discret)
+     - fixed_features_list pour les 5 valeurs de RES
+     - inequality_constraints pour DMIPP <= BUOH
      - decode() pour reconstruire les conditions reelles
 
     Conservation stricte :
@@ -193,26 +207,28 @@ def optimize_qnehvi_and_get_observation(model, train_x, train_obj, train_con, sa
         constraints    = [lambda Z: Z[..., -1]],
     )
 
-    # fixed_features_list : enumere les 8 catalyseurs possibles (OHE dims 3-10)
-    fixed_features_list = [
-        {D_CONT + k: (1.0 if k == cat_idx else 0.0) for k in range(D_OHE)}
-        for cat_idx in range(D_OHE)
+    # fixed_features_list : enumere les 5 valeurs discretes de RES (dim 3)
+    res_normalized = [
+        normalize(torch.tensor([[0.0, 0.0, 0.0, v]], **tkwargs), CONT_BOUNDS)[0, 3].item()
+        for v in RES_LEVELS
     ]
+    fixed_features_list = [{3: v} for v in res_normalized]
 
     candidates, _ = optimize_acqf_mixed(
-        acq_function        = acq_func,
-        bounds              = standard_bounds,
-        q                   = BATCH_SIZE,
-        num_restarts        = NUM_RESTARTS,
-        raw_samples         = RAW_SAMPLES,
-        fixed_features_list = fixed_features_list,
-        options             = {"batch_limit": 5, "maxiter": 200},
+        acq_function         = acq_func,
+        bounds               = standard_bounds,
+        q                    = BATCH_SIZE,
+        num_restarts         = NUM_RESTARTS,
+        raw_samples          = RAW_SAMPLES,
+        fixed_features_list  = fixed_features_list,
+        inequality_constraints = INEQUALITY_CONSTRAINTS,
+        options              = {"batch_limit": 5, "maxiter": 200},
     )
 
     new_x = candidates.detach()
-    t_res, temperature, catalyst_loading, catalyst = decode(new_x.squeeze(0))
+    dmipp, buoh, temperature, res = decode(new_x.squeeze(0))
 
-    return new_x, (t_res, temperature, catalyst_loading, catalyst)
+    return new_x, (dmipp, buoh, temperature, res)
 
 
 # ============================================================================
@@ -224,9 +240,9 @@ def check_constraint_gp(model, new_x):
     Interroge les 3 GPs sur le candidat propose.
     Affiche les predictions et verifie la contrainte.
 
-    GP[0] -> Yield          (objectif 1)
-    GP[1] -> TON            (objectif 2)
-    GP[2] -> c(x)=T-Yield   (contrainte : <= 0 si faisable)
+    GP[0] -> YIELD           (objectif 1)
+    GP[1] -> STY/STY_MAX     (objectif 2)
+    GP[2] -> c(x)=T-YIELD    (contrainte : <= 0 si faisable)
     """
     from scipy.stats import norm
 
@@ -237,15 +253,15 @@ def check_constraint_gp(model, new_x):
         std  = posterior.variance.sqrt().reshape(-1, 3)
 
     print(f"\n  --- Points de controle GP ---")
-    print(f"  train_y = [Yield, TON, c(x)=Threshold-Yield]")
-    print(f"  Contrainte BoTorch : Z[..., -1] <= 0  <=>  c(x) <= 0  <=>  Yield >= {YIELD_THRESHOLD}")
-    print(f"  {'':3} {'Output':<22} {'GP mean':>10} {'GP std':>10}")
-    print(f"  {'-'*50}")
-    names = ["GP[0] Yield", "GP[1] TON", "GP[2] c(x)=T-Yield"]
+    print(f"  train_y = [YIELD, STY/STY_MAX, c(x)=Threshold-YIELD]")
+    print(f"  Contrainte BoTorch : Z[..., -1] <= 0  <=>  c(x) <= 0  <=>  YIELD >= {YIELD_THRESHOLD}")
+    print(f"  {'':3} {'Output':<26} {'GP mean':>10} {'GP std':>10}")
+    print(f"  {'-'*54}")
+    names = ["GP[0] YIELD", f"GP[1] STY/{STY_MAX}", "GP[2] c(x)=T-YIELD"]
     for i, name in enumerate(names):
         mu = mean[0, i].item()
         sg = std[0, i].item()
-        print(f"  {'':3} {name:<22} {mu:>10.4f} {sg:>10.4f}")
+        print(f"  {'':3} {name:<26} {mu:>10.4f} {sg:>10.4f}")
 
     # Verification contrainte via GP[2]
     c_mu  = mean[0, 2].item()
@@ -253,7 +269,7 @@ def check_constraint_gp(model, new_x):
     prob  = norm.cdf(0.0, loc=c_mu, scale=c_sig)   # P(c(x) <= 0)
     status = "OK  faisable" if c_mu <= 0 else "WARN infaisable selon GP"
     print(f"\n  GP[2] c(x) = {c_mu:+.4f}  [{status}]")
-    print(f"  P(c(x) <= 0) = P(Yield >= {YIELD_THRESHOLD}) = {prob:.2%}")
+    print(f"  P(c(x) <= 0) = P(YIELD >= {YIELD_THRESHOLD}) = {prob:.2%}")
 
 
 # ============================================================================
@@ -263,8 +279,9 @@ def check_constraint_gp(model, new_x):
 def main():
     print("=" * 65)
     print("  Constrained MOBO - structure tutorial BoTorch")
-    print(f"  Objectifs : Yield (max), TON (max)")
-    print(f"  Contrainte : Yield >= {YIELD_THRESHOLD}  =>  c(x) = {YIELD_THRESHOLD} - Yield <= 0")
+    print(f"  Objectifs  : YIELD (max), STY (max)")
+    print(f"  Contrainte : YIELD >= {YIELD_THRESHOLD}  =>  c(x) = {YIELD_THRESHOLD} - YIELD <= 0")
+    print(f"  Contrainte : DMIPP <= BUOH  (lineaire)")
     print("=" * 65)
 
     # Charge les donnees initiales
@@ -273,15 +290,15 @@ def main():
 
     # Affiche les donnees initiales
     print(f"\nDonnees initiales ({n_init} exp.) :")
-    print(f"  {'Catalyst':<8} {'t_res':>7} {'Temp':>6} {'CatLoad':>8} {'Yield':>7} {'TON':>7} {'c(x)':>7} {'Faisable'}")
-    print(f"  {'-'*68}")
+    print(f"  {'DMIPP':>6} {'BUOH':>6} {'T':>5} {'RES':>5} {'YIELD':>7} {'STY':>7} {'c(x)':>7} {'Faisable'}")
+    print(f"  {'-'*60}")
     for i in range(len(train_x)):
-        t_res, temp, cat_load, cat = decode(train_x[i])
+        dmipp, buoh, temp, res = decode(train_x[i])
         y   = train_obj[i, 0].item()
-        ton = train_obj[i, 1].item()
+        sty = train_obj[i, 1].item() * STY_MAX
         cx  = train_con[i, 0].item()
         ok  = "oui" if cx <= 0 else "non"
-        print(f"  {cat:<8} {t_res:>7.1f} {temp:>6.1f} {cat_load:>8.3f} {y:>7.4f} {ton:>7.1f} {cx:>+7.4f} {ok}")
+        print(f"  {dmipp:>6.2f} {buoh:>6.2f} {temp:>5.1f} {res:>5.1f} {y:>7.4f} {sty:>7.2f} {cx:>+7.4f} {ok}")
 
     # Calcule hypervolume initial (sur points faisables)
     is_feas  = (train_con <= 0).all(dim=-1)
@@ -306,20 +323,22 @@ def main():
 
     # optimize acquisition function and get suggestion
     print(f"\n  Optimisation de qLogNEHVI en cours...")
-    new_x, (t_res, temperature, catalyst_loading, catalyst) = optimize_qnehvi_and_get_observation(
+    new_x, (dmipp, buoh, temperature, res) = optimize_qnehvi_and_get_observation(
         model, train_x, train_obj, train_con, qnehvi_sampler
     )
 
     # Points de controle GP
     check_constraint_gp(model, new_x)
 
-# Affiche le candidat propose
+    # Affiche le candidat propose
     print(f"\n{'='*65}")
     print(f"  EXPERIENCE SUIVANTE SUGGEREE")
     print(f"{'='*65}")
     print(f"\n  -> Copier-coller dans conditions :")
-    print(f'\n  conditions = [["{catalyst}", {t_res:.2f}, {temperature:.2f}, {catalyst_loading:.3f}]]')
-    print(f"\n  -> Puis ajouter Yield (fraction 0-1) et TON dans INITIAL_DATA et relancer.\n")
+    print(f'\n  conditions = [[{dmipp:.2f}, {buoh:.2f}, {temperature:.1f}, {res}]]')
+    print(f"  # [DMIPP, BUOH, T, RES]")
+    print(f"\n  -> Puis ajouter YIELD (fraction 0-1) et STY dans INITIAL_DATA et relancer.\n")
+
 
 if __name__ == "__main__":
     main()
