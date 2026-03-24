@@ -17,3 +17,5 @@ results.xlsx
 *.csv
 *.mp4
 *.pkl
+
+data/domains/*.json

@@ -13,7 +13,8 @@ import os
 import uuid
 
 from domain_storage import DomainStorage
-from utils.BoFire import create_bofire_domain_from_store, sampling
+from utils.BoFire import create_bofire_domain_from_store
+from utils.bofire_optimization import sampling, kmeans_sampling
 from config_path import EXCEL_FOLDER, TRACKING_FILE
 
 
@@ -60,6 +61,8 @@ def enable_button(param_names, obj_names, project_name):
      State({'type': 'parameter-max', 'index': ALL}, 'value'),
      State({'type': 'parameter-categories', 'index': ALL}, 'id'),
      State({'type': 'parameter-categories', 'index': ALL}, 'value'),
+     State({'type': 'parameter-step', 'index': ALL}, 'id'), 
+     State({'type': 'parameter-step', 'index': ALL}, 'value'),
      State({'type': 'objective-name', 'index': ALL}, 'id'),
      State({'type': 'objective-name', 'index': ALL}, 'value'),
      State({'type': 'objective-direction', 'index': ALL}, 'value'),
@@ -70,17 +73,19 @@ def enable_button(param_names, obj_names, project_name):
      State('starting-sampling-DD', 'value'),
      State('nb-sampling-points', 'value'),
      State('solvent-config-store', 'data'),
-     State('base-config-store', 'data')],
+     State('base-config-store', 'data'),
+     State('constraints-store', 'data')],
     prevent_initial_call=True
 )
 def create_domain_and_excel(n_clicks, project_name, 
                            param_ids, param_names, param_types, 
                            min_ids, param_mins, max_ids, param_maxs, 
                            cat_ids, param_cats,
+                           step_ids, param_steps,  
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
                            sampling_method, nb_points,
-                           solvent_config, base_config):
+                           solvent_config, base_config, constraints_config):
     """
     Main callback: Create domain, generate Excel with sampling, and redirect
     """
@@ -92,8 +97,30 @@ def create_domain_and_excel(n_clicks, project_name,
         # ===== 1. BUILD PARAMETERS =====
         parameters = []
         
-        # Debug: print what we received
-        print(f"🔍 param_ids: {[p['index'] for p in param_ids]}")
+        # Build lookup dictionaries
+        cats_dict = {}
+        mins_dict = {}
+        maxs_dict = {}
+        steps_dict = {}
+        
+        if cat_ids and param_cats:
+            for cid, cval in zip(cat_ids, param_cats):
+                cats_dict[cid['index']] = cval
+        
+        if min_ids and param_mins:
+            for mid, mval in zip(min_ids, param_mins):
+                mins_dict[mid['index']] = mval
+        
+        if max_ids and param_maxs:
+            for mid, mval in zip(max_ids, param_maxs):
+                maxs_dict[mid['index']] = mval
+        
+        if step_ids and param_steps:
+            for sid, sval in zip(step_ids, param_steps):
+                if sval is not None:
+                    steps_dict[sid['index']] = sval
+        
+        print(f"🔍 param_ids: {[p['index'] for p in param_ids] if param_ids else []}")
         print(f"🔍 param_names: {param_names}")
         print(f"🔍 param_types: {param_types}")
         print(f"🔍 min_ids: {[m['index'] for m in min_ids] if min_ids else []}")
@@ -104,31 +131,11 @@ def create_domain_and_excel(n_clicks, project_name,
         print(f"🔍 param_cats: {param_cats}")
         print(f"🔍 solvent_config: {solvent_config}")
         print(f"🔍 base_config: {base_config}")
-        
-        # Create dictionaries using the actual IDs of each component
-        cats_dict = {}
-        mins_dict = {}
-        maxs_dict = {}
-        
-        # Build dictionaries using the IDs
-        if cat_ids and param_cats:
-            for cid, cval in zip(cat_ids, param_cats):
-                if cval:
-                    cats_dict[cid['index']] = cval
-        
-        if min_ids and param_mins:
-            for mid, mval in zip(min_ids, param_mins):
-                if mval is not None:
-                    mins_dict[mid['index']] = mval
-        
-        if max_ids and param_maxs:
-            for mid, mval in zip(max_ids, param_maxs):
-                if mval is not None:
-                    maxs_dict[mid['index']] = mval
-        
+        print(f"🔍 constraints_config: {constraints_config}")
         print(f"🔍 cats_dict: {cats_dict}")
         print(f"🔍 mins_dict: {mins_dict}")
         print(f"🔍 maxs_dict: {maxs_dict}")
+        print(f"🔍 steps_dict: {steps_dict}")
         
         for i, (pid, name, ptype) in enumerate(zip(param_ids, param_names, param_types)):
             if not name or not name.strip():
@@ -137,42 +144,40 @@ def create_domain_and_excel(n_clicks, project_name,
             idx = pid['index']
             
             if ptype == 'float':
-                # Continuous: Min and Max
-                pmin = mins_dict.get(idx)
-                pmax = maxs_dict.get(idx)
+                lb = mins_dict.get(idx)
+                ub = maxs_dict.get(idx)
                 
-                if pmin is None or pmax is None:
-                    alert = dbc.Alert(f"❌ Parameter '{name}' needs Min and Max values", color="danger")
+                if lb is None or ub is None:
+                    alert = dbc.Alert(f"❌ Parameter '{name}' missing min or max value", color="danger")
                     return no_update, no_update, alert, True
+                
+                type_info = {'range': [float(lb), float(ub)]}
+                step = steps_dict.get(idx)
+                if step is not None:
+                    type_info['step'] = float(step)
                 
                 parameters.append({
                     'id': idx,
                     'name': name.strip(),
                     'type': 'float',
-                    'type_info': {'range': [float(pmin), float(pmax)]}
+                    'type_info': type_info
                 })
             
             elif ptype == 'int':
-                # Discrete: comma-separated values (can be integers or floats)
                 cats = cats_dict.get(idx)
                 if not cats:
-                    alert = dbc.Alert(f"❌ Discrete parameter '{name}' needs values (e.g., 1, 2, 3 or 0.5, 1.0, 1.5)", color="danger")
+                    alert = dbc.Alert(f"❌ Discrete parameter '{name}' needs values (e.g., 1, 2, 3)", color="danger")
                     return no_update, no_update, alert, True
                 
-                # Parse as numbers (int or float)
-                try:
-                    values = []
-                    for v in str(cats).split(','):
-                        v = v.strip()
-                        if v:
-                            # Try int first, then float
-                            try:
-                                values.append(int(v))
-                            except ValueError:
-                                values.append(float(v))
-                except ValueError as e:
-                    alert = dbc.Alert(f"❌ Discrete parameter '{name}' has invalid values: {str(e)}", color="danger")
-                    return no_update, no_update, alert, True
+                values = []
+                for v in str(cats).split(','):
+                    v = v.strip()
+                    if v:
+                        try:
+                            values.append(float(v))
+                        except ValueError as e:
+                            alert = dbc.Alert(f"❌ Discrete parameter '{name}' has invalid values: {str(e)}", color="danger")
+                            return no_update, no_update, alert, True
                 
                 if not values:
                     alert = dbc.Alert(f"❌ Discrete parameter '{name}' needs at least one value", color="danger")
@@ -255,14 +260,56 @@ def create_domain_and_excel(n_clicks, project_name,
         
         print(f"✅ Built {len(extra_columns)} extra columns")
         
-# ===== 4. CREATE BOFIRE DOMAIN =====
-        domain = create_bofire_domain_from_store(
-            parameters, 
-            objectives,
-            solvent_config=solvent_config,
-            base_config=base_config
-        )
-        print("✅ BoFire domain created")
+        # ===== 4. CREATE DOMAIN =====
+        discretization_config = {}
+        
+        for param in parameters:
+            param_id = param.get('id')
+            param_name = param.get('name')
+            param_type = param.get('type')
+            
+            # Only discretize float parameters that have a step value
+            if param_type == 'float' and param_id in steps_dict:
+                step_value = steps_dict[param_id]
+                discretization_config[param_name] = float(step_value)
+                print(f"   🎯 Will discretize '{param_name}' with step={step_value}")
+        
+        if discretization_config:
+            print(f"📊 Discretization config: {discretization_config}")
+        else:
+            print(f"ℹ️ No discretization configured (all parameters continuous)")
+        
+        # Create the domain with discretization
+        try:
+            domain = create_bofire_domain_from_store(
+                parameters, 
+                objectives,
+                solvent_config=solvent_config,
+                base_config=base_config,
+                constraints_config=constraints_config,
+                discretization_config=discretization_config
+            )
+            print("✅ BoFire domain created with discretization and native constraints")
+            
+            # Afficher un résumé
+            n_discrete = sum(1 for f in domain.inputs.features if hasattr(f, 'values'))
+            n_continuous = sum(1 for f in domain.inputs.features if hasattr(f, 'bounds'))
+            n_categorical = sum(1 for f in domain.inputs.features 
+                               if not hasattr(f, 'values') and not hasattr(f, 'bounds'))
+            
+            print(f"   📊 Domain: {n_continuous} continuous, {n_discrete} discrete, "
+                  f"{n_categorical} categorical features")
+            
+            if domain.constraints:
+                n_constraints = len(domain.constraints.constraints)
+                print(f"   🔒 {n_constraints} native constraint(s) active")
+        
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"💥 Domain creation error:\n{error_trace}")
+            alert = dbc.Alert(f"❌ Failed to create domain: {str(e)}", color="danger")
+            return no_update, no_update, alert, True
 
         
         # ===== 5. GENERATE EXCEL FILENAME =====
@@ -277,22 +324,30 @@ def create_domain_and_excel(n_clicks, project_name,
         
         if sampling_method and sampling_method != 'none' and nb_points and int(nb_points) > 0:
             try:
-                # Map method names to SamplingMethodEnum values
-                method_map = {
-                    'random': 'UNIFORM',
-                    'latin_hypercube': 'LHS',
-                    'sobol': 'SOBOL'
-                }
-                
-                method_key = method_map.get(sampling_method, 'LHS')
-                sampled_data = sampling(domain, method_key, int(nb_points))
-                print(f"✅ Generated {len(sampled_data)} sampling points using {method_key}")
+                if sampling_method == 'kmeans':
+                    sampled_data = kmeans_sampling(
+                        domain=domain,
+                        nb_points=int(nb_points),
+                        constraints_config=constraints_config,
+                    )
+                    print(f"✅ Generated {len(sampled_data)} sampling points using k-Means")
+                else:
+                    # Map method names to SamplingMethodEnum values
+                    method_map = {
+                        'random': 'UNIFORM',
+                        'latin_hypercube': 'LHS',
+                        'sobol': 'SOBOL'
+                    }
+                    
+                    method_key = method_map.get(sampling_method, 'LHS')
+                    sampled_data = sampling(domain, method_key, int(nb_points))
+                    print(f"✅ Generated {len(sampled_data)} sampling points using {method_key}")
             except Exception as e:
                 import traceback
                 print(f"Sampling error: {traceback.format_exc()}")
                 alert = dbc.Alert(f"❌ Sampling failed: {str(e)}", color="danger")
                 return no_update, no_update, alert, True
-        
+            
         # ===== 7. BUILD EXCEL DATAFRAME =====
         # Column order: Extra columns → Parameters → Objectives
         all_columns = []
@@ -407,6 +462,7 @@ def create_domain_and_excel(n_clicks, project_name,
                 'extra_column_names': [c['name'] for c in extra_columns],
                 'solvent_config': solvent_config,
                 'base_config': base_config,
+                'constraints_config': constraints_config,
             }
         )
         

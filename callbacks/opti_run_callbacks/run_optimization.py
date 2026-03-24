@@ -19,6 +19,7 @@ from utils.BoFire import (
     get_optimization_type
 )
 from config_path import EXCEL_FOLDER
+from callbacks.opti_param_callbacks.constraints_callbacks import validate_and_adjust_suggestion
 
 
 # ===== LOAD AND DISPLAY TABLE =====
@@ -430,12 +431,50 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         parameters = domain_data.get('parameters', [])
         objectives = domain_data.get('objectives', [])
         
+        solvent_config = domain_data.get('metadata', {}).get('solvent_config')
+        base_config = domain_data.get('metadata', {}).get('base_config')
+        constraints_config = domain_data.get('metadata', {}).get('constraints_config')
+
         # Create domain
+        discretization_config = {}
+    
+        for param in parameters:
+            param_name = param.get('name')
+            param_type = param.get('type')
+            param_type_info = param.get('type_info', {})
+            
+            # Check if this parameter was discretized
+            # We detect this by checking if type='int' but values look continuous
+            # OR if there's a 'step' key in type_info (if you store it)
+            
+            # Option 1: Auto-detect based on parameter name (simple fallback)
+            if 'step' in param_type_info:
+                step_value = param_type_info.get('step', 0)
+                if step_value and step_value > 0:
+                    discretization_config[param_name] = float(step_value)
+                    print(f"   🎯 '{param_name}' discretized (stored step={step_value})")
+                    continue  # ← Important: skip auto-detection
+            
+            
+            # Option 2: If you stored step in type_info (better approach)
+            # if param_type == 'float' and 'step' in param_type_info:
+            #     step_value = param_type_info['step']
+            #     if step_value and step_value > 0:
+            #         discretization_config[param_name] = float(step_value)
+        
+        if discretization_config:
+            print(f"🎯 Reconstructed discretization config: {discretization_config}")
+        else:
+            print(f"ℹ️ No discretization for optimization (continuous parameters)")
+        
+        # Recreate domain WITH discretization
         domain = create_bofire_domain_from_store(
             parameters, 
             objectives,
-            solvent_config=domain_data.get('metadata', {}).get('solvent_config'),
-            base_config=domain_data.get('metadata', {}).get('base_config')
+            solvent_config=solvent_config,
+            base_config=base_config,
+            constraints_config=constraints_config,  # ✅ Passer les contraintes
+            discretization_config=discretization_config  # ✅ Passer la discrétisation
         )
         
         # Load and clean data
@@ -508,27 +547,78 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         advanced_settings = advanced_settings or {}
         acq_func_name = advanced_settings.get('acquisition_function', 'qLogNEI (default)')
         n_suggestions = advanced_settings.get('n_candidates', 1)
-        
+    
         # Déterminer type et créer fonction d'acquisition
         opt_type = get_optimization_type(domain)
         is_multi_objective = (opt_type == 'MOBO')
         acq_func = create_acquisition_function_from_name(acq_func_name, is_multi_objective)
-        
+    
+        # ── Outcome constraint (MOBO uniquement) ──────────────────────────────
+        oc = advanced_settings.get('outcome_constraint') or {}
+        outcome_constraint = None
+        if (is_multi_objective
+                and oc.get('enabled')
+                and oc.get('objective')
+                and oc.get('threshold') is not None):
+            outcome_constraint = oc
+            print(f"🔒 Outcome constraint active : {oc['objective']} {oc['direction']} {oc['threshold']}")
+    
         print(f"🔧 Running {opt_type} with {acq_func_name}, {n_suggestions} candidates")
-        
+    
         # Lancer l'optimisation avec paramètres personnalisés
         new_candidates = bayesian_optimization(
-            domain, 
-            experiments_complete, 
+            domain,
+            experiments_complete,
             n_candidates=n_suggestions,
-            acquisition_function=acq_func
+            acquisition_function=acq_func,
+            outcome_constraint=outcome_constraint,     # ← nouveau
         )
+
         
         if new_candidates is None or (hasattr(new_candidates, 'empty') and new_candidates.empty):
             print("❌ No candidates generated")
             return no_update, "❌ Optimization failed to generate candidates", True, "danger", default_btn, False
         
         print(f"✅ Generated candidates:\n{new_candidates}")
+        
+        # ===== DYNAMIC BOILING POINT CONSTRAINT =====
+        # Get constraints config from metadata
+        constraints_config = domain_data.get('metadata', {}).get('constraints_config')
+        solvent_config = domain_data.get('metadata', {}).get('solvent_config')
+        
+        # Find solvent parameter name
+        solvent_param_name = None
+        if solvent_config:
+            for param in parameters:
+                if param.get('id') == solvent_config.get('param_id'):
+                    solvent_param_name = param.get('name')
+                    break
+        
+        # Apply dynamic constraints based on suggested solvent
+        all_adjustments = []
+        if constraints_config and constraints_config.get('constraints') and solvent_param_name:
+            print(f"🔧 Checking dynamic constraints (solvent param: {solvent_param_name})")
+            
+            adjusted_rows = []
+            for idx, row in new_candidates.iterrows():
+                row_dict = row.to_dict()
+                adjusted_row, adjustments = validate_and_adjust_suggestion(
+                    row_dict, 
+                    constraints_config, 
+                    solvent_param_name
+                )
+                adjusted_rows.append(adjusted_row)
+                all_adjustments.extend(adjustments)
+            
+            # Replace candidates with adjusted version
+            new_candidates = pd.DataFrame(adjusted_rows)
+            
+            if all_adjustments:
+                print(f"⚠️ Applied {len(all_adjustments)} temperature adjustment(s):")
+                for adj in all_adjustments:
+                    print(f"   {adj['parameter']}: {adj['original']}°C → {adj['adjusted']}°C "
+                          f"(limited by {adj['solvent']} BP={adj['boiling_point']}°C)")
+        # ===== END CONSTRAINT VALIDATION =====
         
         new_rows = []
         for _, candidate in new_candidates.iterrows():
@@ -558,7 +648,14 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         
         updated_data = table_data + new_rows
         
-        msg = f"✅ Generated {n_suggestions} new experiment(s) to test!"
+        if all_adjustments:
+            adjustment_text = ", ".join([
+                f"{adj['parameter']} → {adj['adjusted']}°C (max for {adj['solvent']})"
+                for adj in all_adjustments
+            ])
+            msg = f"✅ Generated {n_suggestions} new experiment(s)! ⚠️ Adjusted: {adjustment_text}"
+        else:
+            msg = f"✅ Generated {n_suggestions} new experiment(s) to test!"
         print(msg)
         return updated_data, msg, True, "success", default_btn, False
     

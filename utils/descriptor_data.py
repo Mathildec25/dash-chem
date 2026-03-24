@@ -1,329 +1,188 @@
 """
-Descriptor data for solvents and bases
-Physical and chemical properties database
+Descriptor data utilities for BoFire domain creation
+Fetches real descriptor values from auto-generated descriptor files
 """
 
-SOLVENT_DESCRIPTORS = {
-    'Water': {
-        'Polarity': 1.0,
-        'Boiling point': 100.0,
-        'Viscosity': 0.89,
-        'Dielectric constant': 80.1,
-        'Dipole moment': 1.85,
-        'Hydrogen bond donor': 2.0,
-        'Hydrogen bond acceptor': 2.0,
-        'Surface tension': 72.8,
-        'Refractive index': 1.333,
-        'Density': 1.0
-    },
-    'Methanol': {
-        'Polarity': 0.762,
-        'Boiling point': 64.7,
-        'Viscosity': 0.544,
-        'Dielectric constant': 32.6,
-        'Dipole moment': 1.70,
-        'Hydrogen bond donor': 1.0,
-        'Hydrogen bond acceptor': 2.0,
-        'Surface tension': 22.6,
-        'Refractive index': 1.329,
-        'Density': 0.792
-    },
-    'Ethanol': {
-        'Polarity': 0.654,
-        'Boiling point': 78.4,
-        'Viscosity': 1.074,
-        'Dielectric constant': 24.3,
-        'Dipole moment': 1.69,
-        'Hydrogen bond donor': 1.0,
-        'Hydrogen bond acceptor': 2.0,
-        'Surface tension': 22.1,
-        'Refractive index': 1.361,
-        'Density': 0.789
-    },
-    'Acetone': {
-        'Polarity': 0.355,
-        'Boiling point': 56.0,
-        'Viscosity': 0.306,
-        'Dielectric constant': 20.7,
-        'Dipole moment': 2.88,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 1.0,
-        'Surface tension': 23.7,
-        'Refractive index': 1.359,
-        'Density': 0.784
-    },
-    'DMSO': {
-        'Polarity': 0.444,
-        'Boiling point': 189.0,
-        'Viscosity': 1.996,
-        'Dielectric constant': 46.7,
-        'Dipole moment': 3.96,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 2.0,
-        'Surface tension': 43.0,
-        'Refractive index': 1.479,
-        'Density': 1.092
-    },
-    'DMF': {
-        'Polarity': 0.386,
-        'Boiling point': 153.0,
-        'Viscosity': 0.794,
-        'Dielectric constant': 36.7,
-        'Dipole moment': 3.82,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 1.0,
-        'Surface tension': 37.1,
-        'Refractive index': 1.430,
-        'Density': 0.944
-    },
-    'Acetonitrile': {
-        'Polarity': 0.460,
-        'Boiling point': 81.6,
-        'Viscosity': 0.369,
-        'Dielectric constant': 37.5,
-        'Dipole moment': 3.92,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 1.0,
-        'Surface tension': 29.3,
-        'Refractive index': 1.344,
-        'Density': 0.786
-    },
-    'THF': {
-        'Polarity': 0.207,
-        'Boiling point': 66.0,
-        'Viscosity': 0.456,
-        'Dielectric constant': 7.6,
-        'Dipole moment': 1.75,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 1.0,
-        'Surface tension': 26.4,
-        'Refractive index': 1.407,
-        'Density': 0.889
-    },
-    'Dichloromethane': {
-        'Polarity': 0.309,
-        'Boiling point': 39.6,
-        'Viscosity': 0.413,
-        'Dielectric constant': 8.9,
-        'Dipole moment': 1.60,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 0.0,
-        'Surface tension': 26.5,
-        'Refractive index': 1.424,
-        'Density': 1.325
-    },
-    'Chloroform': {
-        'Polarity': 0.259,
-        'Boiling point': 61.2,
-        'Viscosity': 0.537,
-        'Dielectric constant': 4.8,
-        'Dipole moment': 1.04,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 0.0,
-        'Surface tension': 27.2,
-        'Refractive index': 1.446,
-        'Density': 1.492
-    },
-    'Toluene': {
-        'Polarity': 0.099,
-        'Boiling point': 110.6,
-        'Viscosity': 0.560,
-        'Dielectric constant': 2.4,
-        'Dipole moment': 0.36,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 0.0,
-        'Surface tension': 28.5,
-        'Refractive index': 1.497,
-        'Density': 0.867
-    },
-    'Hexane': {
-        'Polarity': 0.009,
-        'Boiling point': 68.7,
-        'Viscosity': 0.300,
-        'Dielectric constant': 1.9,
-        'Dipole moment': 0.00,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 0.0,
-        'Surface tension': 18.4,
-        'Refractive index': 1.375,
-        'Density': 0.655
-    },
-    'Diethyl ether': {
-        'Polarity': 0.117,
-        'Boiling point': 34.6,
-        'Viscosity': 0.224,
-        'Dielectric constant': 4.3,
-        'Dipole moment': 1.15,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 2.0,
-        'Surface tension': 17.0,
-        'Refractive index': 1.353,
-        'Density': 0.714
-    },
-    'Ethyl acetate': {
-        'Polarity': 0.228,
-        'Boiling point': 77.1,
-        'Viscosity': 0.423,
-        'Dielectric constant': 6.0,
-        'Dipole moment': 1.78,
-        'Hydrogen bond donor': 0.0,
-        'Hydrogen bond acceptor': 2.0,
-        'Surface tension': 23.9,
-        'Refractive index': 1.372,
-        'Density': 0.902
-    }
-}
+from typing import List
+import numpy as np
 
-BASE_DESCRIPTORS = {
-    'Triethylamine': {
-        'pKa': 10.75,
-        'Basicity': 0.96,
-        'Nucleophilicity': 0.85,
-        'Steric hindrance': 0.75,
-        'Solubility': 0.60,
-        'Boiling point': 89.5,
-        'Molecular weight': 101.19,
-        'Dipole moment': 0.66
-    },
-    'Pyridine': {
-        'pKa': 5.25,
-        'Basicity': 0.65,
-        'Nucleophilicity': 0.55,
-        'Steric hindrance': 0.20,
-        'Solubility': 0.90,
-        'Boiling point': 115.2,
-        'Molecular weight': 79.10,
-        'Dipole moment': 2.19
-    },
-    'DIPEA': {
-        'pKa': 10.98,
-        'Basicity': 0.98,
-        'Nucleophilicity': 0.40,
-        'Steric hindrance': 0.95,
-        'Solubility': 0.40,
-        'Boiling point': 127.0,
-        'Molecular weight': 129.24,
-        'Dipole moment': 0.70
-    },
-    'DBU': {
-        'pKa': 12.0,
-        'Basicity': 1.00,
-        'Nucleophilicity': 0.75,
-        'Steric hindrance': 0.60,
-        'Solubility': 0.80,
-        'Boiling point': 80.0,
-        'Molecular weight': 152.24,
-        'Dipole moment': 3.80
-    },
-    'Sodium hydroxide': {
-        'pKa': 14.0,
-        'Basicity': 1.00,
-        'Nucleophilicity': 0.95,
-        'Steric hindrance': 0.05,
-        'Solubility': 1.00,
-        'Boiling point': 1388.0,
-        'Molecular weight': 40.00,
-        'Dipole moment': 0.00
-    },
-    'Potassium carbonate': {
-        'pKa': 10.33,
-        'Basicity': 0.90,
-        'Nucleophilicity': 0.70,
-        'Steric hindrance': 0.10,
-        'Solubility': 0.95,
-        'Boiling point': 1200.0,
-        'Molecular weight': 138.21,
-        'Dipole moment': 0.00
-    },
-    'Cesium carbonate': {
-        'pKa': 10.33,
-        'Basicity': 0.95,
-        'Nucleophilicity': 0.80,
-        'Steric hindrance': 0.15,
-        'Solubility': 0.90,
-        'Boiling point': 1300.0,
-        'Molecular weight': 325.82,
-        'Dipole moment': 0.00
-    },
-    'Sodium bicarbonate': {
-        'pKa': 6.35,
-        'Basicity': 0.50,
-        'Nucleophilicity': 0.40,
-        'Steric hindrance': 0.10,
-        'Solubility': 0.95,
-        'Boiling point': 851.0,
-        'Molecular weight': 84.01,
-        'Dipole moment': 0.00
-    },
-    'DMAP': {
-        'pKa': 9.70,
-        'Basicity': 0.88,
-        'Nucleophilicity': 0.90,
-        'Steric hindrance': 0.30,
-        'Solubility': 0.85,
-        'Boiling point': 162.0,
-        'Molecular weight': 122.17,
-        'Dipole moment': 4.10
-    },
-    'Imidazole': {
-        'pKa': 7.00,
-        'Basicity': 0.70,
-        'Nucleophilicity': 0.75,
-        'Steric hindrance': 0.25,
-        'Solubility': 0.95,
-        'Boiling point': 256.0,
-        'Molecular weight': 68.08,
-        'Dipole moment': 3.61
-    },
-    'Potassium tert-butoxide': {
-        'pKa': 16.5,
-        'Basicity': 1.00,
-        'Nucleophilicity': 0.85,
-        'Steric hindrance': 0.85,
-        'Solubility': 0.50,
-        'Boiling point': 250.0,
-        'Molecular weight': 112.21,
-        'Dipole moment': 0.00
-    },
-    'Lithium diisopropylamide': {
-        'pKa': 35.7,
-        'Basicity': 1.00,
-        'Nucleophilicity': 0.60,
-        'Steric hindrance': 0.90,
-        'Solubility': 0.30,
-        'Boiling point': 200.0,
-        'Molecular weight': 107.11,
-        'Dipole moment': 0.00
-    }
-}
+# ============================================================================
+# IMPORT AUTO-GENERATED DESCRIPTORS
+# ============================================================================
+
+try:
+    from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
+    from bofire_base_descriptors import BASE_DESCRIPTORS
+    print("✅ Loaded descriptor files for BoFire domain creation")
+except ImportError as e:
+    print(f"⚠️ WARNING: Could not import descriptor files: {e}")
+    print("   Using empty fallback")
+    SOLVENT_DESCRIPTORS = {}
+    BASE_DESCRIPTORS = {}
 
 
-def get_descriptor_values(categories, descriptors, descriptor_type='solvent'):
+def get_descriptor_values(categories: List[str], descriptors: List[str], compound_type: str) -> List[List[float]]:
     """
-    Get descriptor values for given categories.
+    Get descriptor values for a list of compounds.
     
     Args:
-        categories: List of category names (e.g., solvent names)
-        descriptors: List of descriptor names
-        descriptor_type: Type of descriptor ('solvent' or 'base')
+        categories: List of compound names (e.g., ['Ethanol', 'Acetone', ...])
+        descriptors: List of descriptor names (e.g., ['bp', 'polarity_index', ...])
+        compound_type: 'solvent' or 'base'
     
     Returns:
-        List of lists with descriptor values for each category
+        List of lists with descriptor values, shape (n_categories, n_descriptors)
+        Example: [[78.4, 5.2, 1, 1], [56.1, 5.1, 1, 0], ...]
+    
+    Raises:
+        ValueError: If descriptor files not loaded or data missing
     """
-    # Select appropriate database
-    descriptor_db = SOLVENT_DESCRIPTORS if descriptor_type == 'solvent' else BASE_DESCRIPTORS
+    # Select appropriate descriptor dictionary
+    if compound_type == 'solvent':
+        descriptor_dict = SOLVENT_DESCRIPTORS
+    elif compound_type == 'base':
+        descriptor_dict = BASE_DESCRIPTORS
+    else:
+        raise ValueError(f"Unknown compound_type: '{compound_type}'. Must be 'solvent' or 'base'")
+    
+    # Check if we have descriptor data
+    if not descriptor_dict:
+        raise ValueError(
+            f"No descriptor data available for {compound_type}s. "
+            f"Make sure bofire_{compound_type}_descriptors.py exists and is importable."
+        )
     
     # Build values matrix
-    values_matrix = []
+    values = []
+    
     for category in categories:
-        category_values = []
-        category_data = descriptor_db.get(category, {})
+        if category not in descriptor_dict:
+            raise ValueError(
+                f"❌ Compound '{category}' not found in {compound_type} descriptors!\n"
+                f"   Available {compound_type}s: {list(descriptor_dict.keys())[:5]}..."
+            )
+        
+        compound_data = descriptor_dict[category]
+        row = []
         
         for descriptor in descriptors:
-            # Get value or use default
-            value = category_data.get(descriptor, 0.5)  # Default to mid-range
-            category_values.append(float(value))
+            if descriptor not in compound_data:
+                raise ValueError(
+                    f"❌ Descriptor '{descriptor}' not found for {category}!\n"
+                    f"   Available descriptors: {list(compound_data.keys())}"
+                )
+            
+            value = compound_data[descriptor]
+            
+            # Ensure value is numeric
+            if isinstance(value, (int, float)):
+                row.append(float(value))
+            else:
+                # Handle non-numeric descriptors (like nucleophilicity = 'High')
+                # Convert to numeric scale
+                if descriptor == 'nucleophilicity':
+                    nucleophilicity_map = {'High': 3.0, 'Moderate': 2.0, 'Low': 1.0, 'None': 0.0}
+                    row.append(nucleophilicity_map.get(value, 0.0))
+                else:
+                    print(f"   ⚠️ Non-numeric value for {category}.{descriptor}: {value}, using 0.0")
+                    row.append(0.0)
         
-        values_matrix.append(category_values)
+        values.append(row)
     
-    return values_matrix
+    # Verify we have variation in each descriptor
+    values_array = np.array(values)
+    for i, descriptor in enumerate(descriptors):
+        descriptor_values = values_array[:, i]
+        if len(set(descriptor_values)) == 1:
+            print(f"   ⚠️ WARNING: No variation in descriptor '{descriptor}' (all values = {descriptor_values[0]})")
+            print(f"      This may cause BoFire validation errors")
+    
+    print(f"   ✅ Extracted {len(values)} x {len(descriptors)} descriptor matrix")
+    print(f"      Sample values for {categories[0]}: {values[0]}")
+    
+    return values
+
+
+def get_available_solvents() -> List[str]:
+    """Get list of available solvent names."""
+    return sorted(list(SOLVENT_DESCRIPTORS.keys()))
+
+
+def get_available_bases() -> List[str]:
+    """Get list of available base names."""
+    return sorted(list(BASE_DESCRIPTORS.keys()))
+
+
+def get_available_descriptors(compound_type: str) -> List[str]:
+    """
+    Get list of available descriptor names for a compound type.
+    
+    Args:
+        compound_type: 'solvent' or 'base'
+    
+    Returns:
+        List of descriptor names
+    """
+    if compound_type == 'solvent':
+        if not SOLVENT_DESCRIPTORS:
+            return []
+        first_solvent = next(iter(SOLVENT_DESCRIPTORS.values()))
+        return sorted([k for k in first_solvent.keys() if k != 'CAS'])
+    
+    elif compound_type == 'base':
+        if not BASE_DESCRIPTORS:
+            return []
+        first_base = next(iter(BASE_DESCRIPTORS.values()))
+        return sorted([k for k in first_base.keys() if k != 'CAS'])
+    
+    else:
+        raise ValueError(f"Unknown compound_type: '{compound_type}'")
+
+
+# ============================================================================
+# TESTING / DEBUGGING
+# ============================================================================
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("DESCRIPTOR DATA UTILITIES - TEST")
+    print("=" * 70)
+    
+    # Test solvents
+    print("\n📊 Testing Solvents:")
+    try:
+        solvents = ['Ethanol', 'Acetone', 'DMSO']
+        descriptors = ['bp', 'polarity_index', 'HBA', 'HBD']
+        values = get_descriptor_values(solvents, descriptors, 'solvent')
+        
+        print(f"   Solvents: {solvents}")
+        print(f"   Descriptors: {descriptors}")
+        print(f"   Values matrix:")
+        for i, solvent in enumerate(solvents):
+            print(f"      {solvent}: {values[i]}")
+    except Exception as e:
+        print(f"   ❌ Error: {e}")
+    
+    # Test bases
+    print("\n📊 Testing Bases:")
+    try:
+        bases = ['Triethylamine', 'DBU', 'Pyridine']
+        descriptors = ['pKa', 'basicity', 'MW']
+        values = get_descriptor_values(bases, descriptors, 'base')
+        
+        print(f"   Bases: {bases}")
+        print(f"   Descriptors: {descriptors}")
+        print(f"   Values matrix:")
+        for i, base in enumerate(bases):
+            print(f"      {base}: {values[i]}")
+    except Exception as e:
+        print(f"   ❌ Error: {e}")
+    
+    # Test available compounds
+    print("\n📋 Available Compounds:")
+    print(f"   Solvents: {len(get_available_solvents())}")
+    print(f"   Bases: {len(get_available_bases())}")
+    
+    print("\n" + "=" * 70)
+    print("✅ Test completed")
+    print("=" * 70)

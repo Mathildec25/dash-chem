@@ -99,7 +99,40 @@ class DomainStorage:
         except Exception as e:
             print(f"Error loading domain: {e}")
             return None
-    
+
+    @staticmethod
+    def update_metadata(excel_name, key, value):
+        """
+        Update a single key in the metadata JSON without rewriting the domain pickle.
+
+        Args:
+            excel_name : Name of the Excel file (e.g. 'my_project.xlsx')
+            key        : Top-level key to insert/update in the metadata dict
+                         (e.g. 'advanced_bo_settings')
+            value      : Value to store (must be JSON-serialisable)
+
+        Returns:
+            tuple: (success: bool, message: str)
+        """
+        try:
+            meta_path = DomainStorage.get_metadata_path(excel_name)
+
+            if not os.path.exists(meta_path):
+                return False, f"Metadata file not found: {meta_path}"
+
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                meta_data = json.load(f)
+
+            meta_data[key] = value
+
+            with open(meta_path, 'w', encoding='utf-8') as f:
+                json.dump(meta_data, f, indent=2, ensure_ascii=False)
+
+            return True, f"Metadata key '{key}' updated successfully"
+
+        except Exception as e:
+            return False, str(e)
+
     @staticmethod
     def delete_domain(excel_name):
         """Delete domain files"""
