@@ -100,6 +100,13 @@ INITIAL_DATA = [
     {"dmipp": 2.2, "buoh": 8.8, "temperature": 40.0, "res": 2.0, "yld": 0.09, "sty": 0.5},
     {"dmipp": 2.2, "buoh": 4.2, "temperature": 65.0, "res": 1.0, "yld": 0.59, "sty": 7.2},
     {"dmipp": 3.2, "buoh": 3.2, "temperature": 70.0, "res": 1.0, "yld": 0.44, "sty": 7.8},
+    {"dmipp": 3.2, "buoh": 4.7, "temperature": 60.0, "res": 1.5, "yld": 0.55, "sty": 6.4},
+    {"dmipp": 1.2, "buoh": 4.5, "temperature": 65.0, "res": 1.0, "yld": 0.44, "sty": 2.2},
+    {"dmipp": 2.6, "buoh": 4.5, "temperature": 65.0, "res": 1.5, "yld": 0.53, "sty": 5.0},
+    {"dmipp": 4.6, "buoh": 4.6, "temperature": 60.0, "res": 2.5, "yld": 0.48, "sty": 4.8},
+    {"dmipp": 3.4, "buoh": 5.5, "temperature": 75.0, "res": 1.5, "yld": 0.44, "sty": 5.4},
+    {"dmipp": 2.6, "buoh": 2.6, "temperature": 60.0, "res": 1.0, "yld": 0.54, "sty": 7.7},
+    {"dmipp": 2.6, "buoh": 3.6, "temperature": 60.0, "res": 2.0, "yld": 0.61, "sty": 4.4},
 ]
 
 
