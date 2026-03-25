@@ -560,14 +560,23 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         advanced_settings = advanced_settings or {}
         acq_func_name = advanced_settings.get('acquisition_function', 'qLogNEI (default)')
         n_suggestions = advanced_settings.get('n_candidates', 1)
-        
+    
         # Déterminer type et créer fonction d'acquisition
         opt_type = get_optimization_type(domain)
         is_multi_objective = (opt_type == 'MOBO')
         acq_func = create_acquisition_function_from_name(acq_func_name, is_multi_objective)
-        
+    
+        # ── Outcome constraint (MOBO uniquement) ──────────────────────────────
+        oc = advanced_settings.get('outcome_constraint') or {}
+        outcome_constraint = None
+        if (is_multi_objective
+                and oc.get('enabled')
+                and oc.get('objective')
+                and oc.get('threshold') is not None):
+            outcome_constraint = oc
+            print(f"🔒 Outcome constraint active : {oc['objective']} {oc['direction']} {oc['threshold']}")
+    
         print(f"🔧 Running {opt_type} with {acq_func_name}, {n_suggestions} candidates")
-        
         # ===== ROUTING : constrained MOBO ou pipeline standard =====
         output_constraints = extract_output_constraints_from_objectives(objectives)
 
@@ -584,9 +593,10 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                 domain,
                 experiments_complete,
                 n_candidates=n_suggestions,
-                acquisition_function=acq_func
+                acquisition_function=acq_func,
+                outcome_constraint=outcome_constraint,  # ← vient de main
             )
-            
+        
         if new_candidates is None or (hasattr(new_candidates, 'empty') and new_candidates.empty):
             print("❌ No candidates generated")
             return no_update, "❌ Optimization failed to generate candidates", True, "danger"

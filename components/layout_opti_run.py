@@ -6,6 +6,7 @@ Displays editable experiment table and BO controls
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 from components.advanced_bo_settings import create_advanced_bo_settings
+from components.online_analysis_panel import create_online_analysis_panel
 
 
 def create_opti_run_layout():
@@ -210,6 +211,13 @@ def create_opti_run_layout():
                 })
             ], md=12, className="mb-3")
         ]),
+        
+        # Online Analysis Panel
+        dbc.Row([
+            dbc.Col([
+                create_online_analysis_panel()
+            ], md=12)
+        ], className="mt-3 mb-3"),
         
         # ===== PARAMÈTRES AVANCÉS BO =====
         # (Le bouton et modal sont déjà dans la section au-dessus)
