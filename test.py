@@ -90,9 +90,6 @@ INITIAL_DATA = [
     {"catalyst": "P1-L1", "t_res": 415.06, "temperature": 91.93, "catalyst_loading": 1.91, "yld": 0.48624, "ton": 26.791769},
     {"catalyst": "P1-L1", "t_res": 429.17, "temperature": 43.68, "catalyst_loading": 0.5, "yld": 0.0693, "ton": 9.2},
     {"catalyst": "P1-L1", "t_res": 362.55, "temperature": 106.55, "catalyst_loading": 2.202, "yld": 0.6605, "ton": 31.11153},    
-    {"catalyst": "P1-L1", "t_res": 105.25, "temperature": 110.00, "catalyst_loading": 2.5, "yld": 0.7306, "ton": 32.110088},     
-    {"catalyst": "P1-L1", "t_res": 600, "temperature": 110.00, "catalyst_loading": 2.5, "yld": 0.6486, "ton": 25.110052},
-    {"catalyst": "P1-L1", "t_res": 115.64, "temperature": 110.00, "catalyst_loading": 0.98, "yld": 0.4065, "ton": 36.51},
 ]
 
 # ============================================================================
