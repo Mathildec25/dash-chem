@@ -75,10 +75,7 @@ def enable_button(param_names, obj_names, project_name):
      State('nb-sampling-points', 'value'),
      State('solvent-config-store', 'data'),
      State('base-config-store', 'data'),
-     State('constraints-store', 'data'),
-     State({'type': 'objective-constraint-toggle', 'index': ALL}, 'n_clicks'),
-     State({'type': 'objective-constraint-direction', 'index': ALL}, 'value'),
-     State({'type': 'objective-constraint-threshold', 'index': ALL}, 'value'),],
+     State('constraints-store', 'data'),],
     prevent_initial_call=True
 )
 def create_domain_and_excel(n_clicks, project_name, 
@@ -89,8 +86,7 @@ def create_domain_and_excel(n_clicks, project_name,
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
                            sampling_method, nb_points,
-                           solvent_config, base_config, constraints_config,
-                           obj_constraint_toggles, obj_constraint_dirs, obj_constraint_thresholds):
+                           solvent_config, base_config, constraints_config):
     """
     Main callback: Create domain, generate Excel with sampling, and redirect
     """
@@ -232,31 +228,13 @@ def create_domain_and_excel(n_clicks, project_name,
             lower = obj_lowers[i] if i < len(obj_lowers) else 0.0
             upper = obj_uppers[i] if i < len(obj_uppers) else 1.0
 
-            toggle_clicks  = obj_constraint_toggles[i]  if i < len(obj_constraint_toggles)  else 0
-            is_constrained = bool(toggle_clicks and toggle_clicks % 2 == 1)
-            c_direction    = obj_constraint_dirs[i]      if i < len(obj_constraint_dirs)      else ">="
-            c_threshold    = obj_constraint_thresholds[i] if i < len(obj_constraint_thresholds) else None
-
-            if is_constrained and c_threshold is None:
-                alert = dbc.Alert(
-                    f"❌ Objective '{name}' has the constraint toggle active but no threshold entered.",
-                    color="danger"
-                )
-                return no_update, no_update, alert, True
-
             objectives.append({
                 'id': idx,
                 'name': name.strip(),
                 'direction': direction,
                 'lower_bound': lower if lower is not None else 0.0,
                 'upper_bound': upper if upper is not None else 1.0,
-                'is_constrained': is_constrained,
-                'constraint_direction': c_direction or ">=",
-                'constraint_threshold': float(c_threshold) if c_threshold is not None else None,
             })
-
-            if is_constrained:
-                print(f"   🔒 Constraint on '{name}': {c_direction} {c_threshold}")
         
         print(f"✅ Built {len(objectives)} objectives")
         

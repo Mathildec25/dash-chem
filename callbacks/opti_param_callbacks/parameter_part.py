@@ -302,20 +302,3 @@ def manage_extra_columns(add_clicks, delete_clicks, current_children):
         return new_children
     
     raise PreventUpdate
-
-@callback(
-    Output({'type': 'objective-constraint-collapse', 'index': MATCH}, 'is_open'),
-    Output({'type': 'objective-constraint-toggle', 'index': MATCH}, 'color'),
-    Output({'type': 'objective-constraint-toggle', 'index': MATCH}, 'outline'),
-    Input({'type': 'objective-constraint-toggle', 'index': MATCH}, 'n_clicks'),
-    State({'type': 'objective-constraint-collapse', 'index': MATCH}, 'is_open'),
-    prevent_initial_call=True
-)
-def toggle_constraint_subrow(n_clicks, is_open):
-    if not n_clicks:
-        raise PreventUpdate
-    new_state = not is_open
-    # Active: orange solid button / Inactive: secondary outline
-    color = "warning" if new_state else "secondary"
-    outline = not new_state
-    return new_state, color, outline

@@ -120,7 +120,20 @@ def _resolve_param_name(param_id, param_names, param_ids):
                 return name.strip()
     return None
 
-
+def _get_row_index(row) -> str | None:
+    """
+    Extrait l'index d'un composant Dash, qu'il arrive comme objet Python
+    ou comme dict sérialisé (cas des children passés via State).
+    """
+    try:
+        if isinstance(row, dict):
+            return row.get('props', {}).get('id', {}).get('index')
+        row_id = getattr(row, 'id', None)
+        if isinstance(row_id, dict):
+            return row_id.get('index')
+    except Exception:
+        pass
+    return None
 # ============================================================================
 # VALIDATION FUNCTION (BP, MP, AND linear constraints)
 # ============================================================================
@@ -550,14 +563,7 @@ def delete_constraint_row(n_clicks, current_rows):
     
     row_to_delete = triggered.get('index')
     
-    updated_rows = []
-    for row in current_rows:
-        row_id = None
-        if hasattr(row, 'id') and isinstance(row.id, dict):
-            row_id = row.id.get('index')
-        if row_id != row_to_delete:
-            updated_rows.append(row)
-    
+    updated_rows = [row for row in current_rows if _get_row_index(row) != row_to_delete]
     return updated_rows
 
 
@@ -639,14 +645,7 @@ def delete_ineq_constraint_row(n_clicks, current_rows):
     
     row_to_delete = triggered.get('index')
     
-    updated_rows = []
-    for row in current_rows:
-        row_id = None
-        if hasattr(row, 'id') and isinstance(row.id, dict):
-            row_id = row.id.get('index')
-        if row_id != row_to_delete:
-            updated_rows.append(row)
-    
+    updated_rows = [row for row in current_rows if _get_row_index(row) != row_to_delete]
     return updated_rows
 
 

@@ -12,16 +12,12 @@ initial_objective_id = str(uuid.uuid4())
 
 def _make_objective_row(row_id: str) -> html.Div:
     """
-    Build one objective row with a constraint toggle button.
+    Build one objective row.
 
     Layout per row:
-        [Name 4col] [Direction 2col] [Min 2col] [Max 2col] [🔒 1col] [🗑 1col]
-
-    When the 🔒 button is active (toggled), a second sub-row appears:
-        [constraint direction >=/<= 2col] [threshold value 2col]
+        [Name 4col] [Direction 2col] [Min 2col] [Max 2col] [🗑 2col]
     """
     return html.Div([
-        # --- Main row ---
         dbc.Row([
             # Objective name
             dbc.Col([
@@ -71,20 +67,6 @@ def _make_objective_row(row_id: str) -> html.Div:
                 )
             ], width=2),
 
-            # 🔒 Constraint toggle button
-            dbc.Col([
-                dbc.Button(
-                    [html.I(className="bi bi-lock", style={"fontSize": "0.875rem"})],
-                    id={'type': 'objective-constraint-toggle', 'index': row_id},
-                    color="secondary",
-                    outline=True,
-                    size="sm",
-                    n_clicks=0,
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"},
-                    title="Set a minimum/maximum threshold on this output (Probability of Feasibility)"
-                )
-            ], width=1),
-
             # 🗑 Delete button
             dbc.Col([
                 dbc.Button(
@@ -95,46 +77,8 @@ def _make_objective_row(row_id: str) -> html.Div:
                     size="sm",
                     style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
                 )
-            ], width=1),
+            ], width=2),
         ], className="mb-1 align-items-center"),
-
-        # --- Constraint sub-row (hidden by default) ---
-        dbc.Collapse(
-            dbc.Row([
-                dbc.Col(width=4),  # spacer
-                dbc.Col([
-                    dcc.Dropdown(
-                        id={'type': 'objective-constraint-direction', 'index': row_id},
-                        options=[
-                            {"label": "≥  (must be ABOVE threshold)", "value": ">="},
-                            {"label": "≤  (must be BELOW threshold)", "value": "<="},
-                        ],
-                        value=">=",
-                        clearable=False,
-                        style={"fontSize": "0.8rem"}
-                    )
-                ], width=3),
-                dbc.Col([
-                    dbc.Input(
-                        id={'type': 'objective-constraint-threshold', 'index': row_id},
-                        placeholder="Threshold value",
-                        type="number",
-                        step="any",
-                        size="sm",
-                        style={"borderRadius": "6px", "borderColor": "#f59e0b"}
-                    )
-                ], width=3),
-                dbc.Col([
-                    html.Small(
-                        "PoF constraint",
-                        className="text-warning",
-                        style={"fontSize": "0.75rem"}
-                    )
-                ], width=2),
-            ], className="mb-2 align-items-center"),
-            id={'type': 'objective-constraint-collapse', 'index': row_id},
-            is_open=False,
-        ),
 
     ], id={'type': 'objective-row', 'index': row_id})
 
