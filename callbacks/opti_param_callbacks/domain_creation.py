@@ -15,6 +15,7 @@ import uuid
 from domain_storage import DomainStorage
 from utils.BoFire import create_bofire_domain_from_store
 from utils.bofire_optimization import sampling, kmeans_sampling
+from utils.safe_excel import safe_excel_save, safe_excel_read
 from config_path import EXCEL_FOLDER, TRACKING_FILE
 
 
@@ -74,7 +75,10 @@ def enable_button(param_names, obj_names, project_name):
      State('nb-sampling-points', 'value'),
      State('solvent-config-store', 'data'),
      State('base-config-store', 'data'),
-     State('constraints-store', 'data')],
+     State('constraints-store', 'data'),
+     State({'type': 'objective-constraint-toggle', 'index': ALL}, 'n_clicks'),
+     State({'type': 'objective-constraint-direction', 'index': ALL}, 'value'),
+     State({'type': 'objective-constraint-threshold', 'index': ALL}, 'value'),],
     prevent_initial_call=True
 )
 def create_domain_and_excel(n_clicks, project_name, 
@@ -85,7 +89,8 @@ def create_domain_and_excel(n_clicks, project_name,
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
                            sampling_method, nb_points,
-                           solvent_config, base_config, constraints_config):
+                           solvent_config, base_config, constraints_config,
+                           obj_constraint_toggles, obj_constraint_dirs, obj_constraint_thresholds):
     """
     Main callback: Create domain, generate Excel with sampling, and redirect
     """
@@ -222,22 +227,36 @@ def create_domain_and_excel(n_clicks, project_name,
         for i, (oid, name, direction) in enumerate(zip(obj_ids, obj_names, obj_directions)):
             if not name or not name.strip() or not direction:
                 continue
-            
+
             idx = oid['index']
             lower = obj_lowers[i] if i < len(obj_lowers) else 0.0
             upper = obj_uppers[i] if i < len(obj_uppers) else 1.0
-            
+
+            toggle_clicks  = obj_constraint_toggles[i]  if i < len(obj_constraint_toggles)  else 0
+            is_constrained = bool(toggle_clicks and toggle_clicks % 2 == 1)
+            c_direction    = obj_constraint_dirs[i]      if i < len(obj_constraint_dirs)      else ">="
+            c_threshold    = obj_constraint_thresholds[i] if i < len(obj_constraint_thresholds) else None
+
+            if is_constrained and c_threshold is None:
+                alert = dbc.Alert(
+                    f"❌ Objective '{name}' has the constraint toggle active but no threshold entered.",
+                    color="danger"
+                )
+                return no_update, no_update, alert, True
+
             objectives.append({
                 'id': idx,
                 'name': name.strip(),
                 'direction': direction,
                 'lower_bound': lower if lower is not None else 0.0,
-                'upper_bound': upper if upper is not None else 1.0
+                'upper_bound': upper if upper is not None else 1.0,
+                'is_constrained': is_constrained,
+                'constraint_direction': c_direction or ">=",
+                'constraint_threshold': float(c_threshold) if c_threshold is not None else None,
             })
-        
-        if not objectives:
-            alert = dbc.Alert("❌ At least one valid objective is required", color="danger")
-            return no_update, no_update, alert, True
+
+            if is_constrained:
+                print(f"   🔒 Constraint on '{name}': {c_direction} {c_threshold}")
         
         print(f"✅ Built {len(objectives)} objectives")
         
@@ -422,27 +441,33 @@ def create_domain_and_excel(n_clicks, project_name,
         # ===== 8. SAVE EXCEL FILE =====
         os.makedirs(EXCEL_FOLDER, exist_ok=True)
         
-        with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-            df_excel.to_excel(writer, index=False, sheet_name='Experiments')
-            
-            # Format headers
-            from openpyxl.styles import Font, PatternFill, Alignment
-            worksheet = writer.sheets['Experiments']
-            
-            for i, cell in enumerate(worksheet[1]):
-                cell.font = Font(bold=True, color="FFFFFF")
-                cell.alignment = Alignment(horizontal='center', vertical='center')
+        def write_new_excel(path):
+            with pd.ExcelWriter(path, engine='openpyxl') as writer:
+                df_excel.to_excel(writer, index=False, sheet_name='Experiments')
                 
-                col_info = all_columns[i]
-                if col_info['type'] == 'extra':
-                    if col_info['name'] == 'Point type':
-                        cell.fill = PatternFill(start_color="FF6B35", end_color="FF6B35", fill_type="solid")
-                    else:
-                        cell.fill = PatternFill(start_color="6C757D", end_color="6C757D", fill_type="solid")
-                elif col_info['type'] == 'parameter':
-                    cell.fill = PatternFill(start_color="007BFF", end_color="007BFF", fill_type="solid")
-                elif col_info['type'] == 'objective':
-                    cell.fill = PatternFill(start_color="28A745", end_color="28A745", fill_type="solid")
+                # Format headers
+                from openpyxl.styles import Font, PatternFill, Alignment
+                worksheet = writer.sheets['Experiments']
+                
+                for i, cell in enumerate(worksheet[1]):
+                    cell.font = Font(bold=True, color="FFFFFF")
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    col_info = all_columns[i]
+                    if col_info['type'] == 'extra':
+                        if col_info['name'] == 'Point type':
+                            cell.fill = PatternFill(start_color="FF6B35", end_color="FF6B35", fill_type="solid")
+                        else:
+                            cell.fill = PatternFill(start_color="6C757D", end_color="6C757D", fill_type="solid")
+                    elif col_info['type'] == 'parameter':
+                        cell.fill = PatternFill(start_color="007BFF", end_color="007BFF", fill_type="solid")
+                    elif col_info['type'] == 'objective':
+                        cell.fill = PatternFill(start_color="28A745", end_color="28A745", fill_type="solid")
+        
+        save_ok, save_msg = safe_excel_save(file_path, write_new_excel, backup=False)
+        if not save_ok:
+            alert = dbc.Alert(f"❌ Excel save failed: {save_msg}", color="danger")
+            return no_update, no_update, alert, True
         
         print(f"✅ Excel file saved: {file_path}")
         
@@ -474,13 +499,15 @@ def create_domain_and_excel(n_clicks, project_name,
         
         # ===== 10. UPDATE TRACKING =====
         if os.path.exists(TRACKING_FILE):
-            df_track = pd.read_excel(TRACKING_FILE, engine='openpyxl')
+            df_track, _ = safe_excel_read(TRACKING_FILE)
+            if df_track is None:
+                df_track = pd.DataFrame(columns=['filename'])
         else:
             df_track = pd.DataFrame(columns=['filename'])
         
         if excel_name not in df_track['filename'].values:
             df_track = pd.concat([df_track, pd.DataFrame([{'filename': excel_name}])], ignore_index=True)
-            df_track.to_excel(TRACKING_FILE, index=False, engine='openpyxl')
+            safe_excel_save(TRACKING_FILE, lambda p: df_track.to_excel(p, index=False, engine='openpyxl'))
         
         # ===== 11. SUCCESS - REDIRECT =====
         alert = dbc.Alert([

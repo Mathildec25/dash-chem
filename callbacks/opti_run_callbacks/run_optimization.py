@@ -18,9 +18,14 @@ from utils.BoFire import (
     create_acquisition_function_from_name,
     get_optimization_type
 )
+from utils.safe_excel import safe_excel_save, safe_excel_read
 from config_path import EXCEL_FOLDER
 from callbacks.opti_param_callbacks.constraints_callbacks import validate_and_adjust_suggestion
 
+from utils.constrained_mobo import (
+    extract_output_constraints_from_objectives,
+    constrained_mobo_botorch,
+)
 
 # ===== LOAD AND DISPLAY TABLE =====
 
@@ -62,7 +67,12 @@ def load_experiment_table(excel_file, pathname):
                 "danger"
             )
         
-        df = pd.read_excel(file_path, engine='openpyxl')
+        # === SAFE READ with automatic backup recovery ===
+        df, read_msg = safe_excel_read(file_path)
+        if df is None:
+            return html.Div(f"Error: {read_msg}"), read_msg, True, "danger"
+        if "backup" in read_msg:
+            print(f"⚠️ {read_msg}")
         
         domain_data = DomainStorage.load_domain(excel_file)
         if not domain_data:
@@ -152,6 +162,11 @@ def load_experiment_table(excel_file, pathname):
             status = "✅ All experiments have results. Ready for Bayesian optimization!"
             color = "success"
         
+        # Add backup recovery warning if applicable
+        if "backup" in read_msg:
+            status = f"⚠️ {read_msg}. " + status
+            color = "warning"
+        
         return table, status, True, color
     
     except Exception as e:
@@ -176,11 +191,11 @@ def save_table_changes(n_clicks, table_data, excel_file):
     if not n_clicks or not table_data or not excel_file:
         raise PreventUpdate
     
-    try:
-        file_path = os.path.join(EXCEL_FOLDER, excel_file)
-        df = pd.DataFrame(table_data)
-        
-        with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+    file_path = os.path.join(EXCEL_FOLDER, excel_file)
+    df = pd.DataFrame(table_data)
+    
+    def write_formatted(path):
+        with pd.ExcelWriter(path, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Experiments')
             
             domain_data = DomainStorage.load_domain(excel_file)
@@ -204,11 +219,14 @@ def save_table_changes(n_clicks, table_data, excel_file):
                         cell.fill = PatternFill(start_color="FF6B35", end_color="FF6B35", fill_type="solid")
                     else:
                         cell.fill = PatternFill(start_color="6C757D", end_color="6C757D", fill_type="solid")
-        
-        return dbc.Alert("✅ Table saved successfully!", color="success"), True
     
-    except Exception as e:
-        return dbc.Alert(f"❌ Save failed: {str(e)}", color="danger"), True
+    # === SAFE SAVE with atomic write + backup ===
+    success, msg = safe_excel_save(file_path, write_formatted)
+    
+    if success:
+        return dbc.Alert("✅ Table saved successfully!", color="success"), True
+    else:
+        return dbc.Alert(f"❌ {msg}", color="danger"), True
 
 
 # ===== ADD NEW ROW =====
@@ -383,14 +401,14 @@ def validate_for_optimization(table_data, excel_file):
 
 
 # ===== RUN BAYESIAN OPTIMIZATION =====
+# NOTE: Button state (disabled + children) is managed ONLY by running=[]
+# Do NOT add run-bo-btn outputs to the callback outputs, or it will conflict
 
 @callback(
     [Output('experiment-datatable', 'data', allow_duplicate=True),
      Output('bo-result-alert', 'children'),
      Output('bo-result-alert', 'is_open'),
-     Output('bo-result-alert', 'color'),
-     Output('run-bo-btn', 'children'),
-     Output('run-bo-btn', 'disabled', allow_duplicate=True)],
+     Output('bo-result-alert', 'color')],
     Input('run-bo-btn', 'n_clicks'),
     [State('experiment-datatable', 'data'),
      State('current-excel-file', 'data'),
@@ -406,25 +424,28 @@ def validate_for_optimization(table_data, excel_file):
 def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_settings):
     """Run Bayesian optimization and add new suggested experiment"""
     
-    # Default button content
-    default_btn = [html.I(className="bi bi-lightning-charge me-2"), "Get New Experiment"]
-    
     if not n_clicks:
         raise PreventUpdate
     
     print("🚀 Starting Bayesian Optimization...")
     
     try:
-        # Auto-save table before running optimization
+        # === SAFE AUTO-SAVE before running optimization ===
         file_path = os.path.join(EXCEL_FOLDER, excel_file)
         df_to_save = pd.DataFrame(table_data)
-        df_to_save.to_excel(file_path, index=False, engine='openpyxl')
+        
+        success, save_msg = safe_excel_save(
+            file_path,
+            lambda path: df_to_save.to_excel(path, index=False, engine='openpyxl')
+        )
+        if not success:
+            return no_update, f"❌ Auto-save failed: {save_msg}", True, "danger"
         print(f"💾 Table auto-saved to {excel_file}")
         
         # Load domain
         domain_data = DomainStorage.load_domain(excel_file)
         if not domain_data:
-            return no_update, "❌ Domain configuration not found", True, "danger", default_btn, False
+            return no_update, "❌ Domain configuration not found", True, "danger"
         
         param_names = domain_data.get('metadata', {}).get('parameter_names', [])
         obj_names = domain_data.get('metadata', {}).get('objective_names', [])
@@ -443,24 +464,12 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
             param_type = param.get('type')
             param_type_info = param.get('type_info', {})
             
-            # Check if this parameter was discretized
-            # We detect this by checking if type='int' but values look continuous
-            # OR if there's a 'step' key in type_info (if you store it)
-            
-            # Option 1: Auto-detect based on parameter name (simple fallback)
             if 'step' in param_type_info:
                 step_value = param_type_info.get('step', 0)
                 if step_value and step_value > 0:
                     discretization_config[param_name] = float(step_value)
                     print(f"   🎯 '{param_name}' discretized (stored step={step_value})")
-                    continue  # ← Important: skip auto-detection
-            
-            
-            # Option 2: If you stored step in type_info (better approach)
-            # if param_type == 'float' and 'step' in param_type_info:
-            #     step_value = param_type_info['step']
-            #     if step_value and step_value > 0:
-            #         discretization_config[param_name] = float(step_value)
+                    continue
         
         if discretization_config:
             print(f"🎯 Reconstructed discretization config: {discretization_config}")
@@ -473,18 +482,22 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
             objectives,
             solvent_config=solvent_config,
             base_config=base_config,
-            constraints_config=constraints_config,  # ✅ Passer les contraintes
-            discretization_config=discretization_config  # ✅ Passer la discrétisation
+            constraints_config=constraints_config,
+            discretization_config=discretization_config
         )
         
-        # Load and clean data
-        df = pd.read_excel(file_path, engine='openpyxl')
+        # === SAFE READ for optimization data ===
+        df, read_msg = safe_excel_read(file_path)
+        if df is None:
+            return no_update, f"❌ {read_msg}", True, "danger"
+        if "backup" in read_msg:
+            print(f"⚠️ {read_msg}")
         
         # ===== FILTRER UNIQUEMENT LES COLONNES DU DOMAINE =====
         valid_columns = param_names + obj_names
         missing_cols = [col for col in valid_columns if col not in df.columns]
         if missing_cols:
-            return no_update, f"❌ Missing columns: {missing_cols}", True, "danger", default_btn, False
+            return no_update, f"❌ Missing columns: {missing_cols}", True, "danger"
         
         # Prepare experiments - GARDER UNIQUEMENT LES COLONNES DU DOMAINE
         experiments = df[valid_columns].copy()
@@ -508,7 +521,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                             invalid_vals = experiments.loc[invalid_mask, col].unique()
                             error_msg = f"❌ Invalid values in '{col}': {list(invalid_vals)}. Allowed: {allowed_values}"
                             print(error_msg)
-                            return no_update, error_msg, True, "danger", default_btn, False
+                            return no_update, error_msg, True, "danger"
                         
                         if allowed_values:
                             experiments[col] = experiments[col].replace(['nan', 'None', ''], allowed_values[0])
@@ -538,7 +551,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         experiments_complete = experiments[complete_mask].copy()
         
         if len(experiments_complete) == 0:
-            return no_update, "❌ No complete experiments found. Please fill in all objective values.", True, "danger", default_btn, False
+            return no_update, "❌ No complete experiments found. Please fill in all objective values.", True, "danger"
         
         print(f"📈 Complete experiments data ({len(experiments_complete)} rows):\n{experiments_complete}")
         print(f"📈 Data types:\n{experiments_complete.dtypes}")
@@ -564,25 +577,33 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
             print(f"🔒 Outcome constraint active : {oc['objective']} {oc['direction']} {oc['threshold']}")
     
         print(f"🔧 Running {opt_type} with {acq_func_name}, {n_suggestions} candidates")
-    
-        # Lancer l'optimisation avec paramètres personnalisés
-        new_candidates = bayesian_optimization(
-            domain,
-            experiments_complete,
-            n_candidates=n_suggestions,
-            acquisition_function=acq_func,
-            outcome_constraint=outcome_constraint,     # ← nouveau
-        )
+        # ===== ROUTING : constrained MOBO ou pipeline standard =====
+        output_constraints = extract_output_constraints_from_objectives(objectives)
 
+        if output_constraints and opt_type == 'MOBO':
+            print(f"🔒 Routing to constrained MOBO — {len(output_constraints)} constraint(s)")
+            new_candidates = constrained_mobo_botorch(
+                domain=domain,
+                experiments=experiments_complete,
+                n_candidates=n_suggestions,
+                output_constraints=output_constraints,
+            )
+        else:
+            new_candidates = bayesian_optimization(
+                domain,
+                experiments_complete,
+                n_candidates=n_suggestions,
+                acquisition_function=acq_func,
+                outcome_constraint=outcome_constraint,  # ← vient de main
+            )
         
         if new_candidates is None or (hasattr(new_candidates, 'empty') and new_candidates.empty):
             print("❌ No candidates generated")
-            return no_update, "❌ Optimization failed to generate candidates", True, "danger", default_btn, False
+            return no_update, "❌ Optimization failed to generate candidates", True, "danger"
         
         print(f"✅ Generated candidates:\n{new_candidates}")
         
         # ===== DYNAMIC BOILING POINT CONSTRAINT =====
-        # Get constraints config from metadata
         constraints_config = domain_data.get('metadata', {}).get('constraints_config')
         solvent_config = domain_data.get('metadata', {}).get('solvent_config')
         
@@ -610,7 +631,6 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                 adjusted_rows.append(adjusted_row)
                 all_adjustments.extend(adjustments)
             
-            # Replace candidates with adjusted version
             new_candidates = pd.DataFrame(adjusted_rows)
             
             if all_adjustments:
@@ -618,7 +638,6 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                 for adj in all_adjustments:
                     print(f"   {adj['parameter']}: {adj['original']}°C → {adj['adjusted']}°C "
                           f"(limited by {adj['solvent']} BP={adj['boiling_point']}°C)")
-        # ===== END CONSTRAINT VALIDATION =====
         
         new_rows = []
         for _, candidate in new_candidates.iterrows():
@@ -632,7 +651,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                     param_def = param_definitions.get(col)
                     if param_def:
                         if param_def.get('type') == 'float' and isinstance(val, (int, float)):
-                            new_row[col] = round(float(val), 3)
+                            new_row[col] = round(float(val), 2)
                         elif param_def.get('type') == 'cat':
                             new_row[col] = str(val) if val else ''
                         else:
@@ -657,7 +676,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         else:
             msg = f"✅ Generated {n_suggestions} new experiment(s) to test!"
         print(msg)
-        return updated_data, msg, True, "success", default_btn, False
+        return updated_data, msg, True, "success"
     
     except Exception as e:
         import traceback
@@ -667,9 +686,9 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         error_str = str(e)
         if "invalid values" in error_str.lower():
             hint = "\n\n💡 Hint: Check that all categorical parameter values in your data match the allowed categories defined in your domain."
-            return no_update, f"❌ Optimization error: {error_str}{hint}", True, "danger", default_btn, False
+            return no_update, f"❌ Optimization error: {error_str}{hint}", True, "danger"
         
-        return no_update, f"❌ Optimization error: {error_str}", True, "danger", default_btn, False
+        return no_update, f"❌ Optimization error: {error_str}", True, "danger"
 
 
 # ===== AUTO-SAVE ON TABLE EDIT =====
@@ -687,13 +706,19 @@ def auto_save_on_edit(timestamp, table_data, excel_file):
     if not timestamp or not table_data or not excel_file:
         raise PreventUpdate
     
-    try:
-        file_path = os.path.join(EXCEL_FOLDER, excel_file)
-        df = pd.DataFrame(table_data)
-        df.to_excel(file_path, index=False, engine='openpyxl')
-        
-        from datetime import datetime
+    from datetime import datetime
+    
+    file_path = os.path.join(EXCEL_FOLDER, excel_file)
+    df = pd.DataFrame(table_data)
+    
+    # === SAFE SAVE with atomic write + backup ===
+    success, msg = safe_excel_save(
+        file_path,
+        lambda path: df.to_excel(path, index=False, engine='openpyxl')
+    )
+    
+    if success:
         return html.Small(f"Auto-saved at {datetime.now().strftime('%H:%M:%S')}", 
                          className="text-muted")
-    except:
-        return html.Small("Auto-save failed", className="text-danger")
+    else:
+        return html.Small(f"⚠️ {msg}", className="text-danger")

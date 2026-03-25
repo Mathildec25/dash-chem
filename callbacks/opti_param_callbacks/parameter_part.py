@@ -8,7 +8,7 @@ from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import uuid
 
-
+from components.layout_opti_param import _make_objective_row
 # ===== PARAMETERS =====
 
 @callback(
@@ -198,67 +198,10 @@ def manage_objectives(add_clicks, delete_clicks, current_children):
     triggered = ctx.triggered_id
     
     if triggered == "add-objective-button":
-        # ADD new objective
         if not add_clicks:
             raise PreventUpdate
-        
         new_id = str(uuid.uuid4())
-        new_row = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    dbc.Input(
-                        id={'type': 'objective-name', 'index': new_id},
-                        placeholder="Objective name",
-                        size="sm",
-                        style={"borderRadius": "6px"}
-                    )
-                ], width=4),
-                dbc.Col([
-                    dcc.Dropdown(
-                        id={'type': 'objective-direction', 'index': new_id},
-                        options=[
-                            {"label": "Minimize", "value": "min"},
-                            {"label": "Maximize", "value": "max"}
-                        ],
-                        placeholder="Direction",
-                        clearable=False,
-                        style={"fontSize": "0.875rem"}
-                    )
-                ], width=2),
-                dbc.Col([
-                    dbc.Input(
-                        id={'type': 'objective-lower', 'index': new_id},
-                        placeholder="Min",
-                        type="number",
-                        step="any",
-                        size="sm",
-                        style={"borderRadius": "6px"}
-                    )
-                ], width=2),
-                dbc.Col([
-                    dbc.Input(
-                        id={'type': 'objective-upper', 'index': new_id},
-                        placeholder="Max",
-                        type="number",
-                        step="any",
-                        size="sm",
-                        style={"borderRadius": "6px"}
-                    )
-                ], width=2),
-                dbc.Col([
-                    dbc.Button(
-                        html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                        id={'type': 'delete-objective', 'index': new_id},
-                        color="danger",
-                        outline=True,
-                        size="sm",
-                        style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"}
-                    )
-                ], width=1),
-            ], className="mb-2 align-items-center"),
-        ], id={'type': 'objective-row', 'index': new_id})
-        
-        return current_children + [new_row]
+        return current_children + [_make_objective_row(new_id)]
     
     elif isinstance(triggered, dict) and triggered.get('type') == 'delete-objective':
         # DELETE objective
@@ -359,3 +302,20 @@ def manage_extra_columns(add_clicks, delete_clicks, current_children):
         return new_children
     
     raise PreventUpdate
+
+@callback(
+    Output({'type': 'objective-constraint-collapse', 'index': MATCH}, 'is_open'),
+    Output({'type': 'objective-constraint-toggle', 'index': MATCH}, 'color'),
+    Output({'type': 'objective-constraint-toggle', 'index': MATCH}, 'outline'),
+    Input({'type': 'objective-constraint-toggle', 'index': MATCH}, 'n_clicks'),
+    State({'type': 'objective-constraint-collapse', 'index': MATCH}, 'is_open'),
+    prevent_initial_call=True
+)
+def toggle_constraint_subrow(n_clicks, is_open):
+    if not n_clicks:
+        raise PreventUpdate
+    new_state = not is_open
+    # Active: orange solid button / Inactive: secondary outline
+    color = "warning" if new_state else "secondary"
+    outline = not new_state
+    return new_state, color, outline

@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, State, callback, ALL
+from dash import dcc, html, Input, Output, State, callback, ALL, no_update
 import dash_bootstrap_components as dbc
 import os
 import pandas as pd
@@ -13,6 +13,8 @@ from excel_storage import (
     get_excel_dropdown_options
 )
 from domain_storage import DomainStorage, check_domain_availability
+from utils.safe_excel import safe_excel_save, safe_excel_read
+from dash.exceptions import PreventUpdate
 
 # ============================================
 # EXISTING PROJECT SECTION
@@ -174,11 +176,12 @@ def delete_excel_file_with_domain(n_clicks, selected_file):
         if DomainStorage.domain_exists(selected_file):
             DomainStorage.delete_domain(selected_file)
         
-        # Remove from Excel tracking file
+        # Remove from Excel tracking file (SAFE)
         if os.path.exists(TRACKING_FILE):
-            df = pd.read_excel(TRACKING_FILE, engine='openpyxl')
-            df = df[df["filename"] != selected_file]
-            df.to_excel(TRACKING_FILE, index=False, engine='openpyxl')
+            df, _ = safe_excel_read(TRACKING_FILE)
+            if df is not None:
+                df = df[df["filename"] != selected_file]
+                safe_excel_save(TRACKING_FILE, lambda p: df.to_excel(p, index=False, engine='openpyxl'))
         
         # Update dropdown options
         excel_files = get_uploaded_excel_files()
@@ -205,10 +208,6 @@ def delete_excel_file_with_domain(n_clicks, selected_file):
 """
 Callbacks for opening existing projects
 """
-
-import dash
-from dash import callback, Input, Output, State, no_update
-from dash.exceptions import PreventUpdate
 
 
 @callback(
