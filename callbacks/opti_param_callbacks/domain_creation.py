@@ -337,7 +337,7 @@ def create_domain_and_excel(n_clicks, project_name,
                     }
                     
                     method_key = method_map.get(sampling_method, 'LHS')
-                    sampled_data = sampling(domain, method_key, int(nb_points))
+                    sampled_data = sampling(domain, method_key, int(nb_points), constraints_config=constraints_config)
                     print(f"✅ Generated {len(sampled_data)} sampling points using {method_key}")
             except Exception as e:
                 import traceback

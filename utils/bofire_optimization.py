@@ -27,19 +27,21 @@ _tkwargs = {
 }
 
 
-def sampling(domain, sampling_method: str, nb_points: int):
+def sampling(domain, sampling_method: str, nb_points: int, constraints_config: dict = None):
     """
     Run a sampling method for a given domain.
     Falls back to manual enumeration + random selection for fully discrete
     domains with constraints (BoFire bug workaround).
+    Post-filters points against linear/BP/MP constraints when constraints_config is provided.
 
     Args:
         domain (Domain): BoFire domain.
         sampling_method (str): Name of SamplingMethodEnum (e.g., 'LHS', 'UNIFORM', 'SOBOL').
         nb_points (int): Number of points to sample.
+        constraints_config (dict): Constraints config from Dash store (optional).
 
     Returns:
-        pd.DataFrame: Sampled points.
+        pd.DataFrame: Sampled points (feasible w.r.t. constraints_config).
     """
     from bofire.data_models.features.api import DiscreteInput
 
@@ -49,9 +51,6 @@ def sampling(domain, sampling_method: str, nb_points: int):
         raise ValueError(f"Invalid sampling method '{sampling_method}'. Must be one of {list(SamplingMethodEnum.__members__.keys())}.")
 
     # ===== WORKAROUND: BoFire bug with fully discrete + constraints =====
-    # RandomStrategy returns a scalar instead of a Series when all features
-    # are DiscreteInput and constraints are present, causing a TypeError
-    # in validate_candidates. We detect this case and fall back to manual sampling.
     all_discrete = all(
         isinstance(f, DiscreteInput) for f in domain.inputs.features
     )
@@ -61,11 +60,44 @@ def sampling(domain, sampling_method: str, nb_points: int):
         print("⚠️ Fully discrete domain with constraints detected — using manual sampling fallback")
         return _manual_discrete_sampling(domain, nb_points)
 
-    # Normal BoFire sampling
-    datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum)
-    sampler = strategies.map(datamodel)
-    return sampler.ask(nb_points)
+    # ===== NORMAL BoFire sampling with oversampling + post-filter =====
+    has_custom_constraints = constraints_config and (
+        constraints_config.get('constraints') or constraints_config.get('inequality_constraints')
+    )
 
+    if has_custom_constraints:
+        # Oversample to account for points that will be filtered out
+        oversample_factor = 5
+        n_request = nb_points * oversample_factor
+        print(f"ℹ️ Oversampling {n_request} points before constraint filtering ({sampling_method})")
+        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum)
+        sampler = strategies.map(datamodel)
+        df_raw = sampler.ask(n_request)
+
+        # Filter using _filter_constraints (same logic as k-means)
+        candidate_pool = df_raw.to_dict(orient='records')
+        feasible = _filter_constraints(candidate_pool, constraints_config)
+        print(f"✅ {len(feasible)}/{n_request} points pass constraints")
+
+        if len(feasible) == 0:
+            raise ValueError("No feasible points found after constraint filtering. Check constraints and parameter bounds.")
+
+        if len(feasible) < nb_points:
+            print(f"⚠️ Only {len(feasible)} feasible points found (requested {nb_points}). Returning all feasible points.")
+            feature_keys = [f.key for f in domain.inputs.features]
+            return pd.DataFrame(feasible)[feature_keys]
+
+        # Random selection from feasible pool (preserves LHS spirit at population level)
+        import random
+        selected = random.sample(feasible, nb_points)
+        feature_keys = [f.key for f in domain.inputs.features]
+        return pd.DataFrame(selected)[feature_keys]
+
+    else:
+        # No custom constraints — standard path
+        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum)
+        sampler = strategies.map(datamodel)
+        return sampler.ask(nb_points)
 
 def _manual_discrete_sampling(domain, nb_points: int):
     """
