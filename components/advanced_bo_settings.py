@@ -1,6 +1,7 @@
 """
 Advanced Bayesian Optimization Settings Component
-Provides UI for customizing BO parameters, including outcome constraints for MOBO.
+Provides UI for customizing BO parameters, including outcome constraints for MOBO
+and transfer learning (MultiTaskGP) for SOBO.
 """
 
 import dash_bootstrap_components as dbc
@@ -82,6 +83,78 @@ def create_advanced_bo_settings():
                 ], md=12, className="mb-3")
             ]),
 
+            # ── Transfer Learning (SOBO only) ─────────────────────────────
+            html.Div(
+                id="tl-section",
+                style={"display": "none"},
+                children=[
+                    html.Hr(className="my-3"),
+
+                    html.Div([
+                        html.H6([
+                            html.I(className="bi bi-arrow-left-right me-2",
+                                   style={"color": "#2a9d8f"}),
+                            "Transfer Learning",
+                            dbc.Badge("SOBO", color="primary", className="ms-2",
+                                      style={"fontSize": "0.7rem", "verticalAlign": "middle"})
+                        ], className="mb-1", style={"fontWeight": "600"}),
+                        html.P(
+                            "Reuse data from a previous campaign on a similar reaction "
+                            "(same parameters, same domain) to accelerate the current optimisation. "
+                            "Uses MultiTaskGP (ICM kernel) — source task=0, current task=1.",
+                            className="text-muted small mb-3"
+                        ),
+                    ]),
+
+                    # Enable / disable switch
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Switch(
+                                id="enable-tl-switch",
+                                label="Enable transfer learning",
+                                value=False,
+                                className="mb-3"
+                            )
+                        ], width=12)
+                    ]),
+
+                    # Source campaign selector (shown when switch is ON)
+                    html.Div(
+                        id="tl-source-section",
+                        style={"display": "none"},
+                        children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Source campaign:",
+                                               className="fw-bold mb-1 small"),
+                                    dcc.Dropdown(
+                                        id='tl-source-campaign-dropdown',
+                                        options=[],
+                                        placeholder="Select a past campaign…",
+                                        clearable=True,
+                                        style={"fontSize": "0.875rem"}
+                                    ),
+                                    html.Div(
+                                        id="tl-compatibility-badge",
+                                        className="mt-2"
+                                    )
+                                ], width=12, className="mb-2"),
+                            ]),
+
+                            dbc.Alert([
+                                html.I(className="bi bi-info-circle me-2"),
+                                "The source campaign must have exactly the same parameters "
+                                "and objectives as the current campaign. "
+                                "Initialisation follows the Summit strategy: the best "
+                                "condition from the source campaign is run first on the "
+                                "current reaction."
+                            ], color="info", className="py-2 mt-2",
+                               style={"fontSize": "0.8rem"}),
+                        ]
+                    )
+                ]
+            ),
+
             # ── Outcome Constraint (MOBO only) ────────────────────────────
             html.Div(
                 id="outcome-constraint-section",
@@ -105,7 +178,6 @@ def create_advanced_bo_settings():
                         ),
                     ]),
 
-                    # Enable / disable switch
                     dbc.Row([
                         dbc.Col([
                             dbc.Switch(
@@ -117,12 +189,10 @@ def create_advanced_bo_settings():
                         ], width=12)
                     ]),
 
-                    # Constraint parameters (shown when switch is ON)
                     html.Div(
                         id="outcome-constraint-params",
                         children=[
                             dbc.Row([
-                                # Objective to constrain
                                 dbc.Col([
                                     html.Label("Objective:", className="fw-bold mb-1 small"),
                                     dcc.Dropdown(
@@ -134,7 +204,6 @@ def create_advanced_bo_settings():
                                     )
                                 ], md=5, className="mb-2"),
 
-                                # Direction
                                 dbc.Col([
                                     html.Label("Direction:", className="fw-bold mb-1 small"),
                                     dcc.Dropdown(
@@ -149,7 +218,6 @@ def create_advanced_bo_settings():
                                     )
                                 ], md=3, className="mb-2"),
 
-                                # Threshold
                                 dbc.Col([
                                     html.Label("Threshold:", className="fw-bold mb-1 small"),
                                     dbc.Input(
@@ -190,15 +258,13 @@ def create_advanced_bo_settings():
                 size="sm"
             )
         ])
-    ], id="advanced-bo-modal", size="md", is_open=False)
+    ], id="advanced-bo-modal", size="lg", is_open=False)
 
     return html.Div([button, modal])
 
 
 def get_acquisition_function_options(is_multi_objective=False):
-    """
-    Get dropdown options for acquisition functions based on optimization type.
-    """
+    """Get dropdown options for acquisition functions based on optimization type."""
     if is_multi_objective:
         return [
             {'label': 'qLogNEHVI (par défaut) - Log Hypervolume', 'value': 'qLogNEHVI (default)'},
