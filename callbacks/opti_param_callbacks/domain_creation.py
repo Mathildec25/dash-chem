@@ -268,10 +268,13 @@ def on_tl_config_changed(tl_enabled, source_excel):
                           color="success", className="py-1 px-2 mb-0",
                           style={"fontSize": "0.8rem"})
 
+    # Exclude 'domain' (BoFire object, not JSON-serializable) before storing
+    store_data = {k: v for k, v in source_data.items() if k != 'domain'}
+
     return (
         [_make_readonly_param_display(parameters)],
         [_make_readonly_obj_display(objectives)],
-        source_data,                           # store source domain data
+        store_data,                            # only JSON-serializable keys
         {"display": "none"},                   # hide param buttons
         {"display": "none"},                   # hide add-obj button
         source_section_style,
@@ -526,18 +529,25 @@ def create_domain_and_excel(
         # ─────────────────────────────────────────────────────────────────
         #  INITIAL EXPERIMENT GENERATION
         # ─────────────────────────────────────────────────────────────────
-        if tl_enabled and tl_source_campaign:
+        # Use tl_store excel_name as authoritative fallback: the dropdown
+        # State value (tl_source_campaign) can occasionally be None if
+        # Dash serialises the hidden section before the callback completes.
+        effective_source = tl_source_campaign or (
+            tl_store.get('excel_name') if tl_store else None
+        )
+
+        if tl_enabled and tl_store and effective_source:
             # ── TL: use best condition from source campaign ───────────────
-            print(f"🔁 TL init: loading best point from '{tl_source_campaign}'")
-            source_path = os.path.join(EXCEL_FOLDER, tl_source_campaign)
+            print(f"🔁 TL init: loading best point from '{effective_source}'")
+            source_path = os.path.join(EXCEL_FOLDER, effective_source)
             df_source, _ = safe_excel_read(source_path)
 
             sampled_data = None
             if df_source is not None:
-                obj_names_list = [o['name'] for o in objectives]
+                obj_names_list   = [o['name'] for o in objectives]
                 param_names_list = [p['name'] for p in parameters]
-                cols_needed = param_names_list + obj_names_list
-                missing = [c for c in cols_needed if c not in df_source.columns]
+                missing = [c for c in param_names_list + obj_names_list
+                           if c not in df_source.columns]
 
                 if not missing:
                     df_src_complete = df_source.dropna(subset=obj_names_list).copy()
@@ -547,7 +557,6 @@ def create_domain_and_excel(
                     df_src_complete = df_src_complete.dropna(subset=obj_names_list)
 
                     if len(df_src_complete) > 0:
-                        # Sort by first objective
                         first_obj = objectives[0]
                         ascending = (first_obj['direction'] == 'min')
                         best_row  = df_src_complete.sort_values(
@@ -562,6 +571,16 @@ def create_domain_and_excel(
                         print("⚠️ TL: no complete experiments in source — starting empty")
                 else:
                     print(f"⚠️ TL: source missing columns {missing} — starting empty")
+            else:
+                print(f"⚠️ TL: could not read source file '{source_path}'")
+
+            # Inherit solvent/base/constraints configs from source if not
+            # set by the current form (which is locked in TL mode)
+            source_meta      = tl_store.get('metadata', {})
+            solvent_config   = solvent_config   or source_meta.get('solvent_config')
+            base_config      = base_config      or source_meta.get('base_config')
+            constraints_config = constraints_config or source_meta.get('constraints_config')
+            tl_source_campaign = effective_source
         else:
             # ── Standard sampling ─────────────────────────────────────────
             sampled_data = None
