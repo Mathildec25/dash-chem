@@ -1,4 +1,29 @@
-"""Adaptive result-analysis callbacks for SOBO and MOBO optimization runs."""
+"""
+Results Analysis Callbacks
+Generates adaptive visualizations for SOBO and MOBO optimization results
+
+MODIFICATIONS FINALES V2:
+1. Convergence plot: CODE ORIGINAL (non modifié)
+2. Pareto Front: Tous les points même gradient, étoiles seulement pour Pareto
+3. Parameter Space Exploration: Pré-sélectionné au démarrage
+4. Parameter Influence: Barres négatives vers la gauche + SÉLECTEUR D'OBJECTIF
+5. SHAP Beeswarm: SÉLECTEUR D'OBJECTIF ajouté
+6. Best Experiments: Callback corrigé (children au lieu de data/columns)
+7. Parallel Coordinates: Hauteur augmentée
+
+CORRECTION V3:
+- Signe des barres Parameter Influence basé sur corrélation SHAP↔feature value
+  (cohérent avec le beeswarm, indépendant de la distribution des expériences)
+- apply_common_layout: préserve les propriétés yaxis définies avant l'appel
+
+CORRECTION V4:
+- Point de référence hypervolume lu depuis les bornes du domaine (lower_bound/upper_bound)
+  au lieu d'être calculé depuis les données observées (évite le bug avec valeurs négatives)
+
+CORRECTION V5:
+- compute_hypervolume_2d remplacé par BoTorch Hypervolume (algorithme WFG)
+  cohérent avec la littérature et le reste du code (constrained_mobo_botorch)
+"""
 
 from dash import callback, Input, Output, State, html, no_update, ctx
 from dash.exceptions import PreventUpdate
