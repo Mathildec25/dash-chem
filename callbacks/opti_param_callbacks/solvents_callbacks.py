@@ -22,8 +22,7 @@ except ImportError:
         from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
         from bofire_base_descriptors import BASE_DESCRIPTORS
     except ImportError:
-        print("⚠️ WARNING: Could not import descriptor files!")
-        print("   Using minimal fallback. Run: python advanced_descriptor_calculator.py")
+        print("WARNING: Could not import descriptor files; using minimal fallback.")
         # Minimal fallback
         SOLVENT_DESCRIPTORS = {
         }
@@ -50,9 +49,9 @@ def _get_solvent_descriptor_keys():
 SOLVENT_DESCRIPTOR_KEYS = _get_solvent_descriptor_keys()
 
 # Print confirmation on import
-print(f"✓ Loaded {len(COMMON_SOLVENTS)} solvents from descriptor files")
-print(f"✓ Fixed solvent descriptors: {FIXED_SOLVENT_DESCRIPTORS}")
-print(f"✓ All solvent descriptor keys: {SOLVENT_DESCRIPTOR_KEYS}")
+print(f"Loaded {len(COMMON_SOLVENTS)} solvents from descriptor files")
+print(f"Fixed solvent descriptors: {FIXED_SOLVENT_DESCRIPTORS}")
+print(f"All solvent descriptor keys: {SOLVENT_DESCRIPTOR_KEYS}")
 
 
 # ============================================================================
@@ -263,7 +262,7 @@ def add_custom_solvent(n_clicks, name, desc_values, desc_ids, current_rows, curr
     SOLVENT_DESCRIPTORS[solvent_name] = descriptor_data
     COMMON_SOLVENTS.append(solvent_name)
     
-    print(f"✅ Added custom solvent '{solvent_name}' to SOLVENT_DESCRIPTORS")
+    print(f"Added custom solvent '{solvent_name}' to SOLVENT_DESCRIPTORS")
     print(f"   Descriptors: {descriptor_data}")
     
     # Update all dropdown options
@@ -406,8 +405,8 @@ def save_solvent_configuration(n_clicks, solvents, current_params, current_confi
         alert = dbc.Alert("❌ Please select at least one solvent", color="danger")
         return no_update, no_update, alert, True
     
-    print(f"✅ Saved solvents: {selected_solvents}")
-    print(f"✅ Using fixed descriptors: {selected_descriptors}")
+    print(f"Saved solvents: {selected_solvents}")
+    print(f"Using fixed descriptors: {selected_descriptors}")
     
     # Get existing solvent parameter ID if it exists
     solvent_param_id = None

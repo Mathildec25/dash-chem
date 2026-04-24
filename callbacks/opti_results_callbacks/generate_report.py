@@ -34,7 +34,7 @@ def generate_optimization_report(n_clicks, excel_file):
         raise PreventUpdate
     
     try:
-        print("📊 Starting report generation...")
+        print("Starting report generation...")
         
         # Load data
         file_path = os.path.join(EXCEL_FOLDER, excel_file)
@@ -118,9 +118,9 @@ def generate_optimization_report(n_clicks, excel_file):
             dist_fig.write_image(dist_path, width=800, height=600)
             image_paths.append(dist_path)
             
-            print(f"✅ Generated {len(image_paths)} plots")
+            print(f"Generated {len(image_paths)} plots")
         except Exception as e:
-            print(f"⚠️ Could not generate plots: {e}")
+            print(f"Could not generate plots: {e}")
             image_paths = []
         
         # Prepare data for report
@@ -152,13 +152,13 @@ def generate_optimization_report(n_clicks, excel_file):
         # Import the generator from the same directory
         from .generate_report_python import generate_word_report
         
-        print("📝 Generating Word document...")
+        print("Generating Word document...")
         generate_word_report(report_data, output_path)
         
         if not os.path.exists(output_path):
             return None, "Report file was not created", True, "danger"
         
-        print(f"✅ Report generated successfully: {output_path}")
+        print(f"Report generated successfully: {output_path}")
         
         # Return file for download
         return (
@@ -170,7 +170,7 @@ def generate_optimization_report(n_clicks, excel_file):
     
     except Exception as e:
         import traceback
-        print(f"❌ Error generating report:\n{traceback.format_exc()}")
+        print(f"Error generating report:\n{traceback.format_exc()}")
         return None, f"Error: {str(e)}", True, "danger"
 
 

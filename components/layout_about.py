@@ -1,6 +1,4 @@
-"""
-Layout for About page
-"""
+"""Layout for the About page."""
 
 import dash_bootstrap_components as dbc
 from dash import html
@@ -8,7 +6,6 @@ from dash import html
 
 def create_about_layout():
     return dbc.Container([
-        # Header
         dbc.Row([
             dbc.Col([
                 html.H1("About REACTO", className="mb-4 mt-4",
@@ -17,7 +14,6 @@ def create_about_layout():
             ], md=12)
         ]),
         
-        # Main content
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -110,7 +106,6 @@ def create_about_layout():
             ], md=10)
         ], justify="center"),
         
-        # Version info
         dbc.Row([
             dbc.Col([
                 html.Div([

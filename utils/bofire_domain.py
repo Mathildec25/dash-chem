@@ -1,265 +1,354 @@
 """
-BoFire domain creation with descriptor support, DISCRETE CONSTRAINTS, and normalization utilities
-Uses threading to avoid Flask context interference with Pydantic validators
+BoFire domain construction.
 
-MODIFICATIONS FOR DISCRETE + NATIVE CONSTRAINTS:
-- Converts float parameters to DiscreteInput when discretization step is provided
-- Uses CategoricalExcludeConstraint for native boiling point AND melting point constraints
-- Eliminates need for post-filtering of suggestions
-- Supports LinearInequalityConstraint for inter-parameter inequalities
+Builds a BoFire ``Domain`` from parameter/objective/constraint definitions
+produced by the Dash UI stores. Supports:
 
-Best Practices for Bayesian Optimization in Chemistry:
-- Normalize inputs to [0, 1] for better GP performance
-- Standardize outputs (Y) for numerical stability
-- Handle different parameter scales appropriately
-- Use constraints to enforce physical limits (e.g., MP < temperature < BP)
+- Continuous, discrete, and categorical inputs
+- Categorical inputs with numeric descriptors (solvents, bases)
+- Optional discretization of continuous inputs into a fixed grid
+- Categorical-exclude constraints for boiling / melting point limits
+- Linear inequality and equality constraints between parameters
+
+Creation of ``CategoricalDescriptorInput`` is delegated to a dedicated worker
+thread to avoid Flask/Dash request-context interference with Pydantic
+validators.
 """
 
-import pandas as pd
-import numpy as np
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from typing import List, Dict, Optional, Tuple, Any
+from typing import Dict, List, Optional
 
-from bofire.data_models.api import Domain, Inputs, Outputs, Constraints
-from bofire.data_models.features.api import (
-    ContinuousInput,
-    DiscreteInput,
-    CategoricalInput,
-    CategoricalDescriptorInput,
-    ContinuousOutput
-)
-from bofire.data_models.objectives.api import MinimizeObjective, MaximizeObjective
+import numpy as np
 
-# ✅ IMPORTS FOR NATIVE CONSTRAINTS
+from bofire.data_models.api import Constraints, Domain, Inputs, Outputs
 from bofire.data_models.constraints.api import (
-    LinearInequalityConstraint,
-    LinearEqualityConstraint,
     CategoricalExcludeConstraint,
+    LinearEqualityConstraint,
+    LinearInequalityConstraint,
     SelectionCondition,
-    ThresholdCondition
+    ThresholdCondition,
 )
+from bofire.data_models.features.api import (
+    CategoricalDescriptorInput,
+    CategoricalInput,
+    ContinuousInput,
+    ContinuousOutput,
+    DiscreteInput,
+)
+from bofire.data_models.objectives.api import MaximizeObjective, MinimizeObjective
 
 from utils.descriptor_data import get_descriptor_values
 
-# Global thread executor for creating CategoricalDescriptorInput
-# This avoids Flask context interference with Pydantic validators
-_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='bofire_creator')
-
-
-# ==============================================================================
-# NORMALIZATION UTILITIES - Best Practices for BO in Chemistry
-# ==============================================================================
-
-class InputNormalizer:
-    """
-    Handles normalization/denormalization of input parameters for Bayesian Optimization.
-    
-    Note: BoFire internally handles normalization for the GP model, but this class
-    can be useful for custom preprocessing or debugging.
-    """
-    
-    def __init__(self):
-        self.bounds = {}
-        self.is_fitted = False
-    
-    def fit(self, domain: Domain, experiments: pd.DataFrame = None):
-        """
-        Extract bounds from domain for normalization.
-        
-        Args:
-            domain: BoFire domain
-            experiments: Optional DataFrame to compute bounds from data
-        """
-        for feature in domain.inputs.features:
-            if isinstance(feature, ContinuousInput):
-                self.bounds[feature.key] = {
-                    'lower': feature.bounds[0],
-                    'upper': feature.bounds[1],
-                    'type': 'continuous'
-                }
-            elif isinstance(feature, DiscreteInput):
-                self.bounds[feature.key] = {
-                    'lower': min(feature.values),
-                    'upper': max(feature.values),
-                    'type': 'discrete'
-                }
-        self.is_fitted = True
-        return self
-    
-    def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Normalize continuous parameters to [0, 1]."""
-        if not self.is_fitted:
-            raise ValueError("InputNormalizer must be fitted before normalizing")
-        
-        result = df.copy()
-        for col, bounds in self.bounds.items():
-            if col in result.columns and bounds['type'] == 'continuous':
-                lb, ub = bounds['lower'], bounds['upper']
-                if ub > lb:
-                    result[col] = (result[col] - lb) / (ub - lb)
-        return result
-    
-    def denormalize(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert normalized values back to original scale."""
-        if not self.is_fitted:
-            raise ValueError("InputNormalizer must be fitted before denormalizing")
-        
-        result = df.copy()
-        for col, bounds in self.bounds.items():
-            if col in result.columns and bounds['type'] == 'continuous':
-                lb, ub = bounds['lower'], bounds['upper']
-                result[col] = result[col] * (ub - lb) + lb
-        return result
-
-
-class OutputStandardizer:
-    """
-    Handles standardization of outputs (Y) for Bayesian Optimization.
-    
-    Note: BoFire internally handles output standardization, but this class
-    can be useful for custom preprocessing or debugging.
-    """
-    
-    def __init__(self):
-        self.stats = {}
-        self.is_fitted = False
-    
-    def fit(self, experiments: pd.DataFrame, objective_columns: List[str]):
-        """Compute mean and std for each objective."""
-        for col in objective_columns:
-            if col in experiments.columns:
-                values = experiments[col].dropna()
-                self.stats[col] = {
-                    'mean': values.mean(),
-                    'std': values.std() if len(values) > 1 else 1.0
-                }
-        self.is_fitted = True
-        return self
-    
-    def standardize(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Standardize objectives to zero mean, unit variance."""
-        if not self.is_fitted:
-            raise ValueError("OutputStandardizer must be fitted before standardizing")
-        
-        result = df.copy()
-        for col, stats in self.stats.items():
-            if col in result.columns:
-                std = stats['std'] if stats['std'] > 0 else 1.0
-                result[col] = (result[col] - stats['mean']) / std
-        return result
-    
-    def destandardize(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert standardized values back to original scale."""
-        if not self.is_fitted:
-            raise ValueError("OutputStandardizer must be fitted before destandardizing")
-        
-        result = df.copy()
-        for col, stats in self.stats.items():
-            if col in result.columns:
-                std = stats['std'] if stats['std'] > 0 else 1.0
-                result[col] = result[col] * std + stats['mean']
-        return result
+# Dedicated worker thread used to instantiate CategoricalDescriptorInput
+# outside the Flask request context.
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="bofire_creator")
 
 
 def check_parameter_scales(domain: Domain) -> List[str]:
-    """
-    Check parameter scales and provide recommendations for Bayesian Optimization.
-    
-    Args:
-        domain: BoFire domain
-    
-    Returns:
-        List of recommendation strings
-    """
-    recommendations = []
-    
-    # Collect continuous parameter ranges
-    ranges = []
-    for feature in domain.inputs.features:
-        if isinstance(feature, ContinuousInput):
-            lb, ub = feature.bounds
-            param_range = ub - lb
-            ranges.append((feature.key, param_range, lb, ub))
-    
+    """Return human-readable recommendations about input parameter scales."""
+    recommendations: List[str] = []
+
+    ranges = [
+        (f.key, f.bounds[1] - f.bounds[0], f.bounds[0], f.bounds[1])
+        for f in domain.inputs.features
+        if isinstance(f, ContinuousInput)
+    ]
     if not ranges:
         return recommendations
-    
-    # Check for scale differences
+
     range_values = [r[1] for r in ranges]
     if len(range_values) > 1:
-        max_range = max(range_values)
-        min_range = min(range_values)
-        if max_range / (min_range + 1e-10) > 100:
+        if max(range_values) / (min(range_values) + 1e-10) > 100:
             recommendations.append(
-                f"⚠️ Large scale differences detected between parameters. "
-                f"Consider rescaling or using log-scale."
+                "Large scale differences detected between parameters. "
+                "Consider rescaling or using log-scale."
             )
-    
-    # Check for parameters that might benefit from log-scale
-    for name, param_range, lb, ub in ranges:
+
+    for name, _, lb, ub in ranges:
         if lb > 0 and ub / lb > 100:
             recommendations.append(
-                f"📊 Parameter '{name}' spans multiple orders of magnitude. "
-                f"Consider log-transform for better GP performance."
+                f"Parameter '{name}' spans multiple orders of magnitude. "
+                "Consider log-transform for better GP performance."
             )
-    
+
     return recommendations
 
 
-# ==============================================================================
-# DOMAIN CREATION FUNCTIONS
-# ==============================================================================
-
 def _create_categorical_descriptor_safely(name, categories, descriptors, values):
     """
-    Creates a CategoricalDescriptorInput in a separate thread.
-    This avoids Flask context interference with Pydantic validators.
-    
-    Automatically removes descriptors with no variation across categories,
-    which would cause BoFire validation errors.
+    Instantiate a ``CategoricalDescriptorInput`` on a worker thread.
+
+    Descriptors that are constant across all categories are dropped, since
+    BoFire rejects them during validation.
     """
-    print(f"   🧵 Thread {threading.current_thread().name}: Creating CategoricalDescriptorInput")
-    
-    # --- Filter out constant descriptors (BoFire requires variation) ---
+    print(f"   Thread {threading.current_thread().name}: creating CategoricalDescriptorInput")
+
     if values and descriptors:
         keep_indices = [
             i for i in range(len(descriptors))
-            if len(set(row[i] for row in values)) > 1
+            if len({row[i] for row in values}) > 1
         ]
         if len(keep_indices) < len(descriptors):
             removed = [descriptors[i] for i in range(len(descriptors)) if i not in keep_indices]
-            print(f"   ⚠️ Removed {len(removed)} constant descriptor(s): {removed}")
+            print(f"   Removed {len(removed)} constant descriptor(s): {removed}")
             descriptors = [descriptors[i] for i in keep_indices]
             values = [[row[i] for i in keep_indices] for row in values]
-            print(f"   ✅ Remaining descriptors: {descriptors}")
-    
-    # Create allowed list explicitly
-    allowed_list = [True for _ in categories]
-    
-    # Try normal constructor FIRST (like test.py does)
+
+    allowed_list = [True] * len(categories)
+
     try:
-        feature = CategoricalDescriptorInput(
+        return CategoricalDescriptorInput(
             key=name,
             categories=categories,
             allowed=allowed_list,
             descriptors=descriptors,
-            values=values
+            values=values,
         )
-        print(f"   ✅ Created with normal constructor")
-        return feature
     except KeyError as e:
-        # Only if normal constructor fails, use model_construct as fallback
-        print(f"   ⚠️ Normal constructor failed ({e}), trying model_construct...")
-        feature = CategoricalDescriptorInput.model_construct(
+        print(f"   Normal constructor failed ({e}), falling back to model_construct")
+        return CategoricalDescriptorInput.model_construct(
             key=name,
             categories=categories,
             allowed=allowed_list,
             descriptors=descriptors,
-            values=values
+            values=values,
         )
-        print(f"   ✅ Created with model_construct")
-        return feature
+
+
+def _build_input_features(
+    parameter_data: List[Dict],
+    solvent_config: Optional[Dict],
+    base_config: Optional[Dict],
+    discretization_config: Optional[Dict],
+) -> List:
+    """Translate the UI parameter list into BoFire input features."""
+    features = []
+
+    for param in parameter_data:
+        typ = param.get("type")
+        name = param.get("name")
+        type_info = param.get("type_info", {})
+
+        if typ == "float":
+            lb, ub = type_info.get("range", [None, None])
+            if lb is None or ub is None:
+                raise ValueError(f"Parameter '{name}' missing bounds.")
+            unit = type_info.get("unit")
+
+            step = (discretization_config or {}).get(name)
+            if step and step > 0:
+                values = [round(v, 6) for v in np.arange(lb, ub + step / 2, step)]
+                print(f"   Discretizing '{name}': {len(values)} values from {lb} to {ub} (step={step})")
+                features.append(DiscreteInput(key=name, values=values, unit=unit))
+            else:
+                features.append(ContinuousInput(key=name, bounds=[lb, ub], unit=unit))
+
+        elif typ == "int":
+            values = type_info.get("range", [])
+            if not values:
+                raise ValueError(f"Discrete parameter '{name}' has no values.")
+            features.append(DiscreteInput(key=name, values=values, unit=type_info.get("unit")))
+
+        elif typ == "cat":
+            categories = type_info.get("values", [])
+            if not categories:
+                raise ValueError(f"Categorical parameter '{name}' has no values.")
+
+            descriptor_feature = _try_build_descriptor_feature(
+                name, param, solvent_config, base_config
+            )
+            if descriptor_feature is not None:
+                features.append(descriptor_feature)
+            else:
+                features.append(CategoricalInput(key=name, categories=categories))
+
+        else:
+            raise ValueError(f"Unknown parameter type '{typ}' for parameter '{name}'.")
+
+    return features
+
+
+def _try_build_descriptor_feature(name, param, solvent_config, base_config):
+    """
+    Build a ``CategoricalDescriptorInput`` if this parameter is the configured
+    solvent or base; otherwise return ``None``.
+    """
+    for cfg, categories_key, kind in (
+        (solvent_config, "solvents", "solvent"),
+        (base_config, "bases", "base"),
+    ):
+        if not cfg or cfg.get("param_id") != param.get("id"):
+            continue
+
+        categories = list(cfg.get(categories_key, []))
+        descriptors = list(cfg.get("descriptors", []))
+        if not (descriptors and categories):
+            return None
+
+        print(f"Creating CategoricalDescriptorInput for {kind.capitalize()}")
+        descriptor_values = get_descriptor_values(categories, descriptors, kind)
+
+        future = _executor.submit(
+            _create_categorical_descriptor_safely,
+            name, categories, descriptors, descriptor_values,
+        )
+        return future.result()
+
+    return None
+
+
+def _build_output_features(objective_data: Optional[List[Dict]]) -> List[ContinuousOutput]:
+    outputs = []
+    for obj in objective_data or []:
+        obj_name = obj.get("name")
+        if not obj_name:
+            continue
+
+        direction = obj.get("direction")
+        bounds = (obj.get("lower_bound", 0.0), obj.get("upper_bound", 1.0))
+
+        if direction in ("minimize", "min"):
+            objective = MinimizeObjective(w=1.0, bounds=bounds)
+        elif direction in ("maximize", "max"):
+            objective = MaximizeObjective(w=1.0, bounds=bounds)
+        else:
+            raise ValueError(f"Unknown objective direction: {direction}")
+
+        outputs.append(ContinuousOutput(key=obj_name, objective=objective))
+    return outputs
+
+
+def _build_phase_constraints(
+    constraints_config: Dict,
+    input_features: List,
+    solvent_config: Optional[Dict],
+) -> List:
+    """Build CategoricalExclude constraints from boiling/melting point limits."""
+    constraints = []
+    phase_constraints = constraints_config.get("constraints") or []
+    if not phase_constraints:
+        return constraints
+
+    print(f"Processing {len(phase_constraints)} phase constraint(s)...")
+
+    if not solvent_config:
+        print("No solvent_config provided, cannot create phase constraints")
+        return constraints
+
+    from utils.descriptor_data import SOLVENT_DESCRIPTORS
+
+    solvents = solvent_config.get("solvents", [])
+    solvent_param_name = solvent_config.get("param_name", "Solvent")
+    bp_dict = {s: SOLVENT_DESCRIPTORS[s]["bp"] for s in solvents if s in SOLVENT_DESCRIPTORS and "bp" in SOLVENT_DESCRIPTORS[s]}
+    mp_dict = {s: SOLVENT_DESCRIPTORS[s]["mp"] for s in solvents if s in SOLVENT_DESCRIPTORS and "mp" in SOLVENT_DESCRIPTORS[s]}
+
+    solvent_feature = next((f for f in input_features if f.key == solvent_param_name), None)
+    if not solvent_feature:
+        print(f"Solvent parameter '{solvent_param_name}' not found in inputs, skipping phase constraints")
+        return constraints
+    if not bp_dict and not mp_dict:
+        print("No boiling/melting points available, skipping phase constraints")
+        return constraints
+
+    safety_margin = constraints_config.get("safety_margin", 5.0)
+
+    for constraint in phase_constraints:
+        constraint_type = constraint.get("type", "less_than_bp")
+        param_name = constraint["parameter_name"]
+        param_feature = next((f for f in input_features if f.key == param_name), None)
+        if not param_feature:
+            print(f"   Parameter '{param_name}' not found in inputs, skipping constraint")
+            continue
+
+        if constraint_type == "less_than_bp":
+            source, operator, sign = bp_dict, ">=", -1
+        elif constraint_type == "greater_than_mp":
+            source, operator, sign = mp_dict, "<=", +1
+        else:
+            print(f"   Unknown constraint type: {constraint_type}")
+            continue
+
+        if not source:
+            print(f"   No reference temperatures for {constraint_type}, skipping")
+            continue
+
+        for solvent_name, ref_temp in source.items():
+            try:
+                temp_limit = ref_temp + sign * safety_margin
+
+                if isinstance(param_feature, DiscreteInput):
+                    if constraint_type == "less_than_bp":
+                        invalid = [v for v in param_feature.values if v >= temp_limit]
+                        if not invalid:
+                            continue
+                        temp_limit = min(invalid)
+                    else:
+                        invalid = [v for v in param_feature.values if v <= temp_limit]
+                        if not invalid:
+                            continue
+                        temp_limit = max(invalid)
+
+                constraints.append(
+                    CategoricalExcludeConstraint(
+                        features=[solvent_param_name, param_name],
+                        conditions=[
+                            SelectionCondition(selection=[solvent_name]),
+                            ThresholdCondition(threshold=temp_limit, operator=operator),
+                        ],
+                    )
+                )
+                print(
+                    f"   {constraint_type}: {solvent_name} -> {param_name} "
+                    f"threshold={temp_limit} (ref={ref_temp}, margin={safety_margin})"
+                )
+            except Exception as e:
+                print(f"   Failed to create {constraint_type} constraint for {solvent_name}: {e}")
+                traceback.print_exc()
+
+    return constraints
+
+
+def _build_linear_constraints(constraints_config: Dict, input_features: List) -> List:
+    """Build linear (in)equality constraints between parameter pairs."""
+    constraints = []
+    ineq_list = constraints_config.get("inequality_constraints") or []
+    if not ineq_list:
+        return constraints
+
+    print(f"Processing {len(ineq_list)} linear constraint(s)...")
+    keys = {f.key for f in input_features}
+
+    for ineq in ineq_list:
+        param_left = ineq["param_left"]
+        param_right = ineq["param_right"]
+        offset = ineq.get("offset", 0.0)
+        relation = ineq.get("relation", "leq")
+
+        missing = [p for p in (param_left, param_right) if p not in keys]
+        if missing:
+            print(f"   Linear constraint skipped: missing parameter(s) {missing}")
+            continue
+
+        try:
+            # param_left (<=|=) param_right + offset  <=>  1*left - 1*right (<=|=) offset
+            kwargs = dict(
+                features=[param_left, param_right],
+                coefficients=[1.0, -1.0],
+                rhs=offset,
+            )
+            if relation == "eq":
+                constraints.append(LinearEqualityConstraint(**kwargs))
+                print(f"   Linear equality: {param_left} = {param_right} + {offset}")
+            else:
+                constraints.append(LinearInequalityConstraint(**kwargs))
+                print(f"   Linear inequality: {param_left} <= {param_right} + {offset}")
+        except Exception as e:
+            print(f"   Failed to create linear constraint: {e}")
+            traceback.print_exc()
+
+    return constraints
 
 
 def create_bofire_domain_from_store(
@@ -268,388 +357,53 @@ def create_bofire_domain_from_store(
     solvent_config: Optional[Dict] = None,
     base_config: Optional[Dict] = None,
     constraints_config: Optional[Dict] = None,
-    discretization_config: Optional[Dict] = None
+    discretization_config: Optional[Dict] = None,
 ) -> Domain:
     """
-    Create a BoFire Domain using saved parameters and objectives from Dash stores.
-    
-    ✅ UPDATED: Supports BP, MP, AND linear inequality constraints
-    
+    Build a BoFire ``Domain`` from Dash store payloads.
+
     Args:
-        parameter_data (list of dicts): Output from parameter-store.
-        objective_data (list of dicts): Output from objective-store.
-        solvent_config (dict): Configuration for solvent parameter with descriptors.
-        base_config (dict): Configuration for base parameter with descriptors.
-        constraints_config (dict): Configuration for constraints (BP, MP, inequalities).
-        discretization_config (dict): Configuration for discretization steps.
-            Example: {'Temperature': 5.0, 'Concentration': 0.1}
-    
+        parameter_data: Parameters from ``parameter-store``.
+        objective_data: Objectives from ``objective-store``.
+        solvent_config: Solvent parameter config (descriptors, categories).
+        base_config: Base parameter config (descriptors, categories).
+        constraints_config: Phase constraints (BP/MP) and linear constraints.
+        discretization_config: Mapping ``{parameter_name: step}`` that turns a
+            continuous parameter into a ``DiscreteInput`` grid.
+
     Returns:
-        Domain: BoFire domain object.
+        The assembled BoFire ``Domain``.
     """
     if not parameter_data:
         raise ValueError("No parameters provided to create domain.")
-    
-    print(f"🔍 solvent_config: {solvent_config}")
-    print(f"🔍 base_config: {base_config}")
-    print(f"🔍 constraints_config: {constraints_config}")
-    print(f"🔍 discretization_config: {discretization_config}")
 
-    # --- Create Input features ---
-    input_features = []
-    for param in parameter_data:
-        typ = param.get("type")
-        name = param.get("name")
-        type_info = param.get("type_info", {})
-
-        if typ == "float":  # Continuous → check if we need to discretize
-            lb, ub = type_info.get("range", [None, None])
-            if lb is None or ub is None:
-                raise ValueError(f"Parameter '{name}' missing bounds.")
-            unit = type_info.get("unit", None)
-            
-            # ✅ CHECK FOR DISCRETIZATION
-            if discretization_config and name in discretization_config:
-                step = discretization_config[name]
-                if step and step > 0:
-                    # Create discrete values grid
-                    values = list(np.arange(lb, ub + step/2, step))  # Include upper bound
-                    values = [round(v, 6) for v in values]  # Avoid floating point errors
-                    
-                    print(f"   🎯 Discretizing '{name}': {len(values)} values from {lb} to {ub} (step={step})")
-                    input_features.append(DiscreteInput(key=name, values=values, unit=unit))
-                    continue
-            
-            # Default: use continuous
-            input_features.append(ContinuousInput(key=name, bounds=[lb, ub], unit=unit))
-
-        elif typ == "int":  # Discrete
-            values = type_info.get("range", [])
-            if not values:
-                raise ValueError(f"Discrete parameter '{name}' has no values.")
-            unit = type_info.get("unit", None)
-            input_features.append(DiscreteInput(key=name, values=values, unit=unit))
-
-        elif typ == "cat":  # Categorical
-            values = type_info.get("values", [])
-            if not values:
-                raise ValueError(f"Categorical parameter '{name}' has no values.")
-            
-            # Check if this is a solvent/base with descriptors
-            if solvent_config and solvent_config.get('param_id') == param.get('id'):
-                # This is a Solvent parameter with descriptors
-                categories = list(solvent_config.get('solvents', []))
-                descriptors = list(solvent_config.get('descriptors', []))
-                
-                if descriptors and categories:
-                    print(f"✅ Creating CategoricalDescriptorInput for Solvent")
-                    print(f"   Categories: {categories}")
-                    print(f"   Descriptors: {descriptors}")
-                    
-                    descriptor_values = get_descriptor_values(categories, descriptors, 'solvent')
-                    print(f"   Values matrix: {descriptor_values}")
-                    
-                    # Execute in separate thread to avoid Flask context interference
-                    future = _executor.submit(
-                        _create_categorical_descriptor_safely,
-                        name, categories, descriptors, descriptor_values
-                    )
-                    feature = future.result()  # Block until complete
-                    
-                    input_features.append(feature)
-                    continue
-            
-            elif base_config and base_config.get('param_id') == param.get('id'):
-                # This is a Base parameter with descriptors
-                categories = list(base_config.get('bases', []))
-                descriptors = list(base_config.get('descriptors', []))
-                
-                if descriptors and categories:
-                    print(f"✅ Creating CategoricalDescriptorInput for Base")
-                    print(f"   Categories: {categories}")
-                    print(f"   Descriptors: {descriptors}")
-                    
-                    descriptor_values = get_descriptor_values(categories, descriptors, 'base')
-                    print(f"   Values matrix: {descriptor_values}")
-                    
-                    # Execute in separate thread to avoid Flask context interference
-                    future = _executor.submit(
-                        _create_categorical_descriptor_safely,
-                        name, categories, descriptors, descriptor_values
-                    )
-                    feature = future.result()  # Block until complete
-                    
-                    input_features.append(feature)
-                    continue
-            
-            # Standard categorical without descriptors
-            input_features.append(CategoricalInput(key=name, categories=values))
-
-        else:
-            raise ValueError(f"Unknown parameter type '{typ}' for parameter '{name}'.")
-
+    input_features = _build_input_features(
+        parameter_data, solvent_config, base_config, discretization_config
+    )
     inputs = Inputs(features=input_features)
+    outputs = Outputs(features=_build_output_features(objective_data))
 
-    # --- Create Output features ---
-    output_features = []
-    if objective_data:
-        for obj in objective_data:
-            obj_name = obj.get("name")
-            obj_direction = obj.get("direction")
-            lower = obj.get("lower_bound", 0.0)
-            upper = obj.get("upper_bound", 1.0)
+    constraint_list: List = []
+    if constraints_config:
+        constraint_list.extend(
+            _build_phase_constraints(constraints_config, input_features, solvent_config)
+        )
+        constraint_list.extend(
+            _build_linear_constraints(constraints_config, input_features)
+        )
 
-            if not obj_name:
-                continue
-
-            # Accept both short and long forms
-            if obj_direction in ["minimize", "min"]:
-                objective = MinimizeObjective(w=1.0, bounds=(lower, upper))
-            elif obj_direction in ["maximize", "max"]:
-                objective = MaximizeObjective(w=1.0, bounds=(lower, upper))
-            else:
-                raise ValueError(f"Unknown objective direction: {obj_direction}")
-
-            output_features.append(
-                ContinuousOutput(key=obj_name, objective=objective)
-            )
-
-    outputs = Outputs(features=output_features)
-
-    # ===== ✅ CREATE NATIVE CONSTRAINTS (BP, MP, AND LINEAR INEQUALITIES) =====
-    constraint_list = []
-    
-    # ----- PHASE CONSTRAINTS (BP/MP) from constraints_config -----
-    if constraints_config and constraints_config.get('constraints'):
-        print(f"🔧 Processing {len(constraints_config['constraints'])} phase constraint(s)...")
-        
-        # Get solvent info from solvent_config
-        solvent_param_name = None
-        bp_dict = {}
-        mp_dict = {}
-        
-        if solvent_config:
-            from utils.descriptor_data import SOLVENT_DESCRIPTORS
-            
-            solvents = solvent_config.get('solvents', [])
-            solvent_param_name = solvent_config.get('param_name', 'Solvent')
-            
-            for s in solvents:
-                if s in SOLVENT_DESCRIPTORS:
-                    if 'bp' in SOLVENT_DESCRIPTORS[s]:
-                        bp_dict[s] = SOLVENT_DESCRIPTORS[s]['bp']
-                    if 'mp' in SOLVENT_DESCRIPTORS[s]:
-                        mp_dict[s] = SOLVENT_DESCRIPTORS[s]['mp']
-            
-            print(f"✅ Found {len(bp_dict)} solvents with boiling points")
-            print(f"✅ Found {len(mp_dict)} solvents with melting points")
-            print(f"✅ Using solvent_param_name: '{solvent_param_name}'")
-        else:
-            print(f"⚠️ No solvent_config provided, cannot create phase constraints")
-        
-        solvent_feature = next((f for f in input_features if f.key == solvent_param_name), None) if solvent_param_name else None
-        
-        if not solvent_feature:
-            print(f"⚠️ Solvent parameter '{solvent_param_name}' not found in inputs!")
-            print(f"   Available parameters: {[f.key for f in input_features]}")
-            print(f"   Skipping phase constraint creation")
-        elif not bp_dict and not mp_dict:
-            print(f"⚠️ No boiling/melting points available, skipping phase constraint creation")
-        else:
-            print(f"✅ Found solvent parameter: {solvent_param_name}")
-            
-            safety_margin = constraints_config.get('safety_margin', 5.0)
-            
-            for constraint in constraints_config.get('constraints', []):
-                constraint_type = constraint.get('type', 'less_than_bp')
-                param_name = constraint['parameter_name']
-                
-                param_feature = next((f for f in input_features if f.key == param_name), None)
-                
-                if not param_feature:
-                    print(f"   ⚠️ Parameter '{param_name}' not found in inputs, skipping constraint")
-                    continue
-                
-                # ===== CONSTRAINT TYPE: less_than_bp (Boiling Point) =====
-                if constraint_type == 'less_than_bp':
-                    if not bp_dict:
-                        print(f"   ⚠️ No boiling points available, skipping less_than_bp constraint")
-                        continue
-                    
-                    for solvent_name, bp in bp_dict.items():
-                        try:
-                            temp_limit = bp - safety_margin
-                            
-                            if isinstance(param_feature, DiscreteInput):
-                                invalid_values = [v for v in param_feature.values if v >= temp_limit]
-                                if invalid_values:
-                                    temp_limit_discrete = min(invalid_values)
-                                else:
-                                    print(f"   ℹ️ {solvent_name}: All discrete values below {temp_limit}°C, no BP constraint needed")
-                                    continue
-                            else:
-                                temp_limit_discrete = temp_limit
-                            
-                            native_constraint = CategoricalExcludeConstraint(
-                                features=[solvent_param_name, param_name],
-                                conditions=[
-                                    SelectionCondition(selection=[solvent_name]),
-                                    ThresholdCondition(threshold=temp_limit_discrete, operator=">="),
-                                ],
-                            )
-                            constraint_list.append(native_constraint)
-                            print(f"   ✅ Native constraint (BP): {solvent_name} → {param_name} < {temp_limit_discrete}°C "
-                                  f"(BP={bp}°C, margin={safety_margin}°C)")
-                            
-                        except Exception as e:
-                            print(f"   ❌ Failed to create BP constraint for {solvent_name}: {e}")
-                            import traceback
-                            traceback.print_exc()
-                
-                # ===== CONSTRAINT TYPE: greater_than_mp (Melting Point) =====
-                elif constraint_type == 'greater_than_mp':
-                    if not mp_dict:
-                        print(f"   ⚠️ No melting points available, skipping greater_than_mp constraint")
-                        continue
-                    
-                    for solvent_name, mp in mp_dict.items():
-                        try:
-                            temp_limit = mp + safety_margin
-                            
-                            if isinstance(param_feature, DiscreteInput):
-                                invalid_values = [v for v in param_feature.values if v <= temp_limit]
-                                if invalid_values:
-                                    temp_limit_discrete = max(invalid_values)
-                                else:
-                                    print(f"   ℹ️ {solvent_name}: All discrete values above {temp_limit}°C, no MP constraint needed")
-                                    continue
-                            else:
-                                temp_limit_discrete = temp_limit
-                            
-                            native_constraint = CategoricalExcludeConstraint(
-                                features=[solvent_param_name, param_name],
-                                conditions=[
-                                    SelectionCondition(selection=[solvent_name]),
-                                    ThresholdCondition(threshold=temp_limit_discrete, operator="<="),
-                                ],
-                            )
-                            constraint_list.append(native_constraint)
-                            print(f"   ✅ Native constraint (MP): {solvent_name} → {param_name} > {temp_limit_discrete}°C "
-                                  f"(MP={mp}°C, margin={safety_margin}°C)")
-                            
-                        except Exception as e:
-                            print(f"   ❌ Failed to create MP constraint for {solvent_name}: {e}")
-                            import traceback
-                            traceback.print_exc()
-                
-                else:
-                    print(f"   ⚠️ Unknown constraint type: {constraint_type}")
-    else:
-        print(f"ℹ️ No phase constraints configured")
-    
-
-    # ----- LINEAR CONSTRAINTS (inequality ≤ + equality =) -----
-    # Inter-parameter relationships like param_left ≤ param_right + offset
-    # or param_left = param_right + offset
-    if constraints_config and constraints_config.get('inequality_constraints'):
-        ineq_list = constraints_config['inequality_constraints']
-        print(f"🔧 Processing {len(ineq_list)} linear constraint(s)...")
-        
-        for ineq in ineq_list:
-            param_left = ineq['param_left']
-            param_right = ineq['param_right']
-            offset = ineq.get('offset', 0.0)
-            relation = ineq.get('relation', 'leq')  # ✅ backward compatible default
-            
-            # Verify both parameters exist in input features
-            left_feat = next((f for f in input_features if f.key == param_left), None)
-            right_feat = next((f for f in input_features if f.key == param_right), None)
-            
-            if left_feat and right_feat:
-                try:
-                    if relation == "eq":
-                        # ✅ Equality: param_left = param_right + offset
-                        # Written as: 1*param_left + (-1)*param_right = offset
-                        linear_constraint = LinearEqualityConstraint(
-                            features=[param_left, param_right],
-                            coefficients=[1.0, -1.0],
-                            rhs=offset,
-                        )
-                        constraint_list.append(linear_constraint)
-                        print(f"   ✅ Linear equality: {param_left} = {param_right} + {offset}")
-                    else:
-                        # Inequality: param_left ≤ param_right + offset
-                        # Written as: 1*param_left + (-1)*param_right ≤ offset
-                        linear_constraint = LinearInequalityConstraint(
-                            features=[param_left, param_right],
-                            coefficients=[1.0, -1.0],
-                            rhs=offset,
-                        )
-                        constraint_list.append(linear_constraint)
-                        print(f"   ✅ Linear inequality: {param_left} ≤ {param_right} + {offset}")
-                except Exception as e:
-                    print(f"   ❌ Failed to create linear constraint: {e}")
-                    import traceback
-                    traceback.print_exc()
-            else:
-                missing = []
-                if not left_feat:
-                    missing.append(param_left)
-                if not right_feat:
-                    missing.append(param_right)
-                print(f"   ⚠️ Linear constraint skipped: missing parameter(s) {missing}")
-    else:
-        print(f"ℹ️ No linear constraints configured")
-
-    # --- Create Constraints object if we have any ---
     if constraint_list:
-        constraints = Constraints(constraints=constraint_list)
-        print(f"🎯 Created {len(constraint_list)} TOTAL constraint(s) for domain")
-    else:
-        constraints = None
-        print(f"ℹ️ No constraints added to domain")
-
-    # --- Create domain ---
-    if constraints is not None:
-        domain = Domain(inputs=inputs, outputs=outputs, constraints=constraints)
+        domain = Domain(
+            inputs=inputs,
+            outputs=outputs,
+            constraints=Constraints(constraints=constraint_list),
+        )
+        print(f"Created domain with {len(constraint_list)} constraint(s)")
     else:
         domain = Domain(inputs=inputs, outputs=outputs)
-    
-    # --- Log scale recommendations ---
-    recommendations = check_parameter_scales(domain)
-    for rec in recommendations:
+        print("Created domain with no constraints")
+
+    for rec in check_parameter_scales(domain):
         print(rec)
-    
+
     return domain
-
-
-# ==============================================================================
-# CONVENIENCE FUNCTIONS
-# ==============================================================================
-
-def create_normalizers_from_domain(
-    domain: Domain,
-    experiments: pd.DataFrame
-) -> Tuple[InputNormalizer, OutputStandardizer]:
-    """
-    Create fitted normalizer and standardizer from domain and experiment data.
-    
-    Convenience function that creates and fits both normalizers in one call.
-    
-    Args:
-        domain: BoFire domain
-        experiments: DataFrame with experimental data
-        
-    Returns:
-        Tuple of (input_normalizer, output_standardizer)
-    """
-    # Fit input normalizer
-    input_normalizer = InputNormalizer()
-    input_normalizer.fit(domain, experiments)
-    
-    # Fit output standardizer
-    objective_columns = [f.key for f in domain.outputs.features]
-    output_standardizer = OutputStandardizer()
-    output_standardizer.fit(experiments, objective_columns)
-    
-    return input_normalizer, output_standardizer

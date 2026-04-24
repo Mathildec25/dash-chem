@@ -1,26 +1,40 @@
 """
-Bayesian Optimization utilities using BoFire
-Sampling and optimization strategies
+Sampling and Bayesian-optimization strategies on top of BoFire / BoTorch.
+
+Public entry points:
+
+- :func:`sampling`                    : initial space-filling sampling.
+- :func:`kmeans_sampling`             : feasible k-Means initial sampling.
+- :func:`bayesian_optimization`       : main dispatch (SOBO/MOBO, TL, constraints).
+- :func:`get_available_acquisition_functions` / :func:`create_acquisition_function_from_name`.
+- :func:`get_optimization_type`.
+
+Two BoTorch bypasses are also exposed:
+
+- :func:`constrained_mobo_botorch`    : MOBO with a hard outcome constraint
+  (BoFire cannot assign Pareto + outcome-constraint roles to the same output).
+- :func:`multitask_bayesian_optimization` : SOBO transfer learning using a
+  MultiTaskGP with ICM kernel.
 """
 
 import warnings
-import pandas as pd
-import numpy as np
+from itertools import product as itertools_product
 
+import numpy as np
+import pandas as pd
 import torch
 
 import bofire.strategies.api as strategies
-from bofire.data_models.enum import SamplingMethodEnum
 from bofire.data_models.acquisition_functions.api import (
-    qLogNEI, qLogNEHVI, qEI, qNEI, qPI, qUCB, qSR
+    qEI, qLogNEHVI, qLogNEI, qNEI, qPI, qSR, qUCB,
 )
-from bofire.data_models.strategies.api import RandomStrategy, SoboStrategy, MoboStrategy
+from bofire.data_models.enum import SamplingMethodEnum
+from bofire.data_models.strategies.api import MoboStrategy, RandomStrategy, SoboStrategy
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
-from itertools import product as itertools_product
 
-# ── torch device ──────────────────────────────────────────────────────────────
+
 _tkwargs = {
     "dtype": torch.double,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
@@ -55,7 +69,7 @@ def sampling(domain, sampling_method: str, nb_points: int):
     has_constraints = domain.constraints and len(domain.constraints.constraints) > 0
 
     if all_discrete and has_constraints:
-        print("⚠️ Fully discrete domain with constraints detected — using manual sampling fallback")
+        print("Fully discrete domain with constraints detected; using manual sampling fallback")
         return _manual_discrete_sampling(domain, nb_points)
 
     datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum)
@@ -81,10 +95,10 @@ def _manual_discrete_sampling(domain, nb_points: int):
     total = 1
     for v in all_values.values():
         total *= len(v)
-    print(f"   📊 Total combinations: {total}")
+    print(f"   Total combinations: {total}")
 
     if total > 500_000:
-        print(f"   ⚠️ Large space ({total}), using random subset of 100,000")
+        print(f"   Large space ({total}); using random subset of 100,000")
         rng = np.random.default_rng(42)
         candidates = []
         for _ in range(100_000):
@@ -106,13 +120,13 @@ def _manual_discrete_sampling(domain, nb_points: int):
             feasible_mask &= fulfilled
 
     df_feasible = df_candidates[feasible_mask].reset_index(drop=True)
-    print(f"   ✅ {len(df_feasible)} feasible out of {len(df_candidates)} candidates")
+    print(f"   {len(df_feasible)} feasible out of {len(df_candidates)} candidates")
 
     if len(df_feasible) == 0:
         raise ValueError("No feasible points found. Check constraints and parameter bounds.")
 
     if nb_points >= len(df_feasible):
-        print(f"   ⚠️ Requested {nb_points} but only {len(df_feasible)} feasible — returning all")
+        print(f"   Requested {nb_points} but only {len(df_feasible)} feasible; returning all")
         return df_feasible[feature_keys]
 
     selected = df_feasible.sample(n=nb_points, random_state=42).reset_index(drop=True)
@@ -150,7 +164,7 @@ def kmeans_sampling(domain, nb_points: int, constraints_config: dict = None, ran
         total *= len(v)
 
     if total > 100_000:
-        print(f"   ⚠️ Large space ({total}), using random subset of 100,000")
+        print(f"   Large space ({total}); using random subset of 100,000")
         rng = np.random.default_rng(random_state)
         value_lists_for_random = [all_values[k] for k in feature_keys]
         candidate_pool = []
@@ -465,14 +479,14 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
     warnings.filterwarnings("ignore", category=BadInitialCandidatesWarning)
     warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-    print("🔒 Constrained MOBO (BoTorch bypass) — starting…")
+    print("Constrained MOBO (BoTorch bypass): starting")
 
     con_obj_name  = outcome_constraint['objective']
     con_direction = outcome_constraint['direction']
     con_threshold = float(outcome_constraint['threshold'])
 
-    print(f"   Constraint : {con_obj_name} {con_direction} {con_threshold}")
-    print(f"   Convention : c(x) <= 0 is feasible (BoTorch)")
+    print(f"   Constraint: {con_obj_name} {con_direction} {con_threshold}")
+    print("   Convention: c(x) <= 0 is feasible (BoTorch)")
 
     col_info = _build_encoding_metadata(domain)
     D_TOTAL  = _get_total_dim(col_info)
@@ -519,7 +533,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
     ])
     mll = SumMarginalLogLikelihood(model.likelihood, model)
     fit_gpytorch_mll(mll)
-    print("   ✅ ModelListGP fitted")
+    print("   ModelListGP fitted")
 
     sampler         = SobolQMCNormalSampler(sample_shape=torch.Size([128]))
     obj_indices     = list(range(n_obj))
@@ -564,13 +578,13 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
         x_1d    = candidates[i].detach() if candidates.dim() > 1 else candidates.squeeze(0).detach()
         decoded = _decode_candidate(x_1d, col_info)
         results.append(decoded)
-        print(f"   ✅ Candidate {i + 1}: {decoded}")
+        print(f"   Candidate {i + 1}: {decoded}")
 
     return pd.DataFrame(results)
 
 
 # =============================================================================
-# TRANSFER LEARNING — MULTITASKGP (BoTorch bypass)
+# TRANSFER LEARNING - MULTITASKGP (BoTorch bypass)
 # =============================================================================
 
 def multitask_bayesian_optimization(domain, target_experiments, source_experiments,
@@ -612,7 +626,7 @@ def multitask_bayesian_optimization(domain, target_experiments, source_experimen
     warnings.filterwarnings("ignore", category=BadInitialCandidatesWarning)
     warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-    print("🔁 MultiTaskGP Transfer Learning (BoTorch bypass) — starting…")
+    print("MultiTaskGP transfer learning (BoTorch bypass): starting")
 
     # ── Validate: SOBO only ───────────────────────────────────────────────
     obj_feats = domain.outputs.features
@@ -668,14 +682,13 @@ def multitask_bayesian_optimization(domain, target_experiments, source_experimen
     )
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     fit_gpytorch_mll(mll)
-    print("   ✅ MultiTaskGP fitted")
+    print("   MultiTaskGP fitted")
 
-    # ── Log inter-task covariance (diagnostic) ────────────────────────────
     try:
         with torch.no_grad():
             tcov = model.task_covar_module._eval_covar_matrix().cpu().numpy()
         print(f"   Inter-task covariance matrix:\n{tcov}")
-        print(f"   → Source–Target correlation : {tcov[0, 1]:.4f}")
+        print(f"   Source-Target correlation: {tcov[0, 1]:.4f}")
     except Exception as e:
         print(f"   (Could not retrieve task covariance: {e})")
 
@@ -705,14 +718,14 @@ def multitask_bayesian_optimization(domain, target_experiments, source_experimen
         options             = {"batch_limit": 5, "maxiter": 200},
     )
 
-    # ── Decode (drop task column before decoding) ─────────────────────────
+    # Decode (drop task column before decoding)
     results = []
     for i in range(n_candidates):
         x_with_task = candidates[i].detach() if candidates.dim() > 1 else candidates.squeeze(0).detach()
-        x_no_task   = x_with_task[:D_TOTAL]   # strip the task dimension
+        x_no_task   = x_with_task[:D_TOTAL]
         decoded     = _decode_candidate(x_no_task, col_info)
         results.append(decoded)
-        print(f"   ✅ Candidate {i + 1}: {decoded}")
+        print(f"   Candidate {i + 1}: {decoded}")
 
     return pd.DataFrame(results)
 
@@ -751,83 +764,37 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
     n_obj = len(domain.outputs.features)
 
     if n_obj == 1:
-        # ── Transfer Learning path ────────────────────────────────────────
+        # Transfer learning path
         if source_experiments is not None and len(source_experiments) > 0:
-            print(f"🔁 Transfer Learning active — routing to MultiTaskGP")
+            print("Transfer learning active; routing to MultiTaskGP")
             return multitask_bayesian_optimization(
                 domain, experiments, source_experiments, n_candidates
             )
 
-        # ── Standard SOBO ─────────────────────────────────────────────────
+        # Standard SOBO
         acq_func   = acquisition_function if acquisition_function is not None else qLogNEI()
         data_model = SoboStrategy(domain=domain, acquisition_function=acq_func)
 
     elif n_obj >= 2:
-        # ── Constrained MOBO ──────────────────────────────────────────────
+        # Constrained MOBO
         if (outcome_constraint
                 and outcome_constraint.get('enabled')
                 and outcome_constraint.get('objective')
                 and outcome_constraint.get('threshold') is not None):
-            print(f"🔒 Outcome constraint detected — routing to constrained_mobo_botorch()")
+            print("Outcome constraint detected; routing to constrained_mobo_botorch()")
             return constrained_mobo_botorch(
                 domain, experiments, outcome_constraint, n_candidates
             )
 
-        # ── Standard MOBO ─────────────────────────────────────────────────
+        # Standard MOBO
         acq_func   = acquisition_function if acquisition_function is not None else qLogNEHVI()
         data_model = MoboStrategy(domain=domain, acquisition_function=acq_func)
 
     else:
         raise ValueError("Domain must have at least one objective")
 
-    # ── BoFire strategy path ──────────────────────────────────────────────
     strat = strategies.map(data_model)
-
-    print("🔍 DEBUG - Domain features:")
-    for feat in domain.inputs.features:
-        print(f"   - {feat.key}: {type(feat).__name__}")
-        if hasattr(feat, 'categories'):
-            print(f"     Categories: {feat.categories}")
-        if hasattr(feat, 'descriptors'):
-            print(f"     Descriptors: {feat.descriptors}")
-            print(f"     Values: {feat.values}")
-
-    print("🔍 DEBUG - Experiments DataFrame:")
-    print(experiments)
-    print("\n🔍 DEBUG - Unique values per column:")
-    for col in experiments.columns:
-        unique_vals = experiments[col].unique()
-        print(f"   - {col}: {len(unique_vals)} unique values → {list(unique_vals)[:5]}")
-
-    print("\n🔍 DEBUG - Checking data transformation:")
-    from bofire.data_models.enum import CategoricalEncodingEnum
-    specs = {}
-    for feat in domain.inputs.features:
-        if hasattr(feat, 'descriptors') and feat.descriptors:
-            specs[feat.key] = CategoricalEncodingEnum.DESCRIPTOR
-            print(f"   Setting {feat.key} encoding to DESCRIPTOR")
-
-    param_names = [feat.key for feat in domain.inputs.features]
-    if specs:
-        try:
-            X_transformed = domain.inputs.transform(experiments[param_names], specs=specs)
-            print(f"   Transformed columns: {list(X_transformed.columns)}")
-            print(f"   Transformed shape: {X_transformed.shape}")
-            for col in X_transformed.columns:
-                n_unique = X_transformed[col].nunique()
-                print(f"   Column '{col}': {n_unique} unique values")
-                if n_unique == 1:
-                    print(f"   ⚠️ WARNING: Column '{col}' has only 1 unique value!")
-        except Exception as e:
-            print(f"   ⚠️ Error during transformation test: {e}")
-
     strat.tell(experiments=experiments)
-
-    if hasattr(strat, 'model'):
-        print("🔍 Model type:", type(strat.model))
-        print("🔍 Input transform:", getattr(strat.model, 'input_transform', 'NONE'))
-        print("🔍 Outcome transform:", getattr(strat.model, 'outcome_transform', 'NONE'))
-
     return strat.ask(candidate_count=n_candidates)
 
 

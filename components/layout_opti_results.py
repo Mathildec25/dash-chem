@@ -1,15 +1,4 @@
-"""
-Results Layout for Optimization Analysis
-Adaptive layout for SOBO and MOBO optimization results
-
-CHANGES:
-- Removed: SHAP Dependence Plot, Parameter-Objective Correlations, Parameter Effect (1D Slice)
-- Removed: Cumulative Best (secondary-metric), Objective Distribution, Improvement Rate
-- Convergence plot now full width (md=12)
-- MOBO: objective selector always visible for convergence
-- Parameter Influence + SHAP Beeswarm on same row
-- SOBO section: Regret only (full width)
-"""
+"""Adaptive results / analysis layout for SOBO and MOBO optimization runs."""
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html

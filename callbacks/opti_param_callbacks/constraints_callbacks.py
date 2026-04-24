@@ -1,21 +1,12 @@
 """
-Constraints configuration callbacks
-Handles constraints related to solvent boiling points, melting points,
-AND inter-parameter linear constraints (inequality AND equality).
+Constraints-configuration callbacks.
 
-UPDATED:
-- Constraints card is ALWAYS visible
-- Phase constraints section (BP/MP) shown/hidden based on solvent config
-- Linear constraints always available (inequality ≤ or equality =)
-- save_constraints works even without solvent config
+Handles two families of constraints:
 
-DYNAMIC CONSTRAINTS:
-- Temperature < Boiling Point (avoid boiling)
-- Temperature > Melting Point (avoid freezing)
-
-INTER-PARAMETER LINEAR CONSTRAINTS:
-- Parameter A ≤ Parameter B + offset  (inequality)
-- Parameter A = Parameter B + offset  (equality)
+- Phase constraints (shown only when a solvent parameter is configured):
+  ``Temperature < boiling point`` or ``Temperature > melting point``.
+- Inter-parameter linear constraints:
+  ``A <= B + offset`` (inequality) or ``A = B + offset`` (equality).
 """
 
 from dash import callback, Input, Output, State, ALL, ctx, html, dcc, no_update
@@ -226,7 +217,7 @@ def validate_and_adjust_suggestion(suggestion_row: dict, constraints_config: dic
         left = ineq['param_left']
         right = ineq['param_right']
         offset = ineq.get('offset', 0.0)
-        relation = ineq.get('relation', 'leq')  # ✅ NEW: default to "leq" for backward compat
+        relation = ineq.get('relation', 'leq')
         
         if left in adjusted_row and right in adjusted_row:
             val_left = adjusted_row[left]
@@ -241,7 +232,7 @@ def validate_and_adjust_suggestion(suggestion_row: dict, constraints_config: dic
                 limit = val_right + offset
                 
                 if relation == "eq":
-                    # ✅ Equality constraint — force param_left = param_right + offset
+                    # Equality constraint — force param_left = param_right + offset
                     if abs(val_left - limit) > 1e-6:
                         adjusted_value = round(limit, 1)
                         adjustments_made.append({
@@ -330,7 +321,7 @@ def create_linear_constraint_row(row_id: str, parameter_options: list = None):
                     style={"fontSize": "0.875rem"}
                 )
             ], width=3),
-            # ✅ Dropdown for ≤ or = instead of static "≤"
+            # Dropdown for ≤ or = instead of static "≤"
             dbc.Col([
                 dcc.Dropdown(
                     id={'type': 'ineq-relation-type', 'index': row_id},
@@ -380,7 +371,7 @@ def create_linear_constraint_row(row_id: str, parameter_options: list = None):
     ], id={'type': 'ineq-constraint-row', 'index': row_id})
 
 
-# ✅ Keep old name as alias for backward compatibility
+# Keep old name as alias for backward compatibility
 create_inequality_constraint_row = create_linear_constraint_row
 
 
@@ -661,7 +652,7 @@ def delete_ineq_constraint_row(n_clicks, current_rows):
      Input({'type': 'ineq-param-left', 'index': ALL}, 'value'),
      Input({'type': 'ineq-param-right', 'index': ALL}, 'value'),
      Input({'type': 'ineq-offset', 'index': ALL}, 'value'),
-     Input({'type': 'ineq-relation-type', 'index': ALL}, 'value')],  # ✅ NEW
+     Input({'type': 'ineq-relation-type', 'index': ALL}, 'value')],
     [State({'type': 'constraint-param-select', 'index': ALL}, 'id'),
      State({'type': 'constraint-type-select', 'index': ALL}, 'id'),
      State({'type': 'parameter-name', 'index': ALL}, 'value'),
@@ -671,15 +662,15 @@ def delete_ineq_constraint_row(n_clicks, current_rows):
 )
 def save_constraints(constraint_values, constraint_types, solvent_config,
                      ineq_left_values, ineq_right_values, ineq_offset_values,
-                     ineq_relation_types,  # ✅ NEW parameter
+                     ineq_relation_types,
                      constraint_ids, constraint_type_ids, param_names, param_ids,
                      ineq_left_ids):
     """
-    Save constraint configuration to store.
-    
-    ✅ Works with or without solvent config.
-    - Phase constraints (BP/MP) require solvent config
-    - Linear constraints work independently (inequality + equality)
+    Save constraint configuration to the store.
+
+    Works with or without a solvent config:
+    - Phase constraints (BP/MP) require a solvent config.
+    - Linear constraints (inequality + equality) work independently.
     """
     # ===== SOLVENT INFO (optional) =====
     bp_dict = {}
@@ -700,7 +691,7 @@ def save_constraints(constraint_values, constraint_types, solvent_config,
                     solvent_param_name = name.strip()
                     break
     
-    print(f"🔍 Constraint store - Solvent parameter name: '{solvent_param_name}'")
+    print(f"Constraint store - Solvent parameter name: '{solvent_param_name}'")
     
     # Build parameter name lookup
     param_name_lookup = {}
@@ -731,14 +722,14 @@ def save_constraints(constraint_values, constraint_types, solvent_config,
                         'description': description
                     })
     
-    print(f"🔍 Constraint store - {len(constraints)} phase constraint(s)")
+    print(f"Constraint store - {len(constraints)} phase constraint(s)")
     for c in constraints:
         print(f"   - {c['description']} (type: {c['type']})")
     
     # ===== LINEAR CONSTRAINTS (inequality + equality) =====
     inequality_constraints = []
     if ineq_left_values and ineq_right_values:
-        # ✅ Handle case where ineq_relation_types might be empty or shorter
+        # Handle case where ineq_relation_types might be empty or shorter
         # (backward compat if rows were created before the dropdown existed)
         relation_list = ineq_relation_types if ineq_relation_types else []
         
@@ -750,7 +741,7 @@ def save_constraints(constraint_values, constraint_types, solvent_config,
                 right_name = _resolve_param_name(right_val, param_names, param_ids)
                 if left_name and right_name and left_name != right_name:
                     offset = float(offset_val) if offset_val is not None else 0.0
-                    # ✅ Get relation type, default to "leq" for backward compatibility
+                    # Get relation type, default to "leq" for backward compatibility
                     relation = relation_list[i] if i < len(relation_list) and relation_list[i] else "leq"
                     symbol = "≤" if relation == "leq" else "="
                     constraint_type = "linear_inequality" if relation == "leq" else "linear_equality"
@@ -765,11 +756,11 @@ def save_constraints(constraint_values, constraint_types, solvent_config,
                         'description': f"{left_name} {symbol} {right_name} + {offset}"
                     })
     
-    print(f"🔍 Constraint store - {len(inequality_constraints)} linear constraint(s)")
+    print(f"Constraint store - {len(inequality_constraints)} linear constraint(s)")
     for ic in inequality_constraints:
         print(f"   - {ic['description']}")
     
-    # ✅ Return data even without solvents (linear constraints still need saving)
+    # Return data even without solvents (linear constraints still need saving)
     if not constraints and not inequality_constraints and not bp_dict and not mp_dict:
         return None
     

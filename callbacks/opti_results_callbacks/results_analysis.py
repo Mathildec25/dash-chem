@@ -1,16 +1,4 @@
-"""
-Results Analysis Callbacks
-Generates adaptive visualizations for SOBO and MOBO optimization results
-
-MODIFICATIONS FINALES V2:
-1. Convergence plot: CODE ORIGINAL (non modifié)
-2. Pareto Front: Tous les points même gradient, étoiles seulement pour Pareto
-3. Parameter Space Exploration: Pré-sélectionné au démarrage
-4. Parameter Influence: Barres négatives vers la gauche + SÉLECTEUR D'OBJECTIF
-5. SHAP Beeswarm: SÉLECTEUR D'OBJECTIF ajouté
-6. Best Experiments: Callback corrigé (children au lieu de data/columns)
-7. Parallel Coordinates: Hauteur augmentée
-"""
+"""Adaptive result-analysis callbacks for SOBO and MOBO optimization runs."""
 
 from dash import callback, Input, Output, State, html, no_update, ctx
 from dash.exceptions import PreventUpdate

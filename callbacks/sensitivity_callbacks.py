@@ -109,7 +109,7 @@ def initialize_sensitivity_page(excel_file, pathname):
     if pathname != '/sensitivity' or not excel_file:
         raise PreventUpdate
 
-    print(f"🎯 Sensitivity page loading for: {excel_file}")
+    print(f"Sensitivity page loading for: {excel_file}")
 
     try:
         file_path = os.path.join(EXCEL_FOLDER, excel_file)

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import ast; ast.parse\\(open\\('utils/bofire_domain.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK: parses'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -)"
+    ]
+  }
+}

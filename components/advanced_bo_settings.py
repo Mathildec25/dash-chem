@@ -1,21 +1,16 @@
 """
-Advanced Bayesian Optimization Settings Component
-Provides UI for customizing BO parameters, including outcome constraints for MOBO
-and transfer learning (MultiTaskGP) for SOBO.
+UI for the advanced Bayesian optimization settings modal.
+
+Exposes acquisition-function choice, number of candidates, MOBO outcome
+constraints, and SOBO transfer learning (MultiTaskGP).
 """
 
 import dash_bootstrap_components as dbc
-from dash import html, dcc
+from dash import dcc, html
 
 
 def create_advanced_bo_settings():
-    """
-    Create a button that opens a modal for advanced BO settings.
-
-    Returns:
-        html.Div: Button + Modal
-    """
-
+    """Return the settings button and its modal as a single ``html.Div``."""
     button = dbc.Button(
         [html.I(className="bi bi-gear me-2"), "Advanced Settings"],
         id="open-advanced-bo-modal",
@@ -35,7 +30,7 @@ def create_advanced_bo_settings():
         ),
         dbc.ModalBody([
 
-            # ── Optimization type (read-only) ─────────────────────────────
+            # Optimization type (read-only)
             dbc.Row([
                 dbc.Col([
                     html.Label("Optimization type:", className="text-muted small mb-1"),
@@ -51,7 +46,7 @@ def create_advanced_bo_settings():
 
             html.Hr(className="my-3"),
 
-            # ── Acquisition function ──────────────────────────────────────
+            # Acquisition function
             dbc.Row([
                 dbc.Col([
                     html.Label("Acquisition function:", className="fw-bold mb-2"),
@@ -67,7 +62,7 @@ def create_advanced_bo_settings():
                 ], width=12, className="mb-3")
             ]),
 
-            # ── Number of candidates ──────────────────────────────────────
+            # Number of candidates
             dbc.Row([
                 dbc.Col([
                     html.Label("Number of experiments to suggest:", className="fw-bold mb-2"),
@@ -83,7 +78,7 @@ def create_advanced_bo_settings():
                 ], md=12, className="mb-3")
             ]),
 
-            # ── Transfer Learning (SOBO only) ─────────────────────────────
+            # Transfer learning (SOBO only)
             html.Div(
                 id="tl-section",
                 style={"display": "none"},
@@ -155,7 +150,7 @@ def create_advanced_bo_settings():
                 ]
             ),
 
-            # ── Outcome Constraint (MOBO only) ────────────────────────────
+            # Outcome constraint (MOBO only)
             html.Div(
                 id="outcome-constraint-section",
                 style={"display": "none"},

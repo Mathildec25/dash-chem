@@ -64,7 +64,7 @@ def manage_parameters(add_clicks, delete_clicks, current_children):
                                     size="sm",
                                     style={"borderRadius": "6px"}
                                 )
-                            ], width=4),  # ✅ Réduit de 6 à 4
+                            ], width=4),
                             dbc.Col([
                                 dbc.Input(
                                     id={'type': 'parameter-max', 'index': new_id},
@@ -74,10 +74,10 @@ def manage_parameters(add_clicks, delete_clicks, current_children):
                                     size="sm",
                                     style={"borderRadius": "6px"}
                                 )
-                            ], width=4),  # ✅ Réduit de 6 à 4
+                            ], width=4),
                             dbc.Col([
                                 dbc.Input(
-                                    id={'type': 'parameter-step', 'index': new_id},  # ✅ NOUVEAU
+                                    id={'type': 'parameter-step', 'index': new_id},
                                     placeholder="Step (opt)",
                                     type="number",
                                     step="any",
@@ -85,7 +85,7 @@ def manage_parameters(add_clicks, delete_clicks, current_children):
                                     size="sm",
                                     style={"borderRadius": "6px"}
                                 )
-                            ], width=4),  # ✅ NOUVEAU
+                            ], width=4),
                         ])
                     ])
                 ], width=6),
@@ -145,7 +145,7 @@ def update_parameter_inputs(param_type):
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
-            ], width=4),  # ✅ Réduit de 6 à 4
+            ], width=4),
             dbc.Col([
                 dbc.Input(
                     id={'type': 'parameter-max', 'index': idx},
@@ -155,10 +155,10 @@ def update_parameter_inputs(param_type):
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
-            ], width=4),  # ✅ Réduit de 6 à 4
+            ], width=4),
             dbc.Col([
                 dbc.Input(
-                    id={'type': 'parameter-step', 'index': idx},  # ✅ NOUVEAU
+                    id={'type': 'parameter-step', 'index': idx},
                     placeholder="Step (opt)",
                     type="number",
                     step="any",
@@ -166,7 +166,7 @@ def update_parameter_inputs(param_type):
                     size="sm",
                     style={"borderRadius": "6px"}
                 )
-            ], width=4),  # ✅ NOUVEAU
+            ], width=4),
         ])
 
     

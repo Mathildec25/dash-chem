@@ -20,8 +20,7 @@ except ImportError:
         from bofire_solvent_descriptors import SOLVENT_DESCRIPTORS
         from bofire_base_descriptors import BASE_DESCRIPTORS
     except ImportError:
-        print("⚠️ WARNING: Could not import descriptor files!")
-        print("   Using minimal fallback. Run: python advanced_descriptor_calculator.py")
+        print("WARNING: Could not import descriptor files; using minimal fallback.")
         SOLVENT_DESCRIPTORS = {}
         BASE_DESCRIPTORS = {
             "Triethylamine": {}, "Pyridine": {}, "DBU": {}
@@ -48,9 +47,9 @@ def _get_base_descriptor_keys():
 BASE_DESCRIPTOR_KEYS = _get_base_descriptor_keys()
 
 # Print confirmation on import
-print(f"✓ Loaded {len(COMMON_BASES)} bases from descriptor files")
-print(f"✓ Fixed base descriptors: {FIXED_BASE_DESCRIPTORS}")
-print(f"✓ All base descriptor keys: {BASE_DESCRIPTOR_KEYS}")
+print(f"Loaded {len(COMMON_BASES)} bases from descriptor files")
+print(f"Fixed base descriptors: {FIXED_BASE_DESCRIPTORS}")
+print(f"All base descriptor keys: {BASE_DESCRIPTOR_KEYS}")
 
 
 # ============================================================================
@@ -261,7 +260,7 @@ def add_custom_base(n_clicks, name, desc_values, desc_ids, current_rows, current
     BASE_DESCRIPTORS[base_name] = descriptor_data
     COMMON_BASES.append(base_name)
     
-    print(f"✅ Added custom base '{base_name}' to BASE_DESCRIPTORS")
+    print(f"Added custom base '{base_name}' to BASE_DESCRIPTORS")
     print(f"   Descriptors: {descriptor_data}")
     
     # Update all dropdown options
@@ -402,8 +401,8 @@ def save_base_configuration(n_clicks, bases, current_params, current_config):
         alert = dbc.Alert("❌ Please select at least one base", color="danger")
         return no_update, no_update, alert, True
     
-    print(f"✅ Saved bases: {selected_bases}")
-    print(f"✅ Using fixed descriptors: {selected_descriptors}")
+    print(f"Saved bases: {selected_bases}")
+    print(f"Using fixed descriptors: {selected_descriptors}")
     
     # Get existing base parameter ID if it exists
     base_param_id = None

@@ -1,12 +1,15 @@
 """
-Safe Excel file operations with atomic writes and automatic backups.
-Prevents file corruption from interrupted writes, crashes, or concurrent access.
+Safe Excel file I/O with atomic writes and rotating backups.
+
+Prevents corruption from interrupted writes, crashes, or concurrent access by
+writing to a temporary file, validating it, optionally backing up the target,
+and only then performing an atomic replace.
 """
 
+import logging
 import os
 import shutil
 import tempfile
-import logging
 from datetime import datetime
 from zipfile import BadZipFile
 
@@ -15,50 +18,25 @@ from openpyxl import load_workbook
 
 logger = logging.getLogger(__name__)
 
-# Maximum number of backups to keep per file
 MAX_BACKUPS = 3
 BACKUP_SUFFIX = ".backup"
 
 
 def safe_excel_save(file_path, write_func, backup=True):
     """
-    Safely save an Excel file using atomic write pattern.
-    
-    1. Write to a temporary file in the same directory
-    2. Validate the temp file is a valid Excel
-    3. Create a backup of the current file (if it exists)
-    4. Atomically replace the original with the temp file
-    
-    Parameters
-    ----------
-    file_path : str
-        Path to the target Excel file.
-    write_func : callable
-        Function that takes a file path and writes the Excel content.
-        Example: lambda path: df.to_excel(path, index=False, engine='openpyxl')
-    backup : bool
-        Whether to create a backup of the existing file before overwriting.
-    
-    Returns
-    -------
-    tuple (bool, str)
-        (success, message)
-    
-    Usage
-    -----
-    # Simple save:
-    safe_excel_save(
-        "data.xlsx",
-        lambda path: df.to_excel(path, index=False, engine='openpyxl')
-    )
-    
-    # With ExcelWriter formatting:
-    def write_formatted(path):
-        with pd.ExcelWriter(path, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Experiments')
-            # ... formatting code ...
-    
-    safe_excel_save("data.xlsx", write_formatted)
+    Save an Excel file atomically.
+
+    Writes to a temp file in the same directory, validates it, backs up the
+    existing target (if any), and replaces the target in a single
+    ``os.replace`` call.
+
+    Args:
+        file_path: Target Excel path.
+        write_func: Callable ``(path) -> None`` that writes the Excel content.
+        backup: If True (default), keep a rotated backup of the previous file.
+
+    Returns:
+        Tuple ``(success: bool, message: str)``.
     """
     directory = os.path.dirname(file_path) or '.'
     os.makedirs(directory, exist_ok=True)
@@ -103,7 +81,7 @@ def safe_excel_save(file_path, write_func, backup=True):
     # --- Step 4: Atomic replace ---
     try:
         os.replace(temp_path, file_path)
-        logger.info(f"✅ Safely saved: {file_path}")
+        logger.info("Safely saved: %s", file_path)
         return True, "File saved successfully"
     except PermissionError:
         _cleanup_temp(temp_path)
@@ -122,81 +100,59 @@ def safe_excel_save(file_path, write_func, backup=True):
 
 def safe_excel_read(file_path):
     """
-    Safely read an Excel file with automatic recovery from corruption.
-    
-    If the main file is corrupted, attempts to read from the most recent backup.
-    
-    Parameters
-    ----------
-    file_path : str
-        Path to the Excel file.
-    
-    Returns
-    -------
-    tuple (pd.DataFrame, str)
-        (dataframe, message) - message indicates if backup was used
+    Read an Excel file, falling back to the most recent valid backup on failure.
+
+    If a backup is successfully loaded it is also copied over the corrupted
+    main file.
+
+    Returns:
+        Tuple ``(df_or_None, message)``.
     """
-    # Try reading the main file
     try:
-        df = pd.read_excel(file_path, engine='openpyxl')
-        return df, "ok"
+        return pd.read_excel(file_path, engine="openpyxl"), "ok"
     except (BadZipFile, Exception) as e:
-        logger.warning(f"Main file corrupted: {file_path} - {e}")
-    
-    # Try backups in reverse chronological order
-    backups = _get_sorted_backups(file_path)
-    for backup_path in backups:
+        logger.warning("Main file corrupted: %s - %s", file_path, e)
+
+    for backup_path in _get_sorted_backups(file_path):
         try:
-            df = pd.read_excel(backup_path, engine='openpyxl')
-            logger.info(f"✅ Recovered from backup: {backup_path}")
-            
-            # Restore the backup as the main file
+            df = pd.read_excel(backup_path, engine="openpyxl")
+            logger.info("Recovered from backup: %s", backup_path)
             shutil.copy2(backup_path, file_path)
-            logger.info(f"✅ Restored backup to main file: {file_path}")
-            
-            return df, f"Recovered from backup (some recent changes may be lost)"
+            logger.info("Restored backup to main file: %s", file_path)
+            return df, "Recovered from backup (some recent changes may be lost)"
         except Exception:
             continue
-    
-    # No valid backup found
+
     return None, f"File is corrupted and no valid backup found: {file_path}"
 
 
 def _validate_excel(file_path):
-    """Validate that a file is a valid Excel file by opening it."""
-    # Check file size > 0
+    """Raise if ``file_path`` is not a loadable Excel workbook."""
     if os.path.getsize(file_path) == 0:
         raise ValueError("File is empty (0 bytes)")
-    
-    # Try to open with openpyxl (validates ZIP structure + Excel format)
     wb = load_workbook(file_path, read_only=True)
     wb.close()
 
 
 def _create_backup(file_path):
-    """Create a timestamped backup, rotate old backups."""
-    directory = os.path.dirname(file_path) or '.'
+    """Copy ``file_path`` into the ``.backups`` subdirectory and rotate old ones."""
+    directory = os.path.dirname(file_path) or "."
     basename = os.path.basename(file_path)
     name, ext = os.path.splitext(basename)
-    
-    backup_dir = os.path.join(directory, '.backups')
+
+    backup_dir = os.path.join(directory, ".backups")
     os.makedirs(backup_dir, exist_ok=True)
-    
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_name = f"{name}_{timestamp}{ext}{BACKUP_SUFFIX}"
-    backup_path = os.path.join(backup_dir, backup_name)
-    
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(backup_dir, f"{name}_{timestamp}{ext}{BACKUP_SUFFIX}")
+
     shutil.copy2(file_path, backup_path)
-    
-    # Rotate: keep only MAX_BACKUPS most recent
     _rotate_backups(file_path)
 
 
 def _rotate_backups(file_path):
-    """Keep only the most recent MAX_BACKUPS backups for a given file."""
-    backups = _get_sorted_backups(file_path)
-    
-    for old_backup in backups[MAX_BACKUPS:]:
+    """Delete all but the ``MAX_BACKUPS`` most recent backups."""
+    for old_backup in _get_sorted_backups(file_path)[MAX_BACKUPS:]:
         try:
             os.remove(old_backup)
         except Exception:
@@ -204,28 +160,25 @@ def _rotate_backups(file_path):
 
 
 def _get_sorted_backups(file_path):
-    """Get backup files sorted by modification time (newest first)."""
-    directory = os.path.dirname(file_path) or '.'
-    basename = os.path.basename(file_path)
-    name, _ = os.path.splitext(basename)
-    
-    backup_dir = os.path.join(directory, '.backups')
+    """Return backup paths for ``file_path``, newest first."""
+    directory = os.path.dirname(file_path) or "."
+    name, _ = os.path.splitext(os.path.basename(file_path))
+
+    backup_dir = os.path.join(directory, ".backups")
     if not os.path.exists(backup_dir):
         return []
-    
-    backups = []
-    for f in os.listdir(backup_dir):
-        if f.startswith(name) and f.endswith(BACKUP_SUFFIX):
-            full_path = os.path.join(backup_dir, f)
-            backups.append(full_path)
-    
-    # Sort by modification time, newest first
-    backups.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+
+    backups = [
+        os.path.join(backup_dir, f)
+        for f in os.listdir(backup_dir)
+        if f.startswith(name) and f.endswith(BACKUP_SUFFIX)
+    ]
+    backups.sort(key=os.path.getmtime, reverse=True)
     return backups
 
 
 def _cleanup_temp(temp_path):
-    """Remove temporary file, ignoring errors."""
+    """Best-effort removal of a leftover temp file."""
     try:
         if os.path.exists(temp_path):
             os.remove(temp_path)

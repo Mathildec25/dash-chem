@@ -393,7 +393,7 @@ def create_domain_and_excel(
         if tl_enabled and tl_store and tl_source_campaign:
             parameters = tl_store.get('parameters', [])
             objectives  = tl_store.get('objectives', [])
-            print(f"🔁 TL mode: {len(parameters)} params, {len(objectives)} objs "
+            print(f"TL mode: {len(parameters)} params, {len(objectives)} objs "
                   f"from '{tl_source_campaign}'")
 
         # ── BRANCH: Manual mode ──────────────────────────────────────────
@@ -482,7 +482,7 @@ def create_domain_and_excel(
                     'upper_bound': obj_uppers[i] if i < len(obj_uppers) and obj_uppers[i] is not None else 1.0,
                 })
 
-        print(f"✅ {len(parameters)} parameters, {len(objectives)} objectives")
+        print(f"{len(parameters)} parameters, {len(objectives)} objectives")
 
         # ── Extra columns ─────────────────────────────────────────────────
         extra_columns = []
@@ -506,7 +506,7 @@ def create_domain_and_excel(
                 constraints_config=constraints_config,
                 discretization_config=discretization_config
             )
-            print("✅ BoFire domain created")
+            print("BoFire domain created")
         except Exception as e:
             import traceback
             print(f"💥 Domain creation error:\n{traceback.format_exc()}")
@@ -538,7 +538,7 @@ def create_domain_and_excel(
 
         if tl_enabled and tl_store and effective_source:
             # ── TL: use best condition from source campaign ───────────────
-            print(f"🔁 TL init: loading best point from '{effective_source}'")
+            print(f"TL init: loading best point from '{effective_source}'")
             source_path = os.path.join(EXCEL_FOLDER, effective_source)
             df_source, _ = safe_excel_read(source_path)
 
@@ -566,13 +566,13 @@ def create_domain_and_excel(
                             p: best_row[p] for p in param_names_list
                             if p in best_row.index
                         }])
-                        print(f"✅ Best source condition: {sampled_data.to_dict('records')[0]}")
+                        print(f"Best source condition: {sampled_data.to_dict('records')[0]}")
                     else:
-                        print("⚠️ TL: no complete experiments in source — starting empty")
+                        print("TL: no complete experiments in source — starting empty")
                 else:
-                    print(f"⚠️ TL: source missing columns {missing} — starting empty")
+                    print(f"TL: source missing columns {missing} — starting empty")
             else:
-                print(f"⚠️ TL: could not read source file '{source_path}'")
+                print(f"TL: could not read source file '{source_path}'")
 
             # Inherit solvent/base/constraints configs from source if not
             # set by the current form (which is locked in TL mode)
@@ -596,7 +596,7 @@ def create_domain_and_excel(
                                       'latin_hypercube': 'LHS', 'sobol': 'SOBOL'}
                         sampled_data = sampling(domain, method_map.get(sampling_method, 'LHS'),
                                                 int(nb_points))
-                    print(f"✅ {len(sampled_data)} sampling points ({sampling_method})")
+                    print(f"{len(sampled_data)} sampling points ({sampling_method})")
                 except Exception as e:
                     import traceback
                     print(f"Sampling error: {traceback.format_exc()}")
@@ -653,7 +653,7 @@ def create_domain_and_excel(
         if not save_ok:
             alert = dbc.Alert(f"❌ Excel save failed: {save_msg}", color="danger")
             return no_update, no_update, alert, True
-        print(f"✅ Excel saved: {file_path}")
+        print(f"Excel saved: {file_path}")
 
         # ── Save domain metadata ──────────────────────────────────────────
         # TL config stored under 'advanced_bo_settings' so that
@@ -699,7 +699,7 @@ def create_domain_and_excel(
             return no_update, no_update, alert, True
 
         tl_note = f" with TL from '{tl_source_campaign}'" if tl_enabled else ""
-        print(f"✅ Domain saved{tl_note}")
+        print(f"Domain saved{tl_note}")
 
         # ── Update tracking ───────────────────────────────────────────────
         if os.path.exists(TRACKING_FILE):

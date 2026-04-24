@@ -1,16 +1,11 @@
-"""
-Layout for Optimization Home page - COMPACT & CLEAN VERSION
-Changes:
-- Logo 220px (bon compromis)
-- Cartes et textes plus compacts
-- PAS d'attribut color= pour éviter le rouge Bootstrap
-- Design épuré et professionnel
-"""
+"""Layout for the Optimization home page."""
+
+import os
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html
-import os
 import pandas as pd
+from dash import dcc, html
+
 from config_path import EXCEL_FOLDER, TRACKING_FILE
 
 

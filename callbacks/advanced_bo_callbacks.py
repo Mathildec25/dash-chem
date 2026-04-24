@@ -90,9 +90,9 @@ def _check_domain_compatibility(source_excel, target_domain_data):
         df = pd.read_excel(source_path, engine='openpyxl')
         obj_names = list(source_obj_names)
         n_complete = df.dropna(subset=obj_names).shape[0]
-        return True, f"Compatible ✅  ({n_complete} experiments available)"
+        return True, f"Compatible ({n_complete} experiments available)"
     except Exception:
-        return True, "Compatible ✅"
+        return True, "Compatible"
 
 
 # =============================================================================
@@ -122,7 +122,7 @@ def load_settings_from_metadata(excel_file, current_store):
     if not saved:
         raise PreventUpdate
 
-    print(f"📂 Auto-loaded BO settings from project metadata: {saved}")
+    print(f"Auto-loaded BO settings from project metadata: {saved}")
     return saved
 
 
@@ -351,8 +351,8 @@ def store_settings_on_apply(n_clicks, acq_func, n_candidates,
     if excel_file:
         success, msg = DomainStorage.update_metadata(excel_file, _METADATA_KEY, settings)
         if success:
-            print(f"💾 Advanced BO settings saved to project metadata: {settings}")
+            print(f"Advanced BO settings saved to project metadata: {settings}")
         else:
-            print(f"⚠️ Could not save to project metadata: {msg}")
+            print(f"Could not save to project metadata: {msg}")
 
     return settings

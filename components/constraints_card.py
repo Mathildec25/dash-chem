@@ -1,43 +1,27 @@
-"""
-Constraints Card Component
-Card for defining constraints in domain configuration
-
-UPDATED: 
-- Card is ALWAYS visible (not hidden by default)
-- Phase constraints section (BP/MP) shown/hidden based on solvent config
-- Linear constraints section always visible (inequality ≤ and equality =)
-"""
+"""Constraints card used in the domain-configuration page."""
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html
+from dash import html
 
 
 def create_constraints_card():
     """
-    Create the Constraints card component for domain configuration.
-    
-    This card is ALWAYS visible and contains two sections:
-    1. Phase constraints (BP/MP) — shown only when solvents are configured
-    2. Inter-parameter linear constraints — always available (≤ or =)
-    
-    Returns:
-        dbc.Card: The constraints card component
+    Build the constraints card.
+
+    The card is always visible and contains two sections:
+
+    - Phase constraints (BP/MP) — hidden until solvents are configured.
+    - Inter-parameter linear constraints (``<=`` / ``=``) — always visible.
     """
     return dbc.Card([
         dbc.CardBody([
-            # ================================================================
-            # CARD TITLE
-            # ================================================================
             html.H5([
                 html.I(className="bi bi-sliders me-2", style={"color": "#6c757d"}),
                 "Constraints"
             ], className="mb-3", style={"fontWeight": "600"}),
             
-            # ================================================================
-            # SECTION 1: PHASE CONSTRAINTS (BP/MP) — conditionally visible
-            # ================================================================
+            # Section 1: Phase constraints (BP/MP) - conditionally visible
             html.Div([
-                # Section header with add button
                 html.Div([
                     html.H6([
                         html.I(className="bi bi-thermometer-half me-2", style={"color": "#dc3545"}),
@@ -55,20 +39,15 @@ def create_constraints_card():
                     ),
                 ], className="mb-3"),
                 
-                # Info text
                 html.P([
                     html.I(className="bi bi-info-circle me-2"),
                     "Ensure the solvent stays in liquid phase ",
                     "(above melting point, below boiling point)."
                 ], className="text-muted small mb-3"),
-                
-                # Boiling/Melting point information display
+
                 html.Div(id="bp-info-display", className="mb-3"),
-                
-                # Phase constraints container
                 html.Div(id="constraint-rows-container", children=[]),
-                
-                # Help text for phase constraints
+
                 html.Div([
                     html.Small([
                         html.Strong("How it works: "),
@@ -88,14 +67,10 @@ def create_constraints_card():
                 html.Hr(className="my-4"),
             ],
             id="phase-constraints-section",
-            style={"display": "none"}  # Hidden until solvents are configured
+            style={"display": "none"},
             ),
-            
-            # ================================================================
-            # SECTION 2: INTER-PARAMETER LINEAR CONSTRAINTS — always visible
-            # ================================================================
-            
-            # Section header with add button
+
+            # Section 2: Inter-parameter linear constraints (always visible)
             html.Div([
                 html.H6([
                     html.I(className="bi bi-arrow-left-right me-2", style={"color": "#6c757d"}),
@@ -113,18 +88,15 @@ def create_constraints_card():
                 style={"borderRadius": "6px", "padding": "0.25rem 0.75rem"}
                 ),
             ], className="mb-3"),
-            
-            # Info text
+
             html.P([
                 html.I(className="bi bi-info-circle me-2"),
                 "Define relationships between two numerical parameters ",
                 "(e.g., T\u2081 \u2264 T\u2082 + offset or C\u2081 = C\u2082 + offset)."
             ], className="text-muted small mb-3"),
-            
-            # Linear constraints container
+
             html.Div(id="ineq-constraint-rows-container", children=[]),
-            
-            # Help text for linear constraints
+
             html.Div([
                 html.Small([
                     html.Strong("How it works: "),

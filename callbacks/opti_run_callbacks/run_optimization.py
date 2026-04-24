@@ -42,18 +42,18 @@ def _load_source_experiments(source_excel, param_names, obj_names, param_definit
     """
     source_path = os.path.join(EXCEL_FOLDER, source_excel)
     if not os.path.exists(source_path):
-        print(f"⚠️ TL: source file not found: {source_path}")
+        print(f"TL: source file not found: {source_path}")
         return None
 
     df, read_msg = safe_excel_read(source_path)
     if df is None:
-        print(f"⚠️ TL: could not read source file: {read_msg}")
+        print(f"TL: could not read source file: {read_msg}")
         return None
 
     valid_columns = param_names + obj_names
     missing = [c for c in valid_columns if c not in df.columns]
     if missing:
-        print(f"⚠️ TL: source campaign missing columns: {missing}")
+        print(f"TL: source campaign missing columns: {missing}")
         return None
 
     source = df[valid_columns].copy()
@@ -75,10 +75,10 @@ def _load_source_experiments(source_excel, param_names, obj_names, param_definit
     complete = source.dropna(subset=obj_names).copy()
 
     if len(complete) == 0:
-        print(f"⚠️ TL: no complete experiments in source campaign")
+        print(f"TL: no complete experiments in source campaign")
         return None
 
-    print(f"🔁 TL: loaded {len(complete)} source experiments from '{source_excel}'")
+    print(f"TL: loaded {len(complete)} source experiments from '{source_excel}'")
     return complete
 
 
@@ -126,7 +126,7 @@ def load_experiment_table(excel_file, pathname):
         if df is None:
             return html.Div(f"Error: {read_msg}"), read_msg, True, "danger"
         if "backup" in read_msg:
-            print(f"⚠️ {read_msg}")
+            print(f"{read_msg}")
 
         domain_data = DomainStorage.load_domain(excel_file)
         if not domain_data:
@@ -471,7 +471,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
     if not n_clicks:
         raise PreventUpdate
 
-    print("🚀 Starting Bayesian Optimization...")
+    print("Starting Bayesian Optimization...")
 
     try:
         # === SAFE AUTO-SAVE before running optimization ===
@@ -484,7 +484,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         )
         if not success:
             return no_update, f"❌ Auto-save failed: {save_msg}", True, "danger"
-        print(f"💾 Table auto-saved to {excel_file}")
+        print(f"Table auto-saved to {excel_file}")
 
         # Load domain
         domain_data = DomainStorage.load_domain(excel_file)
@@ -509,12 +509,12 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                 step_value = param_type_info.get('step', 0)
                 if step_value and step_value > 0:
                     discretization_config[param_name] = float(step_value)
-                    print(f"   🎯 '{param_name}' discretized (step={step_value})")
+                    print(f"'{param_name}' discretized (step={step_value})")
 
         if discretization_config:
-            print(f"🎯 Reconstructed discretization config: {discretization_config}")
+            print(f"Reconstructed discretization config: {discretization_config}")
         else:
-            print(f"ℹ️ No discretization for optimization (continuous parameters)")
+            print(f"No discretization for optimization (continuous parameters)")
 
         domain = create_bofire_domain_from_store(
             parameters,
@@ -530,7 +530,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         if df is None:
             return no_update, f"❌ {read_msg}", True, "danger"
         if "backup" in read_msg:
-            print(f"⚠️ {read_msg}")
+            print(f"{read_msg}")
 
         # Filter to domain columns
         valid_columns = param_names + obj_names
@@ -539,7 +539,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
             return no_update, f"❌ Missing columns: {missing_cols}", True, "danger"
 
         experiments = df[valid_columns].copy()
-        print(f"🔍 Filtered experiments to domain columns: {list(experiments.columns)}")
+        print(f"Filtered experiments to domain columns: {list(experiments.columns)}")
 
         param_definitions = {p['name']: p for p in parameters}
 
@@ -597,7 +597,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                 and oc.get('objective')
                 and oc.get('threshold') is not None):
             outcome_constraint = oc
-            print(f"🔒 Outcome constraint active: {oc['objective']} {oc['direction']} {oc['threshold']}")
+            print(f"Outcome constraint active: {oc['objective']} {oc['direction']} {oc['threshold']}")
 
         # ── Transfer Learning (SOBO only) ─────────────────────────────────
         tl_config         = advanced_settings.get('transfer_learning') or {}
@@ -607,18 +607,18 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
                 and tl_config.get('enabled')
                 and tl_config.get('source_campaign')):
             source_excel = tl_config['source_campaign']
-            print(f"🔁 Transfer Learning enabled — source: {source_excel}")
+            print(f"Transfer Learning enabled — source: {source_excel}")
 
             source_experiments = _load_source_experiments(
                 source_excel, param_names, obj_names, param_definitions
             )
 
             if source_experiments is None:
-                print("⚠️ TL: could not load source experiments — falling back to standard BO")
+                print("TL: could not load source experiments — falling back to standard BO")
             else:
-                print(f"🔁 TL: {len(source_experiments)} source + {len(experiments_complete)} target experiments")
+                print(f"TL: {len(source_experiments)} source + {len(experiments_complete)} target experiments")
 
-        print(f"🔧 Running {opt_type} | acq: {acq_func_name} | {n_suggestions} candidate(s)"
+        print(f"Running {opt_type} | acq: {acq_func_name} | {n_suggestions} candidate(s)"
               + (f" | TL from '{tl_config.get('source_campaign')}'" if source_experiments is not None else ""))
 
         new_candidates = bayesian_optimization(
@@ -631,10 +631,10 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
         )
 
         if new_candidates is None or (hasattr(new_candidates, 'empty') and new_candidates.empty):
-            print("❌ No candidates generated")
+            print("No candidates generated")
             return no_update, "❌ Optimization failed to generate candidates", True, "danger"
 
-        print(f"✅ Generated candidates:\n{new_candidates}")
+        print(f"Generated candidates:\n{new_candidates}")
 
         # ===== DYNAMIC BOILING POINT CONSTRAINT =====
         constraints_config = domain_data.get('metadata', {}).get('constraints_config')
@@ -649,7 +649,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
 
         all_adjustments = []
         if constraints_config and constraints_config.get('constraints') and solvent_param_name:
-            print(f"🔧 Checking dynamic constraints (solvent: {solvent_param_name})")
+            print(f"Checking dynamic constraints (solvent: {solvent_param_name})")
 
             adjusted_rows = []
             for idx, row in new_candidates.iterrows():
@@ -663,7 +663,7 @@ def run_bayesian_optimization(n_clicks, table_data, excel_file, advanced_setting
             new_candidates = pd.DataFrame(adjusted_rows)
 
             if all_adjustments:
-                print(f"⚠️ Applied {len(all_adjustments)} temperature adjustment(s)")
+                print(f"Applied {len(all_adjustments)} temperature adjustment(s)")
                 for adj in all_adjustments:
                     print(f"   {adj['parameter']}: {adj['original']}°C → {adj['adjusted']}°C "
                           f"(limited by {adj['solvent']} BP={adj['boiling_point']}°C)")

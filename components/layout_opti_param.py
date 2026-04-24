@@ -1,9 +1,12 @@
-import dash_bootstrap_components as dbc
-from dash import dcc, html
+"""Layout for the domain parameterization page."""
+
 import uuid
 
-from callbacks.opti_param_callbacks.solvents_callbacks import create_custom_solvent_form
+import dash_bootstrap_components as dbc
+from dash import dcc, html
+
 from callbacks.opti_param_callbacks.base_callbacks import create_custom_base_form
+from callbacks.opti_param_callbacks.solvents_callbacks import create_custom_solvent_form
 from components.constraints_card import create_constraints_card
 
 initial_id = str(uuid.uuid4())

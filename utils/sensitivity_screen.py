@@ -1,16 +1,15 @@
 """
-Sensitivity Screen Module
-Inspired by: Pitzer, Schäfers & Glorius, Angew. Chem. Int. Ed. 2019, 58, 8572-8576
-Updated per: Schäfer, Lückemeier & Glorius, Chem. Sci. 2024, 15, 14548-14555
+OFAT sensitivity screen around an optimum, rendered as a Glorius-style radar.
 
-Generates OFAT (One-Factor-At-A-Time) perturbation experiments around an optimum,
-then visualizes results as a Glorius-style color-coded radar diagram.
+References:
+    Pitzer, Schäfers & Glorius, Angew. Chem. Int. Ed. 2019, 58, 8572-8576
+    Schäfer, Lückemeier & Glorius, Chem. Sci. 2024, 15, 14548-14555
 
 Radar convention (faithful to Glorius):
-  - Center (+50%) = improvement over reference → ROBUST
-  - Edge (-100%)  = total loss of yield → SENSITIVE
-  - Concentric colored zones: blue (robust) → white (moderate) → orange/red (sensitive)
-  - Black polygon traces the actual yield deviations
+    - Center (+50%) = improvement over reference → robust
+    - Edge (-100%)  = total loss of yield        → sensitive
+    - Concentric colored zones: blue (robust) → white (moderate) → orange/red
+    - Black polygon traces the actual yield deviations
 """
 
 import numpy as np
@@ -18,33 +17,26 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
-# ============================================================================
-# COLOR SCHEME (traffic-light, matching Glorius style)
-# ============================================================================
-
 def _yield_to_color(ratio):
+    """Traffic-light RGBA fill for a yield ratio (unused publicly, kept for reuse)."""
     if ratio >= 0.90:
         return "rgba(16, 185, 129, 0.85)"
-    elif ratio >= 0.70:
+    if ratio >= 0.70:
         return "rgba(251, 191, 36, 0.85)"
-    else:
-        return "rgba(239, 68, 68, 0.85)"
+    return "rgba(239, 68, 68, 0.85)"
 
 
 def _sensitivity_label(ratio):
+    """Return a Robust / Moderate / Sensitive label for a yield ratio."""
     if ratio >= 0.90:
         return "Robust"
-    elif ratio >= 0.70:
+    if ratio >= 0.70:
         return "Moderate"
-    else:
-        return "Sensitive"
+    return "Sensitive"
 
-
-# ============================================================================
-# GLORIUS COLOR GRADIENT
-# ============================================================================
 
 def _glorius_gradient_bands():
+    """Concentric ``(radius, rgba)`` bands used to paint the radar background."""
     return [
         (150, "rgba(198, 80, 30, 1.0)"),
         (140, "rgba(212, 100, 42, 1.0)"),
@@ -64,14 +56,18 @@ def _glorius_gradient_bands():
     ]
 
 
-# ============================================================================
-# EXPERIMENT GENERATION
-# ============================================================================
-
 def generate_sensitivity_experiments(best_experiment: dict,
                                      parameters: list,
                                      objectives: list,
                                      variation_pct: float = 0.50) -> pd.DataFrame:
+    """
+    Build an OFAT perturbation batch around ``best_experiment``.
+
+    For every numeric parameter, two new rows are produced (``-variation_pct``
+    and ``+variation_pct`` relative to the reference), clipped to the
+    parameter bounds and snapped to the parameter step when available.
+    Categorical parameters are skipped.
+    """
     obj_names = [o['name'] for o in objectives]
     param_names = [p['name'] for p in parameters]
     rows = []
@@ -148,14 +144,17 @@ def generate_sensitivity_experiments(best_experiment: dict,
     return pd.DataFrame(rows)
 
 
-# ============================================================================
-# FIND BEST EXPERIMENT
-# ============================================================================
-
 def find_best_experiment(df: pd.DataFrame,
                          param_names: list,
                          obj_names: list,
                          objectives: list) -> dict:
+    """
+    Return the best row of ``df`` as a ``{param/obj: value}`` dict.
+
+    "Best" is determined by the first objective in ``obj_names`` and its
+    ``direction`` (``'min'`` or ``'max'``) looked up in ``objectives``. Rows
+    with NaN objective values are ignored.
+    """
     df_complete = df.copy()
     for obj in obj_names:
         if obj in df_complete.columns:
@@ -189,13 +188,15 @@ def find_best_experiment(df: pd.DataFrame,
     return result
 
 
-# ============================================================================
-# GLORIUS-STYLE RADAR DIAGRAM
-# ============================================================================
-
 def create_sensitivity_radar(sensitivity_df: pd.DataFrame,
-                              obj_name: str,
-                              reference_yield: float) -> go.Figure:
+                             obj_name: str,
+                             reference_yield: float) -> go.Figure:
+    """
+    Render a Glorius-style radar of sensitivity perturbations.
+
+    Each spoke is one ``(parameter, direction)`` pair. The black polygon
+    connects the relative deviation of ``obj_name`` from ``reference_yield``.
+    """
     if reference_yield is None or reference_yield == 0:
         fig = go.Figure()
         fig.update_layout(title="Cannot create radar: reference yield is 0 or missing")
