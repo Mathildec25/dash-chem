@@ -5,10 +5,11 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 from flask import send_from_directory
 
-# Callback modules must be imported before any `components.*` that depends
-# on them, to avoid a circular-import between layout_opti_param and
-# parameter_part. They are imported purely for their @callback side-effects.
+from components.sidebar import generate_sidebar
 from callbacks.app_callbacks import register_app_callbacks
+
+# Imported for their side-effects: each module registers its @callback handlers.
+from callbacks import advanced_bo_callbacks, sensitivity_callbacks  # noqa: F401
 from callbacks.opti_home_callbacks import already_created_callbacks, new_proj_callbacks  # noqa: F401
 from callbacks.opti_param_callbacks import (  # noqa: F401
     base_callbacks,
@@ -17,11 +18,8 @@ from callbacks.opti_param_callbacks import (  # noqa: F401
     parameter_part,
     solvents_callbacks,
 )
-from callbacks.opti_run_callbacks import online_analysis_callbacks, run_optimization  # noqa: F401
 from callbacks.opti_results_callbacks import results_analysis  # noqa: F401
-from callbacks import advanced_bo_callbacks, sensitivity_callbacks  # noqa: F401
-
-from components.sidebar import generate_sidebar
+from callbacks.opti_run_callbacks import online_analysis_callbacks, run_optimization  # noqa: F401
 
 
 app = dash.Dash(

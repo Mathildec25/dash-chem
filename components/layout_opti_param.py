@@ -5,54 +5,15 @@ import uuid
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
-from callbacks.opti_param_callbacks.base_callbacks import create_custom_base_form
-from callbacks.opti_param_callbacks.solvents_callbacks import create_custom_solvent_form
 from components.constraints_card import create_constraints_card
+from components.forms import (
+    create_custom_base_form,
+    create_custom_solvent_form,
+    make_objective_row,
+)
 
 initial_id = str(uuid.uuid4())
 initial_objective_id = str(uuid.uuid4())
-
-
-def _make_objective_row(row_id: str) -> html.Div:
-    return html.Div([
-        dbc.Row([
-            dbc.Col([
-                dbc.Input(
-                    id={'type': 'objective-name', 'index': row_id},
-                    placeholder="Objective name", size="sm",
-                    style={"borderRadius": "6px"})
-            ], width=4),
-            dbc.Col([
-                dcc.Dropdown(
-                    id={'type': 'objective-direction', 'index': row_id},
-                    options=[
-                        {"label": "Minimize", "value": "min"},
-                        {"label": "Maximize", "value": "max"},
-                    ],
-                    placeholder="Direction", clearable=False,
-                    style={"fontSize": "0.875rem"})
-            ], width=2),
-            dbc.Col([
-                dbc.Input(
-                    id={'type': 'objective-lower', 'index': row_id},
-                    placeholder="Min", type="number", step="any", size="sm",
-                    style={"borderRadius": "6px"})
-            ], width=2),
-            dbc.Col([
-                dbc.Input(
-                    id={'type': 'objective-upper', 'index': row_id},
-                    placeholder="Max", type="number", step="any", size="sm",
-                    style={"borderRadius": "6px"})
-            ], width=2),
-            dbc.Col([
-                dbc.Button(
-                    html.I(className="bi bi-trash", style={"fontSize": "0.875rem"}),
-                    id={'type': 'delete-objective', 'index': row_id},
-                    color="danger", outline=True, size="sm",
-                    style={"borderRadius": "6px", "padding": "0.25rem 0.5rem"})
-            ], width=2),
-        ], className="mb-1 align-items-center"),
-    ], id={'type': 'objective-row', 'index': row_id})
 
 
 def create_opti_param_layout():
@@ -285,7 +246,7 @@ def create_opti_param_layout():
                             ),
                         ], className="mb-3"),
                         html.Div(id="objective-container", children=[
-                            _make_objective_row(initial_objective_id)
+                            make_objective_row(initial_objective_id)
                         ]),
                     ], style={"padding": "1.25rem"})
                 ], style={

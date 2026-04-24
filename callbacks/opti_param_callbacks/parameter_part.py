@@ -8,7 +8,7 @@ from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import uuid
 
-from components.layout_opti_param import _make_objective_row
+from components.forms import make_objective_row
 # ===== PARAMETERS =====
 
 @callback(
@@ -201,7 +201,7 @@ def manage_objectives(add_clicks, delete_clicks, current_children):
         if not add_clicks:
             raise PreventUpdate
         new_id = str(uuid.uuid4())
-        return current_children + [_make_objective_row(new_id)]
+        return current_children + [make_objective_row(new_id)]
     
     elif isinstance(triggered, dict) and triggered.get('type') == 'delete-objective':
         # DELETE objective
