@@ -160,10 +160,14 @@ adapter off; the UI should still render identically.
 - **The exe is unsigned.** Windows SmartScreen and enterprise AppLocker /
   WDAC policies may block first-launch. Sign with a code-signing certificate
   before distributing to customers.
-- **`gurobipy` requires a commercial license.** It is listed in
-  `requirements.txt` because BoFire can optionally use it as a solver, but
-  any code path that hits Gurobi without a valid license file will raise.
-  The build itself does not bundle a license.
+- **`gurobipy` is intentionally excluded from the bundle.** Our optimization
+  paths (`SoboStrategy` / `MoboStrategy` / `RandomStrategy` plus the direct
+  BoTorch bypasses in `utils/bofire_optimization.py`) never select Gurobi.
+  CVXPY probes for it inside `try/except ImportError` blocks and transparently
+  falls through to CLARABEL / OSQP / SCS / SCIPY (all of which we bundle).
+  The exclude makes that contract explicit and prevents a dev machine that
+  happens to have Gurobi installed from accidentally shipping the DLL — which
+  would otherwise raise opaque license errors on end-user machines.
 - **First launch is slow** (a few seconds) while PyInstaller's bootloader
   unpacks the bundle to a temp directory and Python imports torch + bofire.
 - **AV false positives.** Unsigned PyInstaller bundles occasionally trip

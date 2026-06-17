@@ -109,7 +109,15 @@ datas += [
 ]
 
 # Dev-only / unused at runtime — strip to cut bundle size.
+# gurobipy is excluded because it is a commercial solver that needs a license
+# at runtime. Our optimization paths (SoboStrategy / MoboStrategy / RandomStrategy
+# plus direct BoTorch bypasses) never select it; CVXPY probes for it via
+# try/except ImportError and falls through to CLARABEL / OSQP / SCS / SCIPY.
+# Bundling it would either tempt PyInstaller to ship a 100+MB DLL on dev
+# machines that happen to have a license, or raise opaque license errors at
+# runtime on end-user machines.
 EXCLUDES = [
+    "gurobipy",
     "jupyter",
     "jupyterlab",
     "jupyter_server",
