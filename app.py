@@ -1,7 +1,7 @@
 import os
+import sys
 
 import dash
-import dash_bootstrap_components as dbc
 from dash import dcc, html
 from flask import send_from_directory
 
@@ -22,10 +22,27 @@ from callbacks.opti_results_callbacks import results_analysis  # noqa: F401
 from callbacks.opti_run_callbacks import online_analysis_callbacks, run_optimization  # noqa: F401
 
 
+def resource_path(relative_path: str) -> str:
+    """Resolve a bundled resource path, both for source runs and PyInstaller builds.
+
+    When frozen, PyInstaller unpacks data files under ``sys._MEIPASS``. In source
+    mode we resolve relative to this file so the working directory does not matter.
+    """
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative_path)
+
+
+ASSETS_FOLDER = resource_path("assets")
+PAGES_FOLDER = resource_path("pages")
+KETCHER_FOLDER = resource_path(os.path.join("public", "ketcher"))
+
+
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.icons.BOOTSTRAP],
     use_pages=True,
+    pages_folder=PAGES_FOLDER,
+    assets_folder=ASSETS_FOLDER,
+    serve_locally=True,
     suppress_callback_exceptions=True,
 )
 server = app.server
@@ -33,7 +50,7 @@ server = app.server
 
 @server.route("/ketcher/<path:filename>")
 def serve_ketcher(filename):
-    return send_from_directory(os.path.join("public", "ketcher"), filename)
+    return send_from_directory(KETCHER_FOLDER, filename)
 
 
 sidebar = generate_sidebar()
