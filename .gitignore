@@ -21,3 +21,11 @@ results.xlsx
 data/domains/*.json
 
 .backups/
+
+# PyInstaller build artifacts
+dist/
+build/
+*.spec
+!reacto.spec
+exe_run.log
+build.log
