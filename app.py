@@ -3,7 +3,6 @@ import sys
 
 import dash
 from dash import dcc, html
-from flask import send_from_directory
 
 from components.sidebar import generate_sidebar
 from callbacks.app_callbacks import register_app_callbacks
@@ -34,7 +33,6 @@ def resource_path(relative_path: str) -> str:
 
 ASSETS_FOLDER = resource_path("assets")
 PAGES_FOLDER = resource_path("pages")
-KETCHER_FOLDER = resource_path(os.path.join("public", "ketcher"))
 
 
 app = dash.Dash(
@@ -46,11 +44,6 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
 )
 server = app.server
-
-
-@server.route("/ketcher/<path:filename>")
-def serve_ketcher(filename):
-    return send_from_directory(KETCHER_FOLDER, filename)
 
 
 sidebar = generate_sidebar()

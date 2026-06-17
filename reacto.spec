@@ -94,10 +94,10 @@ for pkg_name in ("callbacks", "components", "utils"):
     hiddenimports += _enumerate_local_submodules(pkg_name, pkg_name)
 
 # Repo-level data: assets/, pages/, components/, callbacks/, utils/, the
-# optional public/ketcher tree, the auto-generated descriptor modules, and the
-# loose .py files referenced indirectly. The local-package directories are
-# bundled as data too so importlib can resolve them from disk even if a
-# submodule slipped through hiddenimports.
+# auto-generated descriptor modules, and the loose .py files referenced
+# indirectly. The local-package directories are bundled as data too so
+# importlib can resolve them from disk even if a submodule slipped through
+# hiddenimports.
 datas += [
     ("assets", "assets"),
     ("pages", "pages"),
@@ -107,12 +107,6 @@ datas += [
     ("bofire_solvent_descriptors.py", "."),
     ("bofire_base_descriptors.py", "."),
 ]
-
-# The Ketcher static tree is optional — only bundle it if it actually exists.
-import os
-_KETCHER_DIR = os.path.join("public", "ketcher")
-if os.path.isdir(_KETCHER_DIR):
-    datas.append((_KETCHER_DIR, "public/ketcher"))
 
 # Dev-only / unused at runtime — strip to cut bundle size.
 EXCLUDES = [

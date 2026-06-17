@@ -51,8 +51,7 @@ def resource_path(relative_path: str) -> str:
 ```
 
 …and passes `assets_folder=resource_path("assets")` and
-`pages_folder=resource_path("pages")` explicitly to `dash.Dash(...)`. The
-`/ketcher/<path>` route uses the same helper.
+`pages_folder=resource_path("pages")` explicitly to `dash.Dash(...)`.
 
 ## Network audit
 
@@ -161,10 +160,6 @@ adapter off; the UI should still render identically.
 - **The exe is unsigned.** Windows SmartScreen and enterprise AppLocker /
   WDAC policies may block first-launch. Sign with a code-signing certificate
   before distributing to customers.
-- **`public/ketcher` is not bundled in this repo.** The `/ketcher/<filename>`
-  Flask route still works — it just returns 404 for everything unless the
-  user adds a `public/ketcher` directory to the source tree before building.
-  The spec only adds that directory to the bundle if it exists at build time.
 - **`gurobipy` requires a commercial license.** It is listed in
   `requirements.txt` because BoFire can optionally use it as a solver, but
   any code path that hits Gurobi without a valid license file will raise.
