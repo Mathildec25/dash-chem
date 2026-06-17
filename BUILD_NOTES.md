@@ -155,6 +155,51 @@ After the build, the running exe was probed with a vanilla `urllib` client
 To verify with an actually-disabled NIC, run the exe with the network
 adapter off; the UI should still render identically.
 
+## Runtime prerequisites on the end-user machine
+
+The bundled exe still depends on two Windows components that are NOT shipped
+inside the bundle (both are Microsoft-licensed; we cannot redistribute them):
+
+1. **Microsoft Edge WebView2 Runtime (Evergreen).** The render engine the
+   pywebview window embeds. Pre-installed on every Windows 11 box and on most
+   Windows 10 boxes updated since 2021, but absent on freshly-imaged machines
+   and on Windows Server.
+   Download (free, Microsoft-signed) — pick the
+   "Evergreen Standalone Installer" for x64:
+   https://developer.microsoft.com/microsoft-edge/webview2/
+2. **.NET Framework 4.7.2 or later.** pywebview's Windows backend hosts the
+   WebView2 control via WinForms through pythonnet, which needs .NET
+   Framework to load `Python.Runtime.dll`. Ships with every in-support build
+   of Windows 10 / 11; only missing on stripped-down Server SKUs or very old
+   N-series localizations.
+   Download (free, Microsoft-signed):
+   https://dotnet.microsoft.com/download/dotnet-framework
+
+If either component is missing, [desktop.py](desktop.py) detects the
+failure (pywebview raises `WebViewException`, pythonnet raises a generic
+`Exception` with `Failed to resolve Python.Runtime.Loader.Initialize` in
+the message) and shows a native Win32 messagebox with the download links
+above, rather than crashing with a Python traceback the user cannot
+interpret.
+
+`desktop.py` also pins `PYTHONNET_RUNTIME=netfx` before importing
+pywebview. pywebview's `winforms.py` otherwise falls back to `coreclr`
+on any first-attempt `import clr` failure, and the coreclr fallback
+needs a `Python.Runtime.runtimeconfig.json` we do not ship — which is
+exactly the cryptic
+`Failed to resolve Python.Runtime.Loader.Initialize from
+_internal\pythonnet\runtime\Python.Runtime.dll`
+that originally surfaced this issue on a customer machine. Pinning
+to netfx keeps us on a runtime path that works on every supported
+Windows build out of the box.
+
+We also pass `gui="edgechromium"` to `webview.start(...)` even though
+pywebview 6.x on Windows always dispatches through the WinForms
+backend regardless of `gui=`. The WinForms backend internally picks
+WebView2 (Edge Chromium) when the runtime is present and falls back
+to MSHTML when it isn't — passing `edgechromium` documents intent and
+follows pywebview's typed API.
+
 ## Known limitations
 
 - **The exe is unsigned.** Windows SmartScreen and enterprise AppLocker /

@@ -60,6 +60,16 @@ HEAVY_PACKAGES = [
     "joblib",
     "threadpoolctl",
     "flask",
+    # pywebview's Windows backend requires pythonnet (CLR loader). Both render
+    # engines on Windows — WebView2 (edgechromium) and the legacy MSHTML — go
+    # through webview/platforms/winforms.py and edgechromium.py, both of which
+    # `import clr` at module-load time. We collect_all so Python.Runtime.dll
+    # and all the .NET dependency assemblies in pythonnet/runtime/ ship in the
+    # bundle. clr_loader carries the native ClrLoader.dll that hosts .NET
+    # Framework from CPython.
+    "pythonnet",
+    "clr_loader",
+    "webview",
     # CVXPY solver stack — OSQP/clarabel/scs each ship native algebra
     # backends as .pyd extension modules that PyInstaller misses without
     # collect_all. Without these, cvxpy logs
