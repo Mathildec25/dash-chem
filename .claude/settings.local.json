@@ -3,7 +3,13 @@
     "allow": [
       "Bash(python -c \"import ast; ast.parse\\(open\\('utils/bofire_domain.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK: parses'\\)\")",
       "Bash(python -c ' *)",
-      "Bash(python -)"
+      "Bash(python -)",
+      "Bash(env/Scripts/python.exe -c \"import pyinstaller\")",
+      "Bash(env/Scripts/python.exe -c \"import webview; print\\('pywebview', webview.__version__\\)\")",
+      "Bash(env/Scripts/pip.exe show *)",
+      "Bash(env/Scripts/pip.exe install *)",
+      "Bash(env/Scripts/pyinstaller.exe --noconfirm --clean reacto.spec)",
+      "Bash(tee build.log)"
     ]
   }
 }
