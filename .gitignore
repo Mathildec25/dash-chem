@@ -21,3 +21,5 @@ results.xlsx
 data/domains/*.json
 
 .backups/
+# Benchmark grids are versioned inputs, not experiment exports: keep them.
+!hitl_bench/data/*.csv
