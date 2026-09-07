@@ -23,3 +23,6 @@ data/domains/*.json
 .backups/
 # Benchmark grids are versioned inputs, not experiment exports: keep them.
 !hitl_bench/data/*.csv
+
+# Campaign logs are raw study data, kept out of git.
+hitl_bench/results/
