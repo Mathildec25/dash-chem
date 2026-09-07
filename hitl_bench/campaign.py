@@ -20,6 +20,7 @@ import torch
 
 from hitl_bench import metrics
 from hitl_bench.benchmark import OBJECTIVES, PARAMETER_KEYS, VALID_KEYS
+from hitl_bench.runtime import limit_acquisition_memory
 from utils.bofire_optimization import bayesian_optimization, sampling
 
 # --- frozen protocol -------------------------------------------------------
@@ -52,6 +53,10 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
     if arm != ARM_NO_HITL:
         raise NotImplementedError(
             "arm %r is not implemented yet; only %r is" % (arm, ARM_NO_HITL))
+
+    # Keeps the acquisition step under a gigabyte. A batching detail, not a
+    # change of algorithm; see hitl_bench/runtime.py.
+    limit_acquisition_memory()
 
     torch.manual_seed(seed)
     started = time.time()

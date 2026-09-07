@@ -101,26 +101,20 @@ Measured on the owner's laptop (AMD Ryzen 7 8840HS, 8 physical cores, 13.8 GB):
 |---|---|
 | one BO iteration | 10-25 s, rising through a campaign as the model sees more data |
 | one campaign, 40 experiments | roughly 10 minutes |
-| **peak memory per campaign process** | **about 2.3 GB** |
+| **peak memory per campaign process** | **about 0.6 GB** |
 
-The memory figure is the binding constraint, and it is a plateau, not a leak:
-about 1.9 GB on the first acquisition call and 2.3 GB from then on, whatever the
-number of experiments. It is the cost of evaluating `qLogNEHVI` with its 512
-Monte Carlo samples over 5670 candidates. Capping BoTorch's `max_batch_size`
-does not reduce it.
-
-So `--workers` is limited by free memory, not by cores:
-
-| Free RAM | Safe workers | 320 campaigns |
-|---|---|---|
-| ~5 GB, the usual state with a browser and an editor open | 1 | about 55 h |
-| ~11 GB, browser and editor closed | 4 | about 14 h |
-
-Two campaigns at once need roughly 5 GB and will be killed on a machine that
-only has 5.5 GB free, which is what happens with the usual desktop open. Check
-free memory before launching a long run, and prefer a machine with more RAM for
-the 20-seed production runs.
+Memory used to be the binding constraint here, at about 1.5 GB for a single
+acquisition step and enough to get runs killed on a laptop with a browser open.
+`hitl_bench/runtime.py` caps how many candidates BoTorch scores at once, which
+brings the peak down to under 600 MB at no cost in time and with an identical
+campaign trajectory. It is a batching detail, not a change of algorithm.
 
 Lowering `n_mc_samples` on the acquisition function would cut the memory
-several-fold, but it changes the algorithm and would no longer match what a
-real REACTO campaign does, so it is not done here.
+further, but that *would* change the algorithm and would no longer match what a
+real REACTO campaign does, so it is not done.
+
+`--workers 1` is the default and runs the campaigns in the calling process; a
+pool would otherwise hold a second interpreter with torch and BoFire loaded.
+Check free memory before a long series: browsers are the usual culprit, and
+Chrome alone was holding 4.9 GB of this machine's 13.8 GB while the first runs
+were being killed.
