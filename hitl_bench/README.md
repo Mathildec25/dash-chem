@@ -92,3 +92,35 @@ Interpretable, and specific to this study:
   away. On case ii the whole global front sits on L4 (PCy3) while the optimiser
   tends to settle on L0 (XPhos), so this single number says whether a campaign
   escaped the trap.
+
+## Cost, and the memory ceiling
+
+Measured on the owner's laptop (AMD Ryzen 7 8840HS, 8 physical cores, 13.8 GB):
+
+| | |
+|---|---|
+| one BO iteration | 10-25 s, rising through a campaign as the model sees more data |
+| one campaign, 40 experiments | roughly 10 minutes |
+| **peak memory per campaign process** | **about 2.3 GB** |
+
+The memory figure is the binding constraint, and it is a plateau, not a leak:
+about 1.9 GB on the first acquisition call and 2.3 GB from then on, whatever the
+number of experiments. It is the cost of evaluating `qLogNEHVI` with its 512
+Monte Carlo samples over 5670 candidates. Capping BoTorch's `max_batch_size`
+does not reduce it.
+
+So `--workers` is limited by free memory, not by cores:
+
+| Free RAM | Safe workers | 320 campaigns |
+|---|---|---|
+| ~5 GB, the usual state with a browser and an editor open | 1 | about 55 h |
+| ~11 GB, browser and editor closed | 4 | about 14 h |
+
+Two campaigns at once need roughly 5 GB and will be killed on a machine that
+only has 5.5 GB free, which is what happens with the usual desktop open. Check
+free memory before launching a long run, and prefer a machine with more RAM for
+the 20-seed production runs.
+
+Lowering `n_mc_samples` on the acquisition function would cut the memory
+several-fold, but it changes the algorithm and would no longer match what a
+real REACTO campaign does, so it is not done here.
