@@ -27,7 +27,8 @@ _tkwargs = {
 }
 
 
-def sampling(domain, sampling_method: str, nb_points: int, constraints_config: dict = None):
+def sampling(domain, sampling_method: str, nb_points: int, constraints_config: dict = None,
+             seed: int = None):
     """
     Run a sampling method for a given domain.
     Falls back to manual enumeration + random selection for fully discrete
@@ -39,6 +40,10 @@ def sampling(domain, sampling_method: str, nb_points: int, constraints_config: d
         sampling_method (str): Name of SamplingMethodEnum (e.g., 'LHS', 'UNIFORM', 'SOBOL').
         nb_points (int): Number of points to sample.
         constraints_config (dict): Constraints config from Dash store (optional).
+        seed (int): Seed for a reproducible draw. None keeps the previous
+            behaviour, an unseeded draw. Note that torch.manual_seed() alone
+            does NOT make this reproducible: BoFire's RandomStrategy carries
+            its own generator, so the seed has to be handed to it explicitly.
 
     Returns:
         pd.DataFrame: Sampled points (feasible w.r.t. constraints_config).
@@ -70,7 +75,8 @@ def sampling(domain, sampling_method: str, nb_points: int, constraints_config: d
         oversample_factor = 5
         n_request = nb_points * oversample_factor
         print(f"ℹ️ Oversampling {n_request} points before constraint filtering ({sampling_method})")
-        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum)
+        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum,
+                                   **({} if seed is None else {'seed': seed}))
         sampler = strategies.map(datamodel)
         df_raw = sampler.ask(n_request)
 
@@ -89,13 +95,16 @@ def sampling(domain, sampling_method: str, nb_points: int, constraints_config: d
 
         # Random selection from feasible pool (preserves LHS spirit at population level)
         import random
+        if seed is not None:
+            random.seed(seed)
         selected = random.sample(feasible, nb_points)
         feature_keys = [f.key for f in domain.inputs.features]
         return pd.DataFrame(selected)[feature_keys]
 
     else:
         # No custom constraints — standard path
-        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum)
+        datamodel = RandomStrategy(domain=domain, fallback_sampling_method=method_enum,
+                                   **({} if seed is None else {'seed': seed}))
         sampler = strategies.map(datamodel)
         return sampler.ask(nb_points)
 
