@@ -513,7 +513,12 @@ def _build_fixed_features_list(col_info):
 # CONSTRAINED MOBO — MAIN BOTORCH BYPASS
 # =============================================================================
 
-def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidates=1):
+def _silent(*args, **kwargs):
+    """Drop-in replacement for print() when diagnostics are switched off."""
+    pass
+
+
+def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidates=1, verbose=True):
     """
     Constrained MOBO via direct BoTorch bypass.
 
@@ -539,6 +544,13 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
     Returns:
         pd.DataFrame with suggested parameter values (one row per candidate)
     """
+    # `verbose` gates diagnostic output only; it changes no computation and
+    # no result. It defaults to True so the Dash app behaves exactly as it
+    # always has. The benchmark harness passes False: it calls this function
+    # thousands of times, and the debug blocks below would otherwise bury a
+    # real error under roughly a million lines of output.
+    log = print if verbose else _silent
+
     from botorch import fit_gpytorch_mll
     from botorch.exceptions import BadInitialCandidatesWarning
     from botorch.models.gp_regression import SingleTaskGP
@@ -555,15 +567,15 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
     warnings.filterwarnings("ignore", category=BadInitialCandidatesWarning)
     warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-    print("🔒 Constrained MOBO (BoTorch bypass) — starting…")
+    log("🔒 Constrained MOBO (BoTorch bypass) — starting…")
 
     # ── 1. Parse constraint config ────────────────────────────────────────
     con_obj_name  = outcome_constraint['objective']
     con_direction = outcome_constraint['direction']   # '>=' or '<='
     con_threshold = float(outcome_constraint['threshold'])
 
-    print(f"   Constraint : {con_obj_name} {con_direction} {con_threshold}")
-    print(f"   Convention : c(x) <= 0 is feasible (BoTorch)")
+    log(f"   Constraint : {con_obj_name} {con_direction} {con_threshold}")
+    log(f"   Convention : c(x) <= 0 is feasible (BoTorch)")
 
     # ── 2. Build encoding metadata ────────────────────────────────────────
     col_info = _build_encoding_metadata(domain)
@@ -601,7 +613,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
     # the upper bound (worst acceptable value for a minimised objective).
     is_feas    = (train_con <= 0).squeeze(-1)
     n_feasible = is_feas.sum().item()
-    print(f"   Feasible points: {n_feasible}/{len(experiments)}")
+    log(f"   Feasible points: {n_feasible}/{len(experiments)}")
 
     ref_vals = []
     for feat in obj_feats:
@@ -612,7 +624,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
             # maximise → ref = lower_bound
             ref_vals.append(float(feat.objective.lower_bound))
     ref_point = ref_vals
-    print(f"   Ref point (from domain bounds): {[f'{v:.4f}' for v in ref_point]}")
+    log(f"   Ref point (from domain bounds): {[f'{v:.4f}' for v in ref_point]}")
 
     # ── 7. ModelListGP: [GP_obj1, …, GP_objN, GP_constraint] ─────────────
     train_y = torch.cat([train_obj, train_con], dim=-1)     # (n, n_obj+1)
@@ -622,7 +634,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
     ])
     mll = SumMarginalLogLikelihood(model.likelihood, model)
     fit_gpytorch_mll(mll)
-    print("   ✅ ModelListGP fitted")
+    log("   ✅ ModelListGP fitted")
 
     # ── 8. Acquisition function with outcome constraint ───────────────────
     sampler         = SobolQMCNormalSampler(sample_shape=torch.Size([128]))
@@ -644,7 +656,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
     fixed_features_list = _build_fixed_features_list(col_info)
 
     if fixed_features_list:
-        print(f"   Using optimize_acqf_mixed "
+        log(f"   Using optimize_acqf_mixed "
               f"({len(fixed_features_list)} categorical combinations)")
         candidates, _ = optimize_acqf_mixed(
             acq_function        = acq,
@@ -656,7 +668,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
             options             = {"batch_limit": 5, "maxiter": 200},
         )
     else:
-        print("   Using optimize_acqf (no categorical features)")
+        log("   Using optimize_acqf (no categorical features)")
         candidates, _ = optimize_acqf(
             acq_function = acq,
             bounds       = standard_bounds,
@@ -671,7 +683,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
         x_1d    = candidates[i].detach() if candidates.dim() > 1 else candidates.squeeze(0).detach()
         decoded = _decode_candidate(x_1d, col_info)
         results.append(decoded)
-        print(f"   ✅ Candidate {i + 1}: {decoded}")
+        log(f"   ✅ Candidate {i + 1}: {decoded}")
 
     return pd.DataFrame(results)
 
@@ -681,7 +693,8 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
 # =============================================================================
 
 def bayesian_optimization(domain, experiments, n_candidates=1,
-                           acquisition_function=None, outcome_constraint=None):
+                           acquisition_function=None, outcome_constraint=None,
+                           verbose=True):
     """
     Run Bayesian optimization using the appropriate strategy based on the number of objectives.
     
@@ -701,6 +714,13 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
     Returns:
         DataFrame with suggested candidates
     """
+    # `verbose` gates diagnostic output only; it changes no computation and
+    # no result. It defaults to True so the Dash app behaves exactly as it
+    # always has. The benchmark harness passes False: it calls this function
+    # thousands of times, and the debug blocks below would otherwise bury a
+    # real error under roughly a million lines of output.
+    log = print if verbose else _silent
+
     
     # Determine number of objectives
     n_obj = len(domain.outputs.features)
@@ -716,9 +736,9 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
                 and outcome_constraint.get('enabled')
                 and outcome_constraint.get('objective')
                 and outcome_constraint.get('threshold') is not None):
-            print(f"🔒 Outcome constraint detected — routing to constrained_mobo_botorch()")
+            log(f"🔒 Outcome constraint detected — routing to constrained_mobo_botorch()")
             return constrained_mobo_botorch(
-                domain, experiments, outcome_constraint, n_candidates
+                domain, experiments, outcome_constraint, n_candidates, verbose=verbose
             )
         # Standard MOBO via BoFire
         acq_func = acquisition_function if acquisition_function is not None else qLogNEHVI()
@@ -730,24 +750,24 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
     strat = strategies.map(data_model)
     
     # ===== DEBUGGING =====
-    print("🔍 DEBUG - Domain features:")
+    log("🔍 DEBUG - Domain features:")
     for feat in domain.inputs.features:
-        print(f"   - {feat.key}: {type(feat).__name__}")
+        log(f"   - {feat.key}: {type(feat).__name__}")
         if hasattr(feat, 'categories'):
-            print(f"     Categories: {feat.categories}")
+            log(f"     Categories: {feat.categories}")
         if hasattr(feat, 'descriptors'):
-            print(f"     Descriptors: {feat.descriptors}")
-            print(f"     Values: {feat.values}")
+            log(f"     Descriptors: {feat.descriptors}")
+            log(f"     Values: {feat.values}")
     
-    print("🔍 DEBUG - Experiments DataFrame:")
-    print(experiments)
-    print("\n🔍 DEBUG - Unique values per column:")
+    log("🔍 DEBUG - Experiments DataFrame:")
+    log(experiments)
+    log("\n🔍 DEBUG - Unique values per column:")
     for col in experiments.columns:
         unique_vals = experiments[col].unique()
-        print(f"   - {col}: {len(unique_vals)} unique values → {list(unique_vals)[:5]}")
+        log(f"   - {col}: {len(unique_vals)} unique values → {list(unique_vals)[:5]}")
     
     # ===== CHECK ENCODING TRANSFORMATION =====
-    print("\n🔍 DEBUG - Checking data transformation:")
+    log("\n🔍 DEBUG - Checking data transformation:")
     
     from bofire.data_models.enum import CategoricalEncodingEnum
     
@@ -756,7 +776,7 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
     for feat in domain.inputs.features:
         if hasattr(feat, 'descriptors') and feat.descriptors:  # CategoricalDescriptorInput
             specs[feat.key] = CategoricalEncodingEnum.DESCRIPTOR
-            print(f"   Setting {feat.key} encoding to DESCRIPTOR")
+            log(f"   Setting {feat.key} encoding to DESCRIPTOR")
     
     # Get parameter names (exclude objectives)
     param_names = [feat.key for feat in domain.inputs.features]
@@ -765,19 +785,19 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
     if specs:
         try:
             X_transformed = domain.inputs.transform(experiments[param_names], specs=specs)
-            print(f"   Transformed columns: {list(X_transformed.columns)}")
-            print(f"   Transformed shape: {X_transformed.shape}")
-            print(f"   Transformed dtypes:\n{X_transformed.dtypes}")
-            print(f"   First few rows:\n{X_transformed.head()}")
+            log(f"   Transformed columns: {list(X_transformed.columns)}")
+            log(f"   Transformed shape: {X_transformed.shape}")
+            log(f"   Transformed dtypes:\n{X_transformed.dtypes}")
+            log(f"   First few rows:\n{X_transformed.head()}")
             
             # Check for cardinality issues
             for col in X_transformed.columns:
                 n_unique = X_transformed[col].nunique()
-                print(f"   Column '{col}': {n_unique} unique values")
+                log(f"   Column '{col}': {n_unique} unique values")
                 if n_unique == 1:
-                    print(f"   ⚠️ WARNING: Column '{col}' has only 1 unique value!")
+                    log(f"   ⚠️ WARNING: Column '{col}' has only 1 unique value!")
         except Exception as e:
-            print(f"   ⚠️ Error during transformation test: {e}")
+            log(f"   ⚠️ Error during transformation test: {e}")
     
     # ===== END DEBUGGING =====
     
@@ -788,9 +808,9 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
     # Inspect the underlying BoTorch model
 
     if hasattr(strat, 'model'):
-        print("🔍 Model type:", type(strat.model))
-        print("🔍 Input transform:", getattr(strat.model, 'input_transform', 'NONE'))
-        print("🔍 Outcome transform:", getattr(strat.model, 'outcome_transform', 'NONE'))
+        log("🔍 Model type:", type(strat.model))
+        log("🔍 Input transform:", getattr(strat.model, 'input_transform', 'NONE'))
+        log("🔍 Outcome transform:", getattr(strat.model, 'outcome_transform', 'NONE'))
     
     # Ask for next candidates
     return strat.ask(candidate_count=n_candidates)
