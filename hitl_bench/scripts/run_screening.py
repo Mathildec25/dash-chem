@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 # --- configuration ---------------------------------------------------------
 DEFAULT_CASE = "ii"
 DEFAULT_SEEDS = 5
-DEFAULT_WORKERS = 4
+DEFAULT_WORKERS = 1
 # BLAS threads per worker. The acquisition step is the cost here and it does
 # not parallelise well, so more workers beats more threads per worker.
 THREADS_PER_WORKER = 2
@@ -66,7 +66,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", default=DEFAULT_CASE, help="suzuki case: i, ii, iii or iv")
     parser.add_argument("--seeds", type=int, default=DEFAULT_SEEDS, help="run seeds 1..N")
-    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
+                        help="1 runs in this process, which is the frugal option")
+    parser.add_argument("--start-seed", type=int, default=1,
+                        help="first seed, to resume a series that was interrupted")
     parser.add_argument("--overwrite", action="store_true", help="replace existing logs")
     args = parser.parse_args()
 
@@ -75,11 +78,20 @@ def main():
     print(benchmark, flush=True)
     print("running seeds 1..%d on %d workers\n" % (args.seeds, args.workers), flush=True)
 
-    jobs = [(args.case, seed, args.overwrite) for seed in range(1, args.seeds + 1)]
+    seeds = range(args.start_seed, args.start_seed + args.seeds)
+    jobs = [(args.case, seed, args.overwrite) for seed in seeds]
     started = time.time()
     results = []
-    with ProcessPoolExecutor(max_workers=args.workers) as pool:
-        for result in pool.map(run_one, jobs):
+    # With one worker we run in this very process. A ProcessPoolExecutor would
+    # otherwise hold a second interpreter with torch and BoFire loaded, and on
+    # a memory-tight machine that second copy is what gets the run killed.
+    if args.workers == 1:
+        outcomes = (run_one(job) for job in jobs)
+    else:
+        pool = ProcessPoolExecutor(max_workers=args.workers)
+        outcomes = pool.map(run_one, jobs)
+    try:
+        for result in outcomes:
             results.append(result)
             print("seed %2d done in %4.1f min | AUC %.3f | HV final %.3f (%.1f%% of global) "
                   "| IGD+ %.3f | BO on front ligand: %s"
@@ -87,6 +99,9 @@ def main():
                      result["hv_final_fraction"] * benchmark.max_hypervolume,
                      result["hv_final_fraction"] * 100.0, result["igd_plus_final"],
                      "yes" if result["bo_chose_a_front_ligand"] else "NO"), flush=True)
+    finally:
+        if args.workers != 1:
+            pool.shutdown()
 
     print("\n%d campaigns in %.1f min" % (len(results), (time.time() - started) / 60.0))
     fractions = sorted(r["hv_final_fraction"] * 100.0 for r in results)
