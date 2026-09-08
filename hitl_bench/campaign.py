@@ -94,6 +94,7 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
             benchmark.domain, experiments, n_candidates=BATCH_SIZE, verbose=False,
         ).iloc[0]
         evaluated = benchmark.evaluate(candidate)
+        belief = _model_belief(candidate, evaluated)
         experiments = pd.concat(
             [experiments, pd.DataFrame([evaluated], columns=EXPERIMENT_COLUMNS)],
             ignore_index=True,
@@ -110,6 +111,7 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
             **{key: float(evaluated[key]) for key in OBJECTIVES},
             "hypervolume": hv_curve[-1],
             "igd_plus": igd_curve[-1],
+            "model": belief,
         }
         records.append(record)
         if progress:
@@ -188,6 +190,39 @@ def _summarise(benchmark, records, hv_curve, igd_curve, n_init):
             for ligand in sorted({r["ligand"] for r in records})
         },
     }
+
+
+def _model_belief(candidate, evaluated):
+    """What the surrogate expected of the point it just proposed.
+
+    BoFire returns, for every objective, `<key>_pred` (the posterior mean at
+    the proposed point), `<key>_sd` (its standard deviation) and `<key>_des`
+    (the desirability). Recording them turns the choice of a stall detector
+    into an offline question: candidate signals can then be screened on saved
+    campaigns instead of requiring a fresh run each time.
+
+    `surprise` is the standardised residual, how far reality fell from the
+    model's expectation in units of its own uncertainty. A model that keeps
+    promising more than it delivers is the signature we are looking for, and
+    it is exactly what the realised hypervolume curve cannot show: a campaign
+    that has genuinely converged stops promising, a trapped one does not.
+    """
+    belief = {}
+    for objective in OBJECTIVES:
+        predicted = candidate.get("%s_pred" % objective)
+        deviation = candidate.get("%s_sd" % objective)
+        desirability = candidate.get("%s_des" % objective)
+        predicted = None if predicted is None else float(predicted)
+        deviation = None if deviation is None else float(deviation)
+        belief["%s_pred" % objective] = predicted
+        belief["%s_sd" % objective] = deviation
+        belief["%s_des" % objective] = None if desirability is None else float(desirability)
+        if predicted is not None and deviation:
+            belief["%s_surprise" % objective] = (
+                float(evaluated[objective]) - predicted) / deviation
+        else:
+            belief["%s_surprise" % objective] = None
+    return belief
 
 
 def _plain(value):
