@@ -26,3 +26,6 @@ data/domains/*.json
 
 # Campaign logs are raw study data, kept out of git.
 hitl_bench/results/
+
+# Figures are derived from the logs, regenerate with scripts/plot_triggers.py
+hitl_bench/figures/
