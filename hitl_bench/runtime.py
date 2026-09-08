@@ -23,8 +23,12 @@ which would change the algorithm and no longer match a real REACTO campaign.
 
 import functools
 
-# Candidates scored per batch. 128 keeps a campaign comfortably under a
-# gigabyte with no measurable time cost.
+# Candidates scored per batch. 128 keeps a campaign comfortably under a gigabyte
+# with no measurable time cost. It is part of the reproducibility contract, not
+# only a memory setting: a single acquisition step gives the same candidate at
+# 2048, 512 and 128, but over thirty chained steps a difference in the last
+# digits is enough to send a campaign down another path. Change it and the saved
+# campaigns no longer reproduce.
 ACQF_MAX_BATCH_SIZE = 128
 
 # Threads used by the linear algebra libraries. This is not a performance
@@ -34,12 +38,19 @@ ACQF_MAX_BATCH_SIZE = 128
 # candidates, two of them are sometimes within those last digits of each other,
 # the ranking flips, and the campaign takes a different path from there on.
 #
-# Measured: the same case, same seed and same code gave 56.0% of the global
-# front under one thread setting and 57.6% under another. Pinning this is what
-# makes a campaign reproducible from one launch to the next, and it has to
-# happen before numpy or torch are imported, which is why the scripts call
-# pin_numerics() as their first statement.
-NUM_THREADS = 1
+# Measured, and it corrects an earlier reading: the thread count does NOT change
+# the result. One thread and four give identical hypervolume curves and identical
+# ligand sequences, and two runs at four threads agree exactly. A campaign that
+# came out at 56.0% of the global front and then at 57.6% had in fact crossed the
+# change of ACQF_MAX_BATCH_SIZE below, not a change of threads.
+#
+# It stays pinned anyway, because reproducibility should not rest on an
+# environment variable someone might set, and because the pinning has to happen
+# before numpy or torch are imported, which is why the scripts call
+# pin_numerics() as their first statement. Four threads is twice as fast as one
+# on this machine, which matters: a slower campaign spends longer exposed to
+# being killed for memory.
+NUM_THREADS = 4
 _THREAD_VARIABLES = (
     "OMP_NUM_THREADS", "MKL_NUM_THREADS",
     "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS",
