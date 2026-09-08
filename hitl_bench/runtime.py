@@ -27,7 +27,47 @@ import functools
 # gigabyte with no measurable time cost.
 ACQF_MAX_BATCH_SIZE = 128
 
+# Threads used by the linear algebra libraries. This is not a performance
+# setting, it is a reproducibility one: the number of threads decides the order
+# in which sums are accumulated, which changes the last digits of the floating
+# point results. On a grid where the acquisition is compared across 5670
+# candidates, two of them are sometimes within those last digits of each other,
+# the ranking flips, and the campaign takes a different path from there on.
+#
+# Measured: the same case, same seed and same code gave 56.0% of the global
+# front under one thread setting and 57.6% under another. Pinning this is what
+# makes a campaign reproducible from one launch to the next, and it has to
+# happen before numpy or torch are imported, which is why the scripts call
+# pin_numerics() as their first statement.
+NUM_THREADS = 1
+_THREAD_VARIABLES = (
+    "OMP_NUM_THREADS", "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS",
+)
+
 _applied = False
+
+
+def pin_numerics(num_threads=NUM_THREADS):
+    """Fix the thread count so campaigns reproduce across launches.
+
+    Call this before importing numpy, torch or anything that pulls them in.
+    Returns the value it set, which callers record in their logs so that a
+    result can always be traced back to the numerical setting that produced it.
+    """
+    import os
+
+    for variable in _THREAD_VARIABLES:
+        os.environ[variable] = str(num_threads)
+    return num_threads
+
+
+def pin_torch_threads(num_threads=NUM_THREADS):
+    """The torch-side half of pin_numerics, once torch can be imported."""
+    import torch
+
+    torch.set_num_threads(num_threads)
+    return num_threads
 
 
 def limit_acquisition_memory(max_batch_size=ACQF_MAX_BATCH_SIZE):

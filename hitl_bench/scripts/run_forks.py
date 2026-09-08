@@ -30,6 +30,14 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Before numpy or torch reach memory: the thread count decides the order sums
+# are accumulated, and that decides which of two nearly tied grid points wins
+# the acquisition. Pinning it is what makes a campaign reproducible from one
+# launch to the next.
+from hitl_bench.runtime import pin_numerics, pin_torch_threads  # noqa: E402
+
+pin_numerics()
+
 # --- configuration ---------------------------------------------------------
 # Fork points as fractions of the total budget, not as counts of experiments:
 # "intervene at 40% of the budget" transfers to a campaign of a different
@@ -62,8 +70,7 @@ def main():
             "the only unbiased measurement the study has. Pass "
             "--allow-validation-cases if that is really what you mean." % args.case)
 
-    import torch
-    torch.set_num_threads(THREADS)
+    pin_torch_threads()
 
     from hitl_bench.benchmark import GridBenchmark
     from hitl_bench.campaign import fork_campaign

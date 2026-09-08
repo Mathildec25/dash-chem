@@ -104,6 +104,7 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
             "sampling_method": SAMPLING_METHOD,
             "grid_points": len(benchmark.grid),
             "objectives": list(OBJECTIVES),
+            "num_threads": torch.get_num_threads(),
         },
         "reference": {
             "max_hypervolume": benchmark.max_hypervolume,
@@ -239,6 +240,7 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
             "sampling_method": saved["config"]["sampling_method"],
             "grid_points": len(benchmark.grid),
             "objectives": list(OBJECTIVES),
+            "num_threads": torch.get_num_threads(),
         },
         "fork": {
             "at_experiment": at_experiment,

@@ -24,6 +24,14 @@ from concurrent.futures import ProcessPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Before numpy or torch reach memory: the thread count decides the order sums
+# are accumulated, and that decides which of two nearly tied grid points wins
+# the acquisition. Pinning it is what makes a campaign reproducible from one
+# launch to the next.
+from hitl_bench.runtime import pin_numerics, pin_torch_threads  # noqa: E402
+
+pin_numerics()
+
 # --- configuration ---------------------------------------------------------
 DEFAULT_CASE = "ii"
 DEFAULT_SEEDS = 5
@@ -37,8 +45,7 @@ def run_one(job):
     """Run a single campaign in this process and save its log."""
     case, seed, overwrite = job
 
-    import torch
-    torch.set_num_threads(THREADS_PER_WORKER)
+    pin_torch_threads()
 
     from hitl_bench.benchmark import GridBenchmark
     from hitl_bench.campaign import run_campaign
