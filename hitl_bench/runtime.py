@@ -31,25 +31,22 @@ import functools
 # campaigns no longer reproduce.
 ACQF_MAX_BATCH_SIZE = 128
 
-# Threads used by the linear algebra libraries. This is not a performance
-# setting, it is a reproducibility one: the number of threads decides the order
-# in which sums are accumulated, which changes the last digits of the floating
-# point results. On a grid where the acquisition is compared across 5670
-# candidates, two of them are sometimes within those last digits of each other,
-# the ranking flips, and the campaign takes a different path from there on.
+# Threads used by the linear algebra libraries.
 #
-# Measured, and it corrects an earlier reading: the thread count does NOT change
-# the result. One thread and four give identical hypervolume curves and identical
-# ligand sequences, and two runs at four threads agree exactly. A campaign that
-# came out at 56.0% of the global front and then at 57.6% had in fact crossed the
-# change of ACQF_MAX_BATCH_SIZE below, not a change of threads.
+# The thread count was once suspected of breaking reproducibility, on the theory
+# that it changes the order sums are accumulated and so the last digits of the
+# results. Measured, it does not: one thread and four give identical hypervolume
+# curves and identical ligand sequences, and two runs at four threads agree
+# exactly. The campaign that came out at 56.0% of the global front and later at
+# 57.6% had crossed the introduction of ACQF_MAX_BATCH_SIZE above, not a change
+# of threads.
 #
-# It stays pinned anyway, because reproducibility should not rest on an
-# environment variable someone might set, and because the pinning has to happen
-# before numpy or torch are imported, which is why the scripts call
-# pin_numerics() as their first statement. Four threads is twice as fast as one
-# on this machine, which matters: a slower campaign spends longer exposed to
-# being killed for memory.
+# It is pinned anyway, so that a result never depends on an environment variable
+# someone happens to have set, and the pinning has to happen before numpy or
+# torch are imported, which is why the scripts call pin_numerics() as their first
+# statement. Four threads runs twice as fast as one on this machine, and speed
+# matters beyond comfort: a campaign that takes twice as long spends twice as
+# long exposed to being killed for memory.
 NUM_THREADS = 4
 _THREAD_VARIABLES = (
     "OMP_NUM_THREADS", "MKL_NUM_THREADS",
