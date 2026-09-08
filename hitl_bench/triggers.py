@@ -67,6 +67,48 @@ def plateau(history, budget, fraction=0.125):
     return curve[-1] - curve[-1 - k] <= EPS
 
 
+def pace_ratio(history, budget, fraction=0.075, threshold=0.10):
+    """The campaign's recent pace against its own average pace. The study's trigger.
+
+    This is the study owner's original signal with its denominator fixed. Hers
+    divided the recent gain by the gain accumulated since the initial design,
+    which makes the ratio fall like 1/t whatever the campaign does: under
+    perfectly steady progress it equals W/(t - n_init), so the threshold was
+    silently encoding a firing time. With a lookback of 3, a threshold of 0.05
+    is reached by that decay alone at experiment 70 and one of 0.30 at
+    experiment 20.
+
+    Dividing by that same decay removes it. P* is the recent pace over the
+    average pace, so it equals 1 while a campaign progresses steadily, at any
+    point in the campaign, and a threshold of 0.10 means what it says: the
+    campaign is advancing ten times more slowly than it has been.
+
+    A campaign that has gained nothing at all since the initial design is the
+    most stalled case there is, so it scores 0 and fires, where the original
+    formula divided by zero.
+
+    Known blind spot, and it has no fix inside the campaign's own history: a
+    campaign that crawls slowly but *steadily* has a recent pace equal to its
+    average pace, scores 1, and never fires. Saying "this campaign is slow"
+    needs a reference for how fast it should be going, and the only one
+    available live is the model's own expectation, which is what over_optimism
+    reads.
+    """
+    window = _window(budget, fraction, floor=3)
+    curve = [record["hypervolume"] for record in history]
+    experiment = len(curve)
+    n_init = sum(1 for record in history if record["phase"] == "lhs")
+    if experiment <= max(window, n_init):
+        return False
+
+    total = curve[-1] - curve[n_init - 1]
+    if total <= EPS:
+        return True
+    recent_pace = (curve[-1] - curve[-1 - window]) / window
+    average_pace = total / (experiment - n_init)
+    return recent_pace / average_pace < threshold
+
+
 def over_optimism(history, budget, fraction=0.15, threshold=0.5):
     """The model keeps promising more than it delivers.
 
@@ -143,6 +185,7 @@ def confidence_without_evidence(history, budget, fraction=0.5):
 
 
 CANDIDATES = {
+    "pace_ratio": pace_ratio,
     "plateau": plateau,
     "over_optimism": over_optimism,
     "exhausted_promises": exhausted_promises,

@@ -58,7 +58,43 @@ where no signal is informative.
 Intervening on a converged campaign costs one experiment in thirty; missing a
 trapped one costs about fifty points of hypervolume. The asymmetry settles it.
 
-## Candidate triggers to be tested
+## The trigger, as decided
+
+`pace_ratio`, the owner's own signal with its denominator corrected:
+
+    P* = (recent gain / window) / (gain since the initial design / experiments since)
+
+Frozen parameters, all hers except the threshold: window 3, threshold 0.10,
+nothing before experiment 13, cooldown 3, **no deadline**. A forced call at a
+fixed experiment was considered and rejected: the trigger only fires when it has
+a reason to.
+
+Why the denominator changed. The original divided by the gain accumulated since
+the initial design, so under steady progress the ratio falls like W/(t - n_init)
+whatever the campaign does, and the threshold silently encoded a firing time: at
+a lookback of 3, a threshold of 0.05 is reached by that decay alone at
+experiment 70 and one of 0.30 at experiment 20. Dividing by the same decay
+removes it. P* equals 1 while a campaign progresses at its usual pace, at any
+point, so 0.10 means what it says.
+
+The cooldown was right all along. The earlier criticism that "the cooldown, not
+the signal, sets the cadence" held only because a threshold of 0.05 on the old
+formula was true in 46% of experiments. With a signal that discriminates the two
+do different jobs: the threshold decides whether this is a real standstill, the
+cooldown decides how often a chemist is disturbed. Measured on nine campaigns:
+9.7 firings per campaign with no cooldown, 3.7 with a cooldown of 3, 2.1 with 8.
+
+Known blind spot, stated because it has no fix in the history: a campaign that
+crawls slowly but steadily never fires, its recent pace being its average pace.
+Four of the nine campaigns are only called from experiment 24 on for that
+reason. Saying "this one is too slow" needs a reference for how fast it should
+go, and the campaign's own past cannot supply one. The initial design was tried
+as that reference and does not work: the ratio of BO gain to LHS gain is 0.27 on
+a campaign that ends trapped at 57.6% and 0.30 on the one that ends at 100%.
+The only reference left is the model's own expectation, which is what
+`over_optimism` reads and why the enriched logs matter.
+
+## Other candidates, kept for comparison
 
 Deliberately few: each extra candidate is another chance to overfit the
 selection set. All must be computable during a live campaign and expressed in
