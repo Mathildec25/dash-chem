@@ -1,4 +1,4 @@
-"""One optimisation campaign on a grid benchmark.
+"""One optimisation campaign on a grid benchmark, and the fork that pairs it.
 
 The protocol, frozen: a Latin-hypercube initial design of 10 points, then 30
 sequential Bayesian-optimisation iterations proposing one point at a time, 40
@@ -15,6 +15,7 @@ seed acts almost entirely through the initial design.
 
 import time
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -40,8 +41,9 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
     Args:
         benchmark: a GridBenchmark.
         seed: campaign seed, driving both the initial design and torch.
-        arm: which arm this campaign belongs to. Only "no_hitl" is implemented
-            here; the trigger, fixed:t and paired-fork arms build on this loop.
+        arm: which arm this campaign belongs to. Only "no_hitl" runs from
+            scratch; the intervention arms branch from a saved campaign
+            through fork_campaign.
         n_init, n_iterations: budget, defaulting to the frozen protocol.
         progress: optional callable(experiment_number, record) called after
             every experiment, for live feedback on long runs.
@@ -52,7 +54,8 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
     """
     if arm != ARM_NO_HITL:
         raise NotImplementedError(
-            "arm %r is not implemented yet; only %r is" % (arm, ARM_NO_HITL))
+            "run_campaign only starts %r campaigns; intervention arms branch "
+            "from a saved one through fork_campaign" % ARM_NO_HITL)
 
     # Keeps the acquisition step under a gigabyte. A batching detail, not a
     # change of algorithm; see hitl_bench/runtime.py.
@@ -87,8 +90,43 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
         if progress:
             progress(record["experiment"], record)
 
-    # --- optimisation loop ------------------------------------------------
-    for iteration in range(1, n_iterations + 1):
+    experiments = _optimise(benchmark, experiments, records, hv_curve, igd_curve,
+                            n_iterations, progress)
+
+    return {
+        "config": {
+            "case": benchmark.case,
+            "arm": arm,
+            "seed": seed,
+            "n_init": n_init,
+            "n_iterations": n_iterations,
+            "batch_size": BATCH_SIZE,
+            "sampling_method": SAMPLING_METHOD,
+            "grid_points": len(benchmark.grid),
+            "objectives": list(OBJECTIVES),
+        },
+        "reference": {
+            "max_hypervolume": benchmark.max_hypervolume,
+            "front_size": len(benchmark.true_front),
+            "front_ligands": list(benchmark.front_ligands),
+        },
+        "experiments": records,
+        "curves": {"hypervolume": hv_curve, "igd_plus": igd_curve},
+        "analysis": _summarise(benchmark, records, hv_curve, igd_curve, n_init),
+        "runtime_seconds": round(time.time() - started, 1),
+    }
+
+
+def _optimise(benchmark, experiments, records, hv_curve, igd_curve,
+              n_iterations, progress=None, first_iteration=1):
+    """Run `n_iterations` optimisation steps, appending to the given history.
+
+    Shared by a fresh campaign and by a forked one, so that a branch resumed
+    mid-campaign is optimised by exactly the same code as the campaign it
+    branched from.
+    """
+    for offset in range(n_iterations):
+        iteration = first_iteration + offset
         step_started = time.time()
         candidate = bayesian_optimization(
             benchmark.domain, experiments, n_candidates=BATCH_SIZE, verbose=False,
@@ -116,29 +154,130 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
         records.append(record)
         if progress:
             progress(record["experiment"], record)
+    return experiments
 
-    return {
+
+def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None):
+    """Branch a saved campaign at `at_experiment` and carry it to the same budget.
+
+    This is the paired design. Both branches share their history up to the
+    fork, so there is nothing to gain from replaying it: we rebuild the saved
+    campaign's state, spend one experiment on the intervention, and let the
+    optimiser finish. The control branch of the pair is the saved campaign
+    itself, which is what makes the comparison exactly paired and what makes
+    the shared prefix cancel in any difference of areas.
+
+    Args:
+        benchmark: the GridBenchmark the saved campaign was run on.
+        saved: a campaign log, as written by campaign_log.
+        at_experiment: last experiment kept from the saved campaign. The
+            intervention is then experiment `at_experiment + 1`.
+        draw_seed: seed for the random draw of the intervention point. None
+            forks without intervening, which is the check that a fork
+            reproduces the campaign it branched from.
+        progress: optional callable(experiment_number, record).
+    """
+    limit_acquisition_memory()
+
+    n_init = saved["config"]["n_init"]
+    budget = n_init + saved["config"]["n_iterations"]
+    if not n_init <= at_experiment < budget:
+        raise ValueError("fork point %d must lie between %d and %d"
+                         % (at_experiment, n_init, budget - 1))
+
+    torch.manual_seed(saved["config"]["seed"])
+    started = time.time()
+
+    kept = [dict(record) for record in saved["experiments"][:at_experiment]]
+    experiments = pd.DataFrame(
+        [{**{key: record[key] for key in PARAMETER_KEYS},
+          **{key: record[key] for key in OBJECTIVES},
+          **{key: 1 for key in VALID_KEYS}} for record in kept],
+        columns=EXPERIMENT_COLUMNS,
+    )
+    hv_curve = [record["hypervolume"] for record in kept]
+    igd_curve = [record["igd_plus"] for record in kept]
+    records = kept
+
+    injected = None
+    if draw_seed is not None:
+        evaluated = benchmark.evaluate(_draw_untested(benchmark, experiments, draw_seed))
+        experiments = pd.concat(
+            [experiments, pd.DataFrame([evaluated], columns=EXPERIMENT_COLUMNS)],
+            ignore_index=True,
+        )
+        hv_curve.append(benchmark.hypervolume(experiments))
+        igd_curve.append(benchmark.igd_plus(experiments))
+        injected = {
+            "experiment": len(experiments),
+            "phase": "intervention",
+            "iteration": None,
+            "seconds": None,
+            **{key: _plain(evaluated[key]) for key in PARAMETER_KEYS},
+            **{key: float(evaluated[key]) for key in OBJECTIVES},
+            "hypervolume": hv_curve[-1],
+            "igd_plus": igd_curve[-1],
+            "model": None,
+        }
+        records.append(injected)
+        if progress:
+            progress(injected["experiment"], injected)
+
+    remaining = budget - len(experiments)
+    experiments = _optimise(benchmark, experiments, records, hv_curve, igd_curve,
+                            remaining, progress,
+                            first_iteration=at_experiment - n_init + 1)
+
+    log = {
         "config": {
             "case": benchmark.case,
-            "arm": arm,
-            "seed": seed,
+            "arm": ("fixed:%d" % at_experiment) if draw_seed is not None else "resume_check",
+            "seed": saved["config"]["seed"],
             "n_init": n_init,
-            "n_iterations": n_iterations,
+            "n_iterations": saved["config"]["n_iterations"],
             "batch_size": BATCH_SIZE,
-            "sampling_method": SAMPLING_METHOD,
+            "sampling_method": saved["config"]["sampling_method"],
             "grid_points": len(benchmark.grid),
             "objectives": list(OBJECTIVES),
         },
-        "reference": {
-            "max_hypervolume": benchmark.max_hypervolume,
-            "front_size": len(benchmark.true_front),
-            "front_ligands": list(benchmark.front_ligands),
+        "fork": {
+            "at_experiment": at_experiment,
+            "draw_seed": draw_seed,
+            "intervened": draw_seed is not None,
+            "injected": None if injected is None else
+                        {key: injected[key] for key in PARAMETER_KEYS + list(OBJECTIVES)},
+            "parent_arm": saved["config"]["arm"],
         },
+        "reference": dict(saved["reference"]),
         "experiments": records,
         "curves": {"hypervolume": hv_curve, "igd_plus": igd_curve},
         "analysis": _summarise(benchmark, records, hv_curve, igd_curve, n_init),
         "runtime_seconds": round(time.time() - started, 1),
     }
+    # The paired quantities: what this intervention was worth against the very
+    # campaign it branched from, not against an average over other campaigns.
+    log["analysis"]["hv_curve_auc_gain"] = (
+        log["analysis"]["hv_curve_auc"] - saved["analysis"]["hv_curve_auc"])
+    log["analysis"]["hv_final_fraction_gain"] = (
+        log["analysis"]["hv_final_fraction"] - saved["analysis"]["hv_final_fraction"])
+    return log
+
+
+def _draw_untested(benchmark, experiments, draw_seed):
+    """One grid point drawn uniformly among those not yet run.
+
+    This is the intervention of the in-silico layer: a suggestion carrying no
+    chemical knowledge at all. It is the null model the real chemists of the
+    human study are measured against, so that "the chemist knew something" can
+    be told apart from "disturbing a stalled campaign helps".
+    """
+    already = {benchmark._key(row) for _, row in experiments.iterrows()}
+    grid = benchmark.grid
+    for position in np.random.RandomState(draw_seed).permutation(len(grid)):
+        row = grid.iloc[position]
+        if benchmark._key(row) not in already:
+            return row
+    raise RuntimeError("every grid point has already been run")
 
 
 def _summarise(benchmark, records, hv_curve, igd_curve, n_init):

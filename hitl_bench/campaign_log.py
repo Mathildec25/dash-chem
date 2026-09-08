@@ -15,7 +15,13 @@ RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results"
 def campaign_filename(log):
     """Stable, sortable name built from the campaign's identity."""
     config = log["config"]
-    return "%s__%s__seed%02d.json" % (config["case"], config["arm"], config["seed"])
+    # Windows will not take a colon in a filename, and "fixed:20" has one.
+    arm = config["arm"].replace(":", "-")
+    name = "%s__%s__seed%02d" % (config["case"], arm, config["seed"])
+    fork = log.get("fork")
+    if fork and fork.get("draw_seed") is not None:
+        name += "__draw%02d" % fork["draw_seed"]
+    return name + ".json"
 
 
 def save_campaign(log, results_dir=RESULTS_DIR, overwrite=False):
