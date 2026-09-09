@@ -1,0 +1,20 @@
+{
+  "about": "Chemical names for the ligand codes used by the Olympus suzuki_i..iv datasets. A chemist cannot be asked about 'L4'; they need the name.",
+  "how_this_was_established": "Not inferred. Summit ships the original Reizman case 2 data with named precatalyst-ligand pairs (96 rows). Each of the 91 Olympus rows was matched to it on residence time, temperature, catalyst loading and yield. All 91 matched, and every Olympus code voted unanimously for one named catalyst. P2-L1 is the pair Olympus dropped, which is why it has 7 ligands where Summit has 8, and 91 rows where Summit has 96.",
+  "sources": [
+    "Reizman, Wang, Buchwald and Jensen, React. Chem. Eng., 2016, 1, 658-666",
+    "summit.benchmarks.ReizmanSuzukiEmulator(case=2), catalyst levels and training data",
+    "olympus suzuki_ii dataset"
+  ],
+  "mapping": {
+    "L0": {"pair": "P1-L1", "ligand": "XPhos", "family": "dialkylbiarylphosphine"},
+    "L1": {"pair": "P1-L2", "ligand": "SPhos", "family": "dialkylbiarylphosphine"},
+    "L2": {"pair": "P1-L3", "ligand": "RuPhos", "family": "dialkylbiarylphosphine"},
+    "L3": {"pair": "P1-L4", "ligand": "Xantphos", "family": "bidentate phosphine"},
+    "L4": {"pair": "P1-L5", "ligand": "PCy3", "family": "trialkylphosphine"},
+    "L5": {"pair": "P1-L6", "ligand": null, "family": null},
+    "L6": {"pair": "P1-L7", "ligand": null, "family": "bidentate"}
+  },
+  "unnamed": "L5 and L6 keep their precatalyst-ligand codes: the paper's accessible text names L1 to L5 only. Do not guess them; a wrong name shown to a chemist would corrupt the study.",
+  "why_it_matters": "The global Pareto front of case ii sits entirely on L4, that is PCy3, which is exactly the catalyst the paper reports as optimal for case 2 at 110 C and about 2 mol% Pd. Campaigns that fail settle on L0, XPhos, which the paper describes as giving modest yields at lower temperature. The trap is real chemistry, not an artefact of the emulator."
+}

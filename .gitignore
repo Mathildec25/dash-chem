@@ -29,3 +29,6 @@ hitl_bench/results/
 
 # Figures are derived from the logs, regenerate with scripts/plot_triggers.py
 hitl_bench/figures/
+
+# Chemist forms are generated from the logs by scripts/make_chemist_form.py
+hitl_bench/forms/
