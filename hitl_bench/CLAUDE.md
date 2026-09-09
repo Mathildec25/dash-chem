@@ -65,7 +65,7 @@ trapped one costs about fifty points of hypervolume. The asymmetry settles it.
     P* = (recent gain / window) / (gain since the initial design / experiments since)
 
 Frozen parameters, all hers except the threshold: window 3, threshold 0.10,
-nothing before experiment 13, cooldown 3, **no deadline**. A forced call at a
+nothing before experiment 13, cooldown 5, **no deadline**. A forced call at a
 fixed experiment was considered and rejected: the trigger only fires when it has
 a reason to.
 
@@ -93,6 +93,66 @@ as that reference and does not work: the ratio of BO gain to LHS gain is 0.27 on
 a campaign that ends trapped at 57.6% and 0.30 on the one that ends at 100%.
 The only reference left is the model's own expectation, which is what
 `over_optimism` reads and why the enriched logs matter.
+
+## What the checkpoint is for
+
+The trigger does not diagnose, it books an appointment. At each firing the
+chemist is shown the campaign and chooses one of three answers:
+
+1. **propose an experiment** - the intervention arm;
+2. **let it run** - the trigger was a false alarm, which costs nothing;
+3. **stop the campaign** - no more is expected from it.
+
+The third is the study owner's decision of 9 September and it settles the
+stopping question: no algorithmic stop criterion is needed or wanted.
+
+Why it has to be the human. Stopping at the trigger's first firing was measured
+on the ten selection campaigns: 20 experiments saved on average, but a third of
+the hypervolume lost. A campaign ending at 100% of the global front would have
+kept 14% of its result had it stopped at its first firing. Only firings that
+land late (experiments 29-30) could be stopped nearly for free, at 87% to 100%
+of the final result. A stop rule would therefore need to be later and stricter
+than an intervention rule, and it would still be unable to tell a converged
+campaign from a trapped one. The chemist can, because they know whether 44%
+yield on this coupling is a good result or a failure.
+
+**Open question, to settle before the human study.** A stopped campaign has not
+spent 40 experiments, so its hypervolume cannot be compared to a no_hitl
+campaign that has. Three options: report hypervolume and experiments spent
+separately; report hypervolume per experiment; or hold a stopped campaign's
+hypervolume flat to experiment 40, which penalises stopping too early and
+rewards stopping when there was genuinely nothing left. The third needs no new
+metric.
+
+**Consequence for the layers.** A random suggestion cannot decide to stop, so
+the null model has no equivalent and the in-silico layer can neither calibrate
+nor benchmark that decision. Stopping exists only in the human layers, and the
+protocol must record which of the three answers was given at each checkpoint:
+their distribution is a result in itself, as is whether chemists stop the right
+campaigns.
+
+## Signals tested and rejected, so they are not tried again
+
+All measured on the selection cases. None discriminates a trapped campaign from
+a successful one; several are anti-correlated, firing more readily on campaigns
+that end well.
+
+| Signal | What it reads | Outcome |
+|---|---|---|
+| `plateau` | length of a run without improvement | fires late, no separation |
+| `over_optimism` | standardised residual of the surrogate | saturated: fires at its earliest possible experiment in 9 campaigns out of 10, the GP being over-optimistic everywhere |
+| `confidence_without_evidence` | collapse of the model's uncertainty | silent on a campaign at 37% and on one at 100% |
+| D1, expected gain over total hypervolume | acquisition value | fires on 8 of 9 checkpoints of a successful campaign against 5 of 9 of a trapped one: the denominator grows with success |
+| D_avant, expected gain over average pace | acquisition value | promising on 2 campaigns, refuted on 10: fires on 71% of a successful campaign's checkpoints against 50% of a trapped one's |
+| dry-run p-value | run length against the campaign's own rate | never fires: as a campaign slows its estimated rate falls with it, so a long silence stays expected |
+| exploration collapse | ligand entropy and spread | contradicted: concentration is 48% on trapped campaigns against 46% on successful ones at experiment 15 |
+| LOO calibration | coverage of the GP's own intervals | untestable here: the grid is noiseless, the GP fits a noise of 0.3% of the signal variance, and coverage collapses to 0.25-0.34 in every campaign |
+
+The last row matters beyond that signal: **the benchmark has no experimental
+noise**, since an evaluation is a table lookup. Minerva's own protocol injects
+Gaussian noise on the objectives; ours does not. Any detector built on the
+model's calibration is therefore untestable on this benchmark, and the realism
+of the whole in-silico layer deserves a decision on this point.
 
 ## Other candidates, kept for comparison
 

@@ -30,7 +30,12 @@ EPS = 1e-12
 # --- shared firing discipline ---------------------------------------------
 # Counted in experiments, initial design included.
 BURN_IN_FRACTION = 0.075     # ~3 experiments past the initial design on a budget of 40
-COOLDOWN_FRACTION = 0.075    # ~3 experiments between two firings
+# 5 experiments between two firings on a budget of 40. Measured on the ten
+# selection campaigns: 2.7 solicitations per campaign against 3.5 at a cooldown
+# of 3, with a worst case of 4 rather than 6, and every campaign still gets at
+# least one. The cooldown cannot change a first firing, only the ones after it,
+# so this costs nothing in detection and only lightens what the chemist is asked.
+COOLDOWN_FRACTION = 0.125
 
 
 def _window(budget, fraction, floor=2):
