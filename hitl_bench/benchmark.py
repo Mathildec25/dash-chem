@@ -53,6 +53,13 @@ class GridBenchmark:
             raise ValueError("unknown case %r, expected one of %s" % (case, CASES))
         self.case = case
         self.path = os.path.join(data_dir, "suzuki_%s.csv" % case)
+        # Exposed as attributes so that the campaign loop works with any
+        # benchmark, not only this one. The module constants stay as the
+        # defaults for this family.
+        self.parameter_keys = list(PARAMETER_KEYS)
+        self.objectives = list(OBJECTIVES)
+        self.valid_keys = list(VALID_KEYS)
+        self.name = "suzuki_%s" % case
 
         grid = pd.read_csv(self.path, index_col=0)
         grid[LIGAND_KEY] = np.array(LIGANDS)[grid[LIGANDS].to_numpy().argmax(axis=1)]
