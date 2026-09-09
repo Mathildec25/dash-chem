@@ -49,6 +49,13 @@ BENCHMARKS = {
         "about": "Lipid nanoparticle formulation: how much drug is carried, how "
                  "efficiently it is encapsulated, and how small the particles are.",
     },
+    "edbo_ch_arylation": {
+        "file": "edbo_ch_arylation.csv",
+        "objectives": [("yield", "maximize"), ("cost", "minimize")],
+        "about": "C-H arylation from EDBO+: 12 named ligands, 4 bases, 4 solvents, "
+                 "yield against reagent cost. The two objectives are independent, "
+                 "correlation -0.002, which the Suzuki pair is not.",
+    },
     "snar": {
         "file": "snar.csv",
         "objectives": [("sty", "maximize"), ("e_factor", "minimize")],
