@@ -153,8 +153,10 @@ def build(stem, stop_at):
                     "</span></td></tr>" % (r["experiment"], cells,
                                            100.0 * abs(r[first]) / span))
 
-    # a per-level summary on the first categorical, which is what a chemist scans
-    cat = next((p for p in params if isinstance(records[0][p], str)), None)
+    # A per-level summary on the categorical with the most levels: with twelve
+    # ligands against four bases, that is the choice a chemist actually scans.
+    texts = [p for p in params if isinstance(records[0][p], str)]
+    cat = max(texts, key=lambda p: len({r[p] for r in log["experiments"]}), default=None)         if texts else None
     summary_block = ""
     if cat:
         groups = {}
