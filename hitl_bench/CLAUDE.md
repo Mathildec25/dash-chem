@@ -184,3 +184,51 @@ front with areas of 0.549 and 0.876. So the area is only compared **paired, at
 equal intervention time**, where the shared prefix cancels exactly; across
 different intervention times it is reported relative to its ceiling at that
 time. Unpaired tables report the final hypervolume fraction and IGD+.
+
+## Reactions beyond Suzuki, and why only one was added
+
+Nine complete grids were run with the same optimiser on 3 to 5 seeds each. The
+selection criterion is **not** how well plain BO does on average, it is the
+spread between seeds: a reaction where every campaign reaches the front leaves
+the chemist nothing to change, and measures nothing. See
+`docs/reactions_candidates.md` for the full table.
+
+Kept: **Suzuki case ii** (spread 63 points of front, failure has a chemical
+reading) and **edbo_ch_arylation** (spread 22 points, 12 named ligands, and
+objectives whose correlation is -0.002 where the Suzuki pair is redundant).
+**snar** is kept as a control: 100% of the front on all three seeds.
+
+Rejected: lnp3 and the five Buchwald grids reach the front too reliably, the
+Buchwald grids are single-objective and store their reagents as raw SMILES, and
+dye_lasers names its fragments by code.
+
+### The trigger fires on healthy campaigns too, and that is not a fault
+
+`pace_ratio` was run unchanged on every benchmark. At its first firing, the
+fraction of the campaign's own final gain still to come is 0-2% on snar (which
+ends at 100% of the front) and also 0% on edbo seed 2 (which ends at 72%,
+stuck). **From inside the campaign these two are indistinguishable**, which is
+the finding already established on Suzuki, now reproduced across unrelated
+chemistries. Suzuki ii seed 4 is the counter-example to keep: the trigger fires
+at experiment 15 with 86% of the gain still to come, on the one campaign that
+reaches 100%. This is the quantitative argument for leaving the stop-or-suggest
+decision to the chemist.
+
+### edbo_ch_arylation has tied acquisition values; Suzuki does not
+
+Measured, not suspected. At experiment 30 on edbo, **175 of the 1698 remaining
+candidates are exactly tied** at the acquisition maximum, to the last float
+digit, and `optimize_acqf_discrete` therefore returns the first in table order.
+The tail of an edbo campaign is an alphabetical sweep of ligands and solvents,
+identical across seeds. Cause: 12 ligands x 4 bases x 4 solvents = 192
+categorical cells, of which a 40-experiment campaign visits 17; every tied
+candidate sits in an unvisited cell and no tied candidate sits in a visited one.
+
+The four Suzuki cases were checked at experiments 20, 30 and 40: the maximum is
+**unique every time**, no ties. One categorical of 7 levels is coverable at this
+budget; 192 cells are not.
+
+So the two kept reactions illustrate two different failure modes of small-budget
+BO - Suzuki ii over-exploits a wrong belief, edbo has no belief at all over most
+of the space - and any comparison on edbo must state that the unaided baseline
+is partly decided by table order.
