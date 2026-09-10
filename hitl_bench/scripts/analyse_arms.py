@@ -158,10 +158,11 @@ INTERVENTION_COLUMNS = [
     "p_star_at_alert", "draw_seed", "point",
     "fraction_before", "fraction_after", "immediate_gain",
     "fraction_final_arm", "fraction_final_parent", "final_gain",
+    "level", "level_on_front",
 ]
 
 
-def intervention_rows(log, parents):
+def intervention_rows(log, parents, front_levels=(), categorical=None):
     config = log["config"]
     seed = config.get("parent_seed", config["seed"])
     parent = parents.get(seed)
@@ -191,6 +192,12 @@ def intervention_rows(log, parents):
                                       if parent else ""),
             "final_gain": (round(fraction[-1] - curve_fraction(parent)[-1], 6)
                            if parent else ""),
+            # Le point injecte portait-il un niveau du front ? C'est la question
+            # qui rend le resultat explicatif : un gain venu d'un point tombe sur
+            # le bon ligand n'a pas le meme sens qu'un gain venu d'ailleurs.
+            "level": (item["point"] or {}).get(categorical, "") if categorical else "",
+            "level_on_front": int(bool(categorical) and
+                                  (item["point"] or {}).get(categorical) in front_levels),
         })
     return rows
 
@@ -402,9 +409,14 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
+    from hitl_bench.scripts.run_arms import load_benchmark
+    reference = load_benchmark(args.benchmark)
+    front_levels = set(getattr(reference, "front_levels", []) or [])
+    categorical = getattr(reference, "categorical_key", None)
+
     interventions = []
     for log in randoms:
-        interventions += intervention_rows(log, parents)
+        interventions += intervention_rows(log, parents, front_levels, categorical)
     with open(os.path.join(RESULTS, "arms_interventions.csv"), "w", newline="",
               encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=INTERVENTION_COLUMNS)
@@ -436,6 +448,17 @@ def main():
     else:
         pas = (len(classees) - 1) / (args.show - 1)
         seeds_shown = [classees[round(i * pas)] for i in range(args.show)]
+    sur_front = [r for r in interventions if r["level_on_front"]]
+    if interventions:
+        gains_front = [r["final_gain"] for r in sur_front if r["final_gain"] != ""]
+        autres = [r["final_gain"] for r in interventions
+                  if not r["level_on_front"] and r["final_gain"] != ""]
+        print("   points injectes sur un niveau du front : %d / %d"
+              % (len(sur_front), len(interventions)))
+        if gains_front and autres:
+            print("      gain final moyen : %+.1f pt quand oui, %+.1f pt quand non"
+                  % (100 * mean(gains_front), 100 * mean(autres)))
+
     print("   rapport : %s" % write_report(args.benchmark, rows, interventions,
                                              no_hitl, randoms))
     try:
