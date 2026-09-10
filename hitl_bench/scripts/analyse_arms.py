@@ -247,6 +247,51 @@ def figure_paired(benchmark, parents, randoms, seeds_shown):
     return path
 
 
+def figure_all(benchmark, parents, randoms):
+    """Every campaign, for the supporting information.
+
+    The main figure shows five, chosen across the range of outcomes; a reader who
+    wants to check that the five were not flattering needs this one, and a
+    supporting information is exactly where a wall of panels belongs.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    seeds = sorted(parents)
+    cols = 5
+    rows_n = (len(seeds) + cols - 1) // cols
+    fig, axes = plt.subplots(rows_n, cols, figsize=(2.4 * cols, 2.2 * rows_n),
+                             sharex=True, sharey=True, squeeze=False)
+    for index, seed in enumerate(seeds):
+        axis = axes[index // cols][index % cols]
+        parent = parents[seed]
+        axis.axhline(TARGET, color="#8b93a1", ls="--", lw=0.8)
+        axis.axvline(parent["config"]["n_init"] + 0.5, color="#c9ced6", lw=0.8)
+        for branch in [r for r in randoms if r["config"].get("parent_seed") == seed]:
+            axis.plot(range(1, len(branch["experiments"]) + 1),
+                      curve_fraction(branch), color=ALERTE, alpha=0.8, lw=1.1)
+        axis.plot(range(1, len(parent["experiments"]) + 1), curve_fraction(parent),
+                  color=REUSSITE, lw=1.8, zorder=3)
+        axis.set_title("%d — %.0f%%" % (seed, 100 * curve_fraction(parent)[-1]),
+                       fontsize=8)
+        axis.set_ylim(0, 1.05)
+        axis.grid(alpha=0.25, lw=0.4)
+    for index in range(len(seeds), rows_n * cols):
+        axes[index // cols][index % cols].axis("off")
+    for r in range(rows_n):
+        axes[r][0].set_ylabel("fraction", fontsize=8)
+    for c in range(cols):
+        axes[rows_n - 1][c].set_xlabel("expérience", fontsize=8)
+    fig.suptitle("%s — les %d campagnes : BO seule (bleu) et branches avec un "
+                 "point au hasard (rouge)" % (benchmark, len(seeds)), fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    path = os.path.join(FIGURES, "arms_all_%s.png" % benchmark)
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+    return path
+
+
 def figure_effect(benchmark, rows):
     """What the intervention was worth, paired, as a distribution rather than a mean."""
     import matplotlib
@@ -463,6 +508,7 @@ def main():
                                              no_hitl, randoms))
     try:
         print("   figure : %s" % figure_paired(args.benchmark, parents, randoms, seeds_shown))
+        print("   figure SI : %s" % figure_all(args.benchmark, parents, randoms))
         path = figure_effect(args.benchmark, rows)
         if path:
             print("   figure : %s" % path)
