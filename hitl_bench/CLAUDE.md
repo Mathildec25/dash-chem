@@ -251,3 +251,44 @@ acids, BODIPY cores, dibromoarenes), not anonymous codes.
 The tie fraction is worth reporting in its own right: it is computable during a
 live campaign, needs no knowledge of the front, and says whether the optimiser
 is still choosing or merely enumerating.
+
+### Two surrogates agree on which catalyst wins, in all four cases
+
+The grids are Olympus Bayesian neural networks; Summit ships its own pretrained
+emulators of the same Reizman campaigns. Evaluated on the identical 5670-point
+grid, they disagree by 8.8 yield points on average and by up to 34.6, always in
+the low-temperature region where the Olympus grid holds exact zeros. That raised
+the question of whether the study's trap was an artefact of one surrogate.
+
+It is not. The catalyst carrying the reference front is the same in every case:
+
+    case  Olympus front                    Summit front
+    i     Xantphos x10                     Xantphos x16
+    ii    PCy3 x3                          PCy3 x2
+    iii   XPhos x6, RuPhos x3              XPhos x12
+    iv    XPhos x10, SPhos x7, RuPhos x6   XPhos x32, SPhos x2
+
+Summit is consistently the more concentrated of the two: where Olympus spreads a
+front over two or three catalysts, Summit puts it on one. Its maximum yields are
+also slightly higher everywhere except case II. So the disagreement between the
+two is real but confined to the parts of the space that do not decide the
+optimum, and the chemical conclusion - PCy3 for case II, matching the paper - is
+robust to the choice of surrogate.
+
+A prediction worth checking against the campaigns rather than asserting: a more
+concentrated front gives a campaign fewer good catalysts to stumble onto, so the
+Summit arm may trap *more* often than the Olympus one, not less.
+
+### Case I and case II fail differently, and it matters
+
+Read from the grids, not inferred from the campaigns. On five seeds:
+
+    case ii   front on PCy3 alone     2/5 campaigns settle there, 2 abandoned
+                                      PCy3 for good after experiment 8.5
+    case i    front on Xantphos alone 4/5 settle there, none abandons it
+
+So case II is a categorical trap in the strict sense - two campaigns saw PCy3
+during the initial design, judged it poor, and never returned - while case I's
+40% failure rate is a continuous local optimum reached with the right catalyst.
+A chemist has to contradict a catalyst choice in one and fix temperature or
+residence time in the other, which is not the same intervention.
