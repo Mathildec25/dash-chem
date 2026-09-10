@@ -33,3 +33,7 @@ hitl_bench/figures/
 
 # Chemist forms are generated from the logs by scripts/make_chemist_form.py
 hitl_bench/forms/
+hitl_bench/results/arms/
+hitl_bench/forms/checkpoints/
+hitl_bench/forms/checkpoint_keys/
+hitl_bench/forms/reponses/
