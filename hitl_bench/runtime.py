@@ -33,20 +33,33 @@ ACQF_MAX_BATCH_SIZE = 128
 
 # Threads used by the linear algebra libraries.
 #
-# The thread count was once suspected of breaking reproducibility, on the theory
-# that it changes the order sums are accumulated and so the last digits of the
-# results. Measured, it does not: one thread and four give identical hypervolume
-# curves and identical ligand sequences, and two runs at four threads agree
-# exactly. The campaign that came out at 56.0% of the global front and later at
-# 57.6% had crossed the introduction of ACQF_MAX_BATCH_SIZE above, not a change
-# of threads.
-#
-# It is pinned anyway, so that a result never depends on an environment variable
-# someone happens to have set, and the pinning has to happen before numpy or
-# torch are imported, which is why the scripts call pin_numerics() as their first
+# Pinned so that a result never depends on an environment variable someone
+# happens to have set. The pinning has to happen before numpy or torch are
+# imported, which is why the scripts call pin_numerics() as their first
 # statement. Four threads runs twice as fast as one on this machine, and speed
 # matters beyond comfort: a campaign that takes twice as long spends twice as
 # long exposed to being killed for memory.
+#
+# CORRECTION, 10 September. This block previously claimed that campaigns
+# reproduce and that the thread count was measured not to matter. The first half
+# was simply false and the measurement behind the second half did not test what
+# it claimed. Campaigns were **not** reproducible at all, for a reason that has
+# nothing to do with threads: REACTO built its BoFire strategy without a seed,
+# and BoFire then draws one itself with `np.random.SeedSequence()`, whose
+# entropy comes from the operating system. Neither torch.manual_seed nor
+# np.random.seed reaches it, so a fresh seed was drawn at every one of the
+# thirty acquisition steps of every campaign, the quasi-Monte-Carlo samples
+# differed between two identical runs, and wherever two candidates scored
+# closely the argmax flipped and the campaigns parted ways.
+#
+# Fixed by passing an explicit seed: bayesian_optimization now takes `seed=`,
+# and campaign.py derives it from the campaign seed and the iteration index.
+# Verified on the arylation: two identical runs agree on all 40 experiments and
+# to twelve decimals on the area under the curve, and a fork with no
+# intervention reproduces its parent exactly - which is the condition the paired
+# design rests on. Campaigns logged before that fix cannot be replayed; they
+# remain valid as independent samples for failure rates and firing times, but
+# they cannot serve as the control arm of a pair.
 NUM_THREADS = 4
 _THREAD_VARIABLES = (
     "OMP_NUM_THREADS", "MKL_NUM_THREADS",

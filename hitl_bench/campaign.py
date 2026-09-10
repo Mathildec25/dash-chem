@@ -99,7 +99,7 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
             progress(record["experiment"], record)
 
     experiments = _optimise(benchmark, experiments, records, hv_curve, igd_curve,
-                            n_iterations, progress)
+                            n_iterations, progress, campaign_seed=seed)
 
     return {
         "config": {
@@ -128,7 +128,7 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
 
 
 def _optimise(benchmark, experiments, records, hv_curve, igd_curve,
-              n_iterations, progress=None, first_iteration=1):
+              n_iterations, progress=None, first_iteration=1, campaign_seed=0):
     """Run `n_iterations` optimisation steps, appending to the given history.
 
     Shared by a fresh campaign and by a forked one, so that a branch resumed
@@ -140,6 +140,7 @@ def _optimise(benchmark, experiments, records, hv_curve, igd_curve,
         step_started = time.time()
         candidate = bayesian_optimization(
             benchmark.domain, experiments, n_candidates=BATCH_SIZE, verbose=False,
+            seed=_acquisition_seed(campaign_seed, iteration),
         ).iloc[0]
         evaluated = benchmark.evaluate(candidate)
         belief = _model_belief(candidate, evaluated, benchmark.objectives)
@@ -236,7 +237,8 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
     remaining = budget - len(experiments)
     experiments = _optimise(benchmark, experiments, records, hv_curve, igd_curve,
                             remaining, progress,
-                            first_iteration=at_experiment - n_init + 1)
+                            first_iteration=at_experiment - n_init + 1,
+                            campaign_seed=saved["config"]["seed"])
 
     log = {
         "config": {
@@ -272,6 +274,21 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
     log["analysis"]["hv_final_fraction_gain"] = (
         log["analysis"]["hv_final_fraction"] - saved["analysis"]["hv_final_fraction"])
     return log
+
+
+def _acquisition_seed(campaign_seed, iteration):
+    """The seed handed to the strategy at one iteration.
+
+    It has to be deterministic, or a campaign cannot be replayed and the paired
+    design measures execution noise alongside the intervention. It also has to
+    differ between iterations: reusing one seed for all thirty acquisition steps
+    would draw the same quasi-Monte-Carlo points every time, correlating steps
+    that the algorithm assumes are independent draws.
+
+    Left as plain arithmetic rather than a hash so that the seed of any
+    experiment of any campaign can be worked out by hand from the log.
+    """
+    return 100000 + 1000 * int(campaign_seed) + int(iteration)
 
 
 def _draw_untested(benchmark, experiments, draw_seed):

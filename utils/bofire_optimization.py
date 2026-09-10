@@ -703,7 +703,7 @@ def constrained_mobo_botorch(domain, experiments, outcome_constraint, n_candidat
 
 def bayesian_optimization(domain, experiments, n_candidates=1,
                            acquisition_function=None, outcome_constraint=None,
-                           verbose=True):
+                           verbose=True, seed=None):
     """
     Run Bayesian optimization using the appropriate strategy based on the number of objectives.
     
@@ -719,6 +719,18 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
                               Ignored when outcome_constraint is active.
         outcome_constraint: dict or None — {'enabled':bool, 'objective':str,
                             'direction':'>=', 'threshold':float}
+        seed: int or None. Seed handed to the BoFire strategy, which uses it for
+            the quasi-Monte-Carlo sampler of the acquisition function. None keeps
+            the previous behaviour exactly - and that behaviour is not
+            reproducible: BoFire draws its own seed with np.random.SeedSequence(),
+            whose entropy comes from the operating system, so neither
+            np.random.seed nor torch.manual_seed reaches it. A fresh seed is
+            therefore drawn on *every* call, the Monte-Carlo samples differ
+            between two identical runs, and wherever two candidates score closely
+            the argmax flips and the campaigns part ways. Pass a seed whenever a
+            run has to be replayable: a paired comparison is meaningless
+            otherwise, since the two arms would then differ by execution noise as
+            well as by the intervention under study.
     
     Returns:
         DataFrame with suggested candidates
@@ -738,7 +750,8 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
     if n_obj == 1:
         # Single-objective optimization (SOBO)
         acq_func = acquisition_function if acquisition_function is not None else qLogNEI()
-        data_model = SoboStrategy(domain=domain, acquisition_function=acq_func)
+        data_model = SoboStrategy(domain=domain, acquisition_function=acq_func,
+                                  **({} if seed is None else {'seed': seed}))
     elif n_obj >= 2:
         # ── Route to constrained BoTorch bypass when a valid constraint is set ──
         if (outcome_constraint
@@ -751,7 +764,8 @@ def bayesian_optimization(domain, experiments, n_candidates=1,
             )
         # Standard MOBO via BoFire
         acq_func = acquisition_function if acquisition_function is not None else qLogNEHVI()
-        data_model = MoboStrategy(domain=domain, acquisition_function=acq_func)
+        data_model = MoboStrategy(domain=domain, acquisition_function=acq_func,
+                                  **({} if seed is None else {'seed': seed}))
     else:
         raise ValueError("Domain must have at least one objective")
 
