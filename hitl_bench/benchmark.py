@@ -68,6 +68,9 @@ class GridBenchmark:
         # defaults for this family.
         self.parameter_keys = list(PARAMETER_KEYS)
         self.objectives = list(OBJECTIVES)
+        # The categorical a chemist actually scans. Named generically so that
+        # the campaign loop never has to know it is called "ligand" here.
+        self.categorical_key = LIGAND_KEY
         self.valid_keys = list(VALID_KEYS)
         self.name = "suzuki_%s" % case
 
@@ -91,6 +94,9 @@ class GridBenchmark:
         # which is what makes it a ligand-selection trap.
         self.front_ligands = sorted(set(grid[LIGAND_KEY].to_numpy()[
             metrics.pareto_mask(self.normalise(raw))]))
+        # Generic name for the same thing, so that a campaign log can be
+        # summarised without knowing which family of benchmark it came from.
+        self.front_levels = list(self.front_ligands)
 
     # --- domain -----------------------------------------------------------
     def _build_domain(self):

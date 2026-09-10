@@ -28,14 +28,43 @@ from hitl_bench.benchmark import OBJECTIVES
 EPS = 1e-12
 
 # --- shared firing discipline ---------------------------------------------
-# Counted in experiments, initial design included.
-BURN_IN_FRACTION = 0.075     # ~3 experiments past the initial design on a budget of 40
-# 5 experiments between two firings on a budget of 40. Measured on the ten
-# selection campaigns: 2.7 solicitations per campaign against 3.5 at a cooldown
-# of 3, with a worst case of 4 rather than 6, and every campaign still gets at
-# least one. The cooldown cannot change a first firing, only the ones after it,
-# so this costs nothing in detection and only lightens what the chemist is asked.
-COOLDOWN_FRACTION = 0.125
+# One fraction of the budget governs all three timings, which is both simpler
+# and forced: they are not independent. On a budget of 40 it makes each of them
+# 5 experiments.
+#
+# The lookback W is the window the recent pace is measured over. Five rather
+# than three: averaging over five steps stops a single flat experiment from
+# looking like a stall, at the cost of needing five experiments of stagnation
+# before the ratio collapses.
+#
+# The burn-in is then *forced* to n_init + W, not chosen. A shorter one would
+# let the lookback window reach back into the initial design, so the "recent
+# pace" would mix LHS draws with BO proposals - two different processes, one of
+# which is not optimisation at all. With W = 3 and a burn-in of n_init + 3 that
+# happened to be exactly avoided; with W = 5 it no longer is, so the burn-in
+# follows W instead of carrying its own constant.
+#
+# The cooldown stays 5. Measured on the ten selection campaigns: 2.7
+# solicitations per campaign against 3.5 at a cooldown of 3, worst case 4
+# rather than 6, and every campaign still gets at least one. A cooldown cannot
+# change a first firing, only the ones after it, so this costs nothing in
+# detection and only lightens what the chemist is asked.
+WINDOW_FRACTION = 0.125
+COOLDOWN_FRACTION = WINDOW_FRACTION
+# Nobody is disturbed before the optimiser has actually proposed something: at
+# least five BO experiments past the initial design, whatever the lookback. Two
+# separate reasons converge on the same number and both must hold, so the
+# burn-in is the larger of the two.
+#
+#   - a floor on evidence: three proposals are not a campaign, and asking a
+#     chemist to judge one is asking them to judge the initial design;
+#   - a floor forced by the window: the lookback must not reach back into the
+#     LHS, or the "recent pace" would be measured partly on draws that were
+#     never proposals. That requires burn-in >= n_init + W.
+#
+# On a budget of 40 the first firing can therefore be experiment 15 at the
+# earliest, for W = 3 as well as for W = 5.
+MIN_BO_FRACTION = 0.125
 
 
 def _window(budget, fraction, floor=2):
@@ -72,7 +101,7 @@ def plateau(history, budget, fraction=0.125):
     return curve[-1] - curve[-1 - k] <= EPS
 
 
-def pace_ratio(history, budget, fraction=0.075, threshold=0.10):
+def pace_ratio(history, budget, fraction=WINDOW_FRACTION, threshold=0.10):
     """The campaign's recent pace against its own average pace. The study's trigger.
 
     This is the study owner's original signal with its denominator fixed. Hers
@@ -99,19 +128,35 @@ def pace_ratio(history, budget, fraction=0.075, threshold=0.10):
     available live is the model's own expectation, which is what over_optimism
     reads.
     """
+    value = pace_ratio_value(history, budget, fraction)
+    return value is not None and value < threshold
+
+
+def pace_ratio_value(history, budget, fraction=WINDOW_FRACTION):
+    """P* itself, or None where it is not defined yet.
+
+    Split out of `pace_ratio` so that a figure can plot the very number the
+    trigger compares to its threshold. A plotting script that recomputes the
+    signal is a figure that will eventually disagree with the trigger it
+    claims to illustrate, which is how the earlier plot_triggers.py drifted.
+    """
     window = _window(budget, fraction, floor=3)
+    # The lookback must not reach into the initial design, or the recent
+    # pace would be measured partly on draws that were never proposals.
     curve = [record["hypervolume"] for record in history]
     experiment = len(curve)
     n_init = sum(1 for record in history if record["phase"] == "lhs")
     if experiment <= max(window, n_init):
-        return False
+        return None
 
     total = curve[-1] - curve[n_init - 1]
     if total <= EPS:
-        return True
+        # Nothing gained at all since the initial design: the most stalled a
+        # campaign can be, so it scores zero rather than dividing by zero.
+        return 0.0
     recent_pace = (curve[-1] - curve[-1 - window]) / window
     average_pace = total / (experiment - n_init)
-    return recent_pace / average_pace < threshold
+    return recent_pace / average_pace
 
 
 def over_optimism(history, budget, fraction=0.15, threshold=0.5):
@@ -189,8 +234,43 @@ def confidence_without_evidence(history, budget, fraction=0.5):
     return float(np.mean(ratios)) < fraction
 
 
+def original_ratio(history, budget, fraction=0.075, threshold=0.05):
+    """The study owner's first signal, kept runnable so it can be compared.
+
+    Recent gain over the gain accumulated since the initial design. It is the
+    formula pace_ratio replaced, and it is here for one reason: an article that
+    says "we adopted this trigger" has to be able to show what it was measured
+    against, and the first version is the most relevant comparison of all.
+
+    Its defect is arithmetic rather than empirical. Under perfectly steady
+    progress with gain g per experiment, the numerator is W*g and the
+    denominator (t - n_init)*g, so the ratio equals W/(t - n_init) and falls
+    like 1/t whatever the campaign does. The threshold therefore encodes a
+    firing time rather than a state: with W = 3, a threshold of 0.05 is crossed
+    by that decay alone around experiment 70, and one of 0.30 around experiment
+    20. Defaults are the owner's own: lookback 3, threshold 0.05.
+    """
+    value = original_ratio_value(history, budget, fraction)
+    return value is not None and value < threshold
+
+
+def original_ratio_value(history, budget, fraction=0.075):
+    """The original ratio itself, so a figure can show what it compares."""
+    window = _window(budget, fraction, floor=3)
+    curve = [record["hypervolume"] for record in history]
+    experiment = len(curve)
+    n_init = sum(1 for record in history if record["phase"] == "lhs")
+    if experiment <= max(window, n_init):
+        return None
+    total = curve[-1] - curve[n_init - 1]
+    if total <= EPS:
+        return 0.0                       # elle divisait par zero ici
+    return (curve[-1] - curve[-1 - window]) / total
+
+
 CANDIDATES = {
     "pace_ratio": pace_ratio,
+    "original_ratio": original_ratio,
     "plateau": plateau,
     "over_optimism": over_optimism,
     "exhausted_promises": exhausted_promises,
@@ -206,7 +286,8 @@ def firing_times(signal, records, n_init, budget):
     within the cooldown of a previous firing. Both are counted in experiments,
     initial design included, and both are fractions of the budget.
     """
-    burn_in = n_init + _window(budget, BURN_IN_FRACTION)
+    burn_in = n_init + max(_window(budget, MIN_BO_FRACTION),
+                           _window(budget, WINDOW_FRACTION))
     cooldown = _window(budget, COOLDOWN_FRACTION)
     fires, last = [], None
     for position in range(len(records)):

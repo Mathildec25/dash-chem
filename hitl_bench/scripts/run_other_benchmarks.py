@@ -93,6 +93,15 @@ class TableBenchmark:
         self.goals = [g for _, g in spec["objectives"]]
         self.parameter_keys = [c for c in self.grid.columns if c not in self.objectives]
         self.valid_keys = ["valid_%s" % o for o in self.objectives]
+        # The campaign loop is shared with the Suzuki benchmarks, so this class
+        # answers to the same names. `case` is what a log records; the
+        # categorical is the one a chemist scans, which is the one with the most
+        # levels - twelve ligands rather than four bases.
+        self.case = name
+        texts = [k for k in self.parameter_keys
+                 if not pd.api.types.is_numeric_dtype(self.grid[k])]
+        self.categorical_key = (max(texts, key=lambda k: self.grid[k].nunique())
+                                if texts else None)
         self.domain = self._domain()
         self._lookup = {self._key(r): tuple(float(r[o]) for o in self.objectives)
                         for _, r in self.grid.iterrows()}
@@ -110,6 +119,10 @@ class TableBenchmark:
         self.true_front = normalised[mask]
         self.max_hypervolume = _hypervolume(self.true_front)
         self.front_rows = self.grid[mask]
+        # Which levels of that categorical carry the reference front: the
+        # quantity that says whether a campaign got trapped on the wrong one.
+        self.front_levels = (sorted(set(self.front_rows[self.categorical_key]))
+                             if self.categorical_key else [])
 
     def _is_text(self, key):
         """True for a categorical column. pandas 3 gives strings their own
@@ -162,6 +175,12 @@ class TableBenchmark:
 
     def hypervolume(self, frame):
         return _hypervolume(self.normalise(frame[self.objectives].to_numpy(dtype=float)))
+
+    def igd_plus(self, frame):
+        """Distance to the reference front, in the same normalised units."""
+        from hitl_bench import metrics
+        return metrics.igd_plus(
+            self.true_front, self.normalise(frame[self.objectives].to_numpy(dtype=float)))
 
 
 def _hypervolume(points):

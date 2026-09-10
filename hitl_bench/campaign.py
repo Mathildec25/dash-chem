@@ -20,7 +20,7 @@ import pandas as pd
 import torch
 
 from hitl_bench import metrics
-from hitl_bench.benchmark import OBJECTIVES, PARAMETER_KEYS, VALID_KEYS
+from hitl_bench.benchmark import OBJECTIVES, PARAMETER_KEYS, VALID_KEYS  # noqa: F401
 from hitl_bench.runtime import limit_acquisition_memory
 from utils.bofire_optimization import bayesian_optimization, sampling
 
@@ -32,6 +32,14 @@ SAMPLING_METHOD = "LHS"
 ARM_NO_HITL = "no_hitl"
 
 EXPERIMENT_COLUMNS = PARAMETER_KEYS + OBJECTIVES + VALID_KEYS
+
+
+def _columns(benchmark):
+    """The experiment frame's columns, asked of the benchmark rather than
+    assumed. The Suzuki grids and the table benchmarks answer to the same
+    names, which is what lets one campaign loop drive both - and what lets a
+    fork, and therefore the paired design, work on either."""
+    return benchmark.parameter_keys + benchmark.objectives + benchmark.valid_keys
 
 
 def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
@@ -68,7 +76,7 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
     initial = sampling(benchmark.domain, SAMPLING_METHOD, n_init, seed=seed)
     experiments = pd.DataFrame(
         [benchmark.evaluate(row) for _, row in initial.iterrows()],
-        columns=EXPERIMENT_COLUMNS,
+        columns=_columns(benchmark),
     )
 
     records, hv_curve, igd_curve = [], [], []
@@ -79,8 +87,8 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
             "phase": "lhs",
             "iteration": None,
             "seconds": None,
-            **{key: _plain(experiments.iloc[position][key]) for key in PARAMETER_KEYS},
-            **{key: float(experiments.iloc[position][key]) for key in OBJECTIVES},
+            **{key: _plain(experiments.iloc[position][key]) for key in benchmark.parameter_keys},
+            **{key: float(experiments.iloc[position][key]) for key in benchmark.objectives},
         }
         hv_curve.append(benchmark.hypervolume(so_far))
         igd_curve.append(benchmark.igd_plus(so_far))
@@ -103,13 +111,14 @@ def run_campaign(benchmark, seed, arm=ARM_NO_HITL, n_init=N_INIT,
             "batch_size": BATCH_SIZE,
             "sampling_method": SAMPLING_METHOD,
             "grid_points": len(benchmark.grid),
-            "objectives": list(OBJECTIVES),
+            "objectives": list(benchmark.objectives),
             "num_threads": torch.get_num_threads(),
         },
         "reference": {
             "max_hypervolume": benchmark.max_hypervolume,
             "front_size": len(benchmark.true_front),
-            "front_ligands": list(benchmark.front_ligands),
+            "front_levels": list(benchmark.front_levels),
+            "categorical_key": benchmark.categorical_key,
         },
         "experiments": records,
         "curves": {"hypervolume": hv_curve, "igd_plus": igd_curve},
@@ -133,9 +142,9 @@ def _optimise(benchmark, experiments, records, hv_curve, igd_curve,
             benchmark.domain, experiments, n_candidates=BATCH_SIZE, verbose=False,
         ).iloc[0]
         evaluated = benchmark.evaluate(candidate)
-        belief = _model_belief(candidate, evaluated)
+        belief = _model_belief(candidate, evaluated, benchmark.objectives)
         experiments = pd.concat(
-            [experiments, pd.DataFrame([evaluated], columns=EXPERIMENT_COLUMNS)],
+            [experiments, pd.DataFrame([evaluated], columns=_columns(benchmark))],
             ignore_index=True,
         )
 
@@ -146,8 +155,8 @@ def _optimise(benchmark, experiments, records, hv_curve, igd_curve,
             "phase": "bo",
             "iteration": iteration,
             "seconds": round(time.time() - step_started, 2),
-            **{key: _plain(evaluated[key]) for key in PARAMETER_KEYS},
-            **{key: float(evaluated[key]) for key in OBJECTIVES},
+            **{key: _plain(evaluated[key]) for key in benchmark.parameter_keys},
+            **{key: float(evaluated[key]) for key in benchmark.objectives},
             "hypervolume": hv_curve[-1],
             "igd_plus": igd_curve[-1],
             "model": belief,
@@ -191,10 +200,10 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
 
     kept = [dict(record) for record in saved["experiments"][:at_experiment]]
     experiments = pd.DataFrame(
-        [{**{key: record[key] for key in PARAMETER_KEYS},
-          **{key: record[key] for key in OBJECTIVES},
-          **{key: 1 for key in VALID_KEYS}} for record in kept],
-        columns=EXPERIMENT_COLUMNS,
+        [{**{key: record[key] for key in benchmark.parameter_keys},
+          **{key: record[key] for key in benchmark.objectives},
+          **{key: 1 for key in benchmark.valid_keys}} for record in kept],
+        columns=_columns(benchmark),
     )
     hv_curve = [record["hypervolume"] for record in kept]
     igd_curve = [record["igd_plus"] for record in kept]
@@ -204,7 +213,7 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
     if draw_seed is not None:
         evaluated = benchmark.evaluate(_draw_untested(benchmark, experiments, draw_seed))
         experiments = pd.concat(
-            [experiments, pd.DataFrame([evaluated], columns=EXPERIMENT_COLUMNS)],
+            [experiments, pd.DataFrame([evaluated], columns=_columns(benchmark))],
             ignore_index=True,
         )
         hv_curve.append(benchmark.hypervolume(experiments))
@@ -214,8 +223,8 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
             "phase": "intervention",
             "iteration": None,
             "seconds": None,
-            **{key: _plain(evaluated[key]) for key in PARAMETER_KEYS},
-            **{key: float(evaluated[key]) for key in OBJECTIVES},
+            **{key: _plain(evaluated[key]) for key in benchmark.parameter_keys},
+            **{key: float(evaluated[key]) for key in benchmark.objectives},
             "hypervolume": hv_curve[-1],
             "igd_plus": igd_curve[-1],
             "model": None,
@@ -239,7 +248,7 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
             "batch_size": BATCH_SIZE,
             "sampling_method": saved["config"]["sampling_method"],
             "grid_points": len(benchmark.grid),
-            "objectives": list(OBJECTIVES),
+            "objectives": list(benchmark.objectives),
             "num_threads": torch.get_num_threads(),
         },
         "fork": {
@@ -247,7 +256,7 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
             "draw_seed": draw_seed,
             "intervened": draw_seed is not None,
             "injected": None if injected is None else
-                        {key: injected[key] for key in PARAMETER_KEYS + list(OBJECTIVES)},
+                        {key: injected[key] for key in benchmark.parameter_keys + list(benchmark.objectives)},
             "parent_arm": saved["config"]["arm"],
         },
         "reference": dict(saved["reference"]),
@@ -301,14 +310,15 @@ def _summarise(benchmark, records, hv_curve, igd_curve, n_init):
     # whether the optimiser then went for it, or walked away and got trapped
     # on another ligand. So we track the two phases separately.
     first_touch, first_touch_bo = {}, {}
-    for ligand in benchmark.front_ligands:
-        hits = [r["experiment"] for r in records if r["ligand"] == ligand]
+    key = benchmark.categorical_key
+    for ligand in benchmark.front_levels:
+        hits = [r["experiment"] for r in records if r[key] == ligand]
         bo_hits = [r["experiment"] for r in records
-                   if r["ligand"] == ligand and r["phase"] == "bo"]
+                   if r[key] == ligand and r["phase"] == "bo"]
         first_touch[ligand] = hits[0] if hits else None
         first_touch_bo[ligand] = bo_hits[0] if bo_hits else None
     bo_records = [r for r in records if r["phase"] == "bo"]
-    on_front_ligand = [r for r in bo_records if r["ligand"] in benchmark.front_ligands]
+    on_front_ligand = [r for r in bo_records if r[key] in benchmark.front_levels]
 
     return {
         "hv_curve_auc": auc,
@@ -327,13 +337,13 @@ def _summarise(benchmark, records, hv_curve, igd_curve, n_init):
         "bo_fraction_on_front_ligand": (
             len(on_front_ligand) / len(bo_records) if bo_records else 0.0),
         "ligand_counts": {
-            ligand: sum(1 for r in records if r["ligand"] == ligand)
-            for ligand in sorted({r["ligand"] for r in records})
+            ligand: sum(1 for r in records if r[key] == ligand)
+            for ligand in sorted({r[key] for r in records})
         },
     }
 
 
-def _model_belief(candidate, evaluated):
+def _model_belief(candidate, evaluated, objectives=OBJECTIVES):
     """What the surrogate expected of the point it just proposed.
 
     BoFire returns, for every objective, `<key>_pred` (the posterior mean at
@@ -349,7 +359,7 @@ def _model_belief(candidate, evaluated):
     that has genuinely converged stops promising, a trapped one does not.
     """
     belief = {}
-    for objective in OBJECTIVES:
+    for objective in objectives:
         predicted = candidate.get("%s_pred" % objective)
         deviation = candidate.get("%s_sd" % objective)
         desirability = candidate.get("%s_des" % objective)

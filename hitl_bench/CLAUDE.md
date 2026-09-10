@@ -331,3 +331,56 @@ measurements, and an article must not cite the two as if they were one thing.
 `olympus_meta.json` records shapes only and is out of step with the directory -
 it describes three grids whose CSVs are absent and omits the two that were added
 after the Olympus pass. It is not provenance and must not be read as such.
+
+## P* is the study's trigger; the original P is kept as a documented candidate
+
+The owner's first signal, `original_ratio`, is recent gain over the gain
+accumulated since the initial design. It is now implemented alongside P* rather
+than only described, because an article that adopts a trigger has to show what
+it was measured against, and the first version is the most relevant comparison.
+
+**On the campaigns we hold, the two are indistinguishable.** Case II, 18 seeds,
+W = 3, cooldown 5: both alert 13 of 13 failed campaigns, first firing at 19.1
+against 19.4, 35% of the final gain still to come in both cases, 3.4 against 3.1
+solicitations. No measurement separates them, and the article should say so
+rather than manufacture a winner.
+
+What separates them is that P's threshold does not transfer. On a campaign
+progressing perfectly steadily - one that must never fire - P falls on its own:
+
+    experiment       15     20     30     40     60    100
+    P (W=3)       0.600  0.300  0.150  0.100  0.060  0.033
+    P*            1.000  1.000  1.000  1.000  1.000  1.000
+
+At a budget of 40 a threshold of 0.10 therefore fires at the last experiment of
+a flawless campaign; at a budget of 100 it fires from experiment 40 onwards, so
+more than half the campaign sits in permanent alert. P* is 1 under steady
+progress at any experiment and any budget, so 0.10 means what it says: ten times
+slower than this campaign has been going. That is what makes the threshold
+quotable in a paper and reusable by a chemist who runs a different budget.
+
+Decision: **P\* is the study's trigger.** `original_ratio` stays in CANDIDATES,
+runnable, as the documented starting point.
+
+### The detection is set by (W, threshold) together, not by W alone
+
+Corrected after measuring, having first reported that W alone decided it. On
+case II with cooldown 5:
+
+    P*             W=3 threshold 0.10  ->  13/13, first 19.4, 3.1 alerts
+    P*             W=5 threshold 0.10  ->  10/13, four campaigns never alerted
+    P*             W=5 threshold 0.30  ->  13/13, first 22.6
+    original_ratio W=5 threshold 0.05  ->  11/13
+    original_ratio W=5 threshold 0.10  ->  13/13, first 24.2
+
+The silent campaigns at W = 5 were a threshold effect, not a window effect.
+Several (W, threshold) pairs reach full coverage; what separates them is
+earliness and load, not detection.
+
+### Burn-in: at least five BO experiments, whatever W
+
+Two floors, both of which must hold, so the burn-in is the larger:
+a chemist is not asked to judge three proposals, and the lookback must not reach
+back into the initial design or the "recent pace" is measured partly on draws
+that were never proposals. On a budget of 40 the earliest firing is therefore
+experiment 15 for W = 3 as well as for W = 5.
