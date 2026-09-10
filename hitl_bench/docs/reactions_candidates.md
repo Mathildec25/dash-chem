@@ -267,7 +267,25 @@ tes chimistes et qu'une campagne coûte 25 minutes, la plus chère du lot.
 
 ## Les documents pour les chimistes
 
-Il y en a deux sortes, et l'ordre compte.
+### Le notebook Colab, `forms/campagnes_chimistes.ipynb`
+
+C'est la voie retenue. Un seul lien, rien à installer, rien à télécharger, ça s'ouvre sur téléphone, et aucun serveur de messagerie ne bloque un lien Colab — là où une pièce jointe `.html` se fait souvent jeter par Outlook. Le notebook vit dans le dépôt, donc celui qui reprendra rouvrira exactement la page que les participants ont vue.
+
+Le chimiste ne voit **jamais de code** : chaque cellule porte `cellView: "form"`, le mécanisme de Colab qui masque la source et n'affiche que les champs. Trois gestes, sans jamais parler de cellule :
+
+1. **Exécution → Tout exécuter** : les tableaux s'affichent.
+2. Remplir les champs.
+3. **Exécution → Tout exécuter** à nouveau, puis cliquer sur le bouton d'envoi. Le lien ouvre leur logiciel de mail avec tout déjà rédigé.
+
+Le deuxième « Tout exécuter » n'est pas une coquetterie : modifier un champ `#@param` réécrit la source de la cellule mais ne la relance pas, et une relance complète est le seul geste qui capture toutes les réponses sans avoir à expliquer ce qu'est une cellule.
+
+**Les menus déroulants sont construits à partir de la grille, pas de l'historique de la campagne.** Une campagne de 40 essais ne touche qu'une poignée de niveaux ; n'offrir que ceux-là interdirait silencieusement de demander 1,0 mol%, une condition parfaitement valide que cette campagne n'a pas essayée. C'est précisément ce qu'on veut leur laisser demander. Corollaire utile : toute proposition est forcément un point de la grille, donc évaluable par simple lecture de table.
+
+Les quatre campagnes retenues sont équilibrées exprès : deux où il faut intervenir, une qui a l'air mal partie et se rétablit seule, une où il n'y a plus rien à trouver.
+
+### Les deux autres jeux de pages
+
+Il en existe deux sortes, et l'ordre compte.
 
 ### 1. L'invitation, `forms/00_invitation_chimistes.html`
 
