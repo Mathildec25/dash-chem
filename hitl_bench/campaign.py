@@ -168,7 +168,8 @@ def _optimise(benchmark, experiments, records, hv_curve, igd_curve,
     return experiments
 
 
-def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None):
+def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None,
+                  injected_point=None):
     """Branch a saved campaign at `at_experiment` and carry it to the same budget.
 
     This is the paired design. Both branches share their history up to the
@@ -210,9 +211,14 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
     igd_curve = [record["igd_plus"] for record in kept]
     records = kept
 
+    # Three ways to branch, and the log has to say which was used. A point given
+    # by name is a chemist's suggestion; a draw seed is the random control;
+    # neither is the blank that checks a fork reproduces its parent.
     injected = None
-    if draw_seed is not None:
-        evaluated = benchmark.evaluate(_draw_untested(benchmark, experiments, draw_seed))
+    if injected_point is not None or draw_seed is not None:
+        chosen = (injected_point if injected_point is not None
+                  else _draw_untested(benchmark, experiments, draw_seed))
+        evaluated = benchmark.evaluate(chosen)
         experiments = pd.concat(
             [experiments, pd.DataFrame([evaluated], columns=_columns(benchmark))],
             ignore_index=True,
@@ -243,7 +249,7 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
     log = {
         "config": {
             "case": benchmark.case,
-            "arm": ("fixed:%d" % at_experiment) if draw_seed is not None else "resume_check",
+            "arm": ("fixed:%d" % at_experiment) if injected is not None else "resume_check",
             "seed": saved["config"]["seed"],
             "n_init": n_init,
             "n_iterations": saved["config"]["n_iterations"],
@@ -256,7 +262,9 @@ def fork_campaign(benchmark, saved, at_experiment, draw_seed=None, progress=None
         "fork": {
             "at_experiment": at_experiment,
             "draw_seed": draw_seed,
-            "intervened": draw_seed is not None,
+            "source": ("given" if injected_point is not None
+                       else ("random" if draw_seed is not None else None)),
+            "intervened": injected is not None,
             "injected": None if injected is None else
                         {key: injected[key] for key in benchmark.parameter_keys + list(benchmark.objectives)},
             "parent_arm": saved["config"]["arm"],
