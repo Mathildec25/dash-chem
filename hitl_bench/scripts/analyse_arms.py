@@ -277,6 +277,110 @@ def figure_effect(benchmark, rows):
     return path
 
 
+def write_report(benchmark, rows, interventions, no_hitl, randoms):
+    """The numbers in prose, with the caveats attached to them.
+
+    Written by the same pass that computes them, so the text cannot drift from
+    the tables the way a hand-written summary does.
+    """
+    base = [r for r in rows if r["arm"] == "no_hitl"]
+    branch = [r for r in rows if r["arm"] != "no_hitl"]
+    gains = [r["hv_final_fraction_gain"] for r in branch
+             if r["hv_final_fraction_gain"] != ""]
+    ameliorees = sum(1 for g in gains if g > 0)
+    low, high = wilson(ameliorees, len(gains)) if gains else (0, 1)
+
+    atteint_base = sum(r["reached_target"] for r in base)
+    atteint_branche = sum(r["reached_target"] for r in branch)
+    temps_base = [r["time_to_target"] for r in base if r["time_to_target"] != ""]
+    temps_branche = [r["time_to_target"] for r in branch if r["time_to_target"] != ""]
+
+    lignes = [
+        "# %s — BO seule contre intervention aléatoire" % benchmark,
+        "",
+        "Écrit par `analyse_arms.py`, donc toujours à jour des campagnes présentes.",
+        "",
+        "## Ce que contient ce lot",
+        "",
+        "- **%d campagnes** de BO seule, 10 tirages initiaux puis 30 itérations" % len(base),
+        "- **%d branches** avec un point tiré au hasard à chaque alerte du trigger" % len(branch),
+        "- **%d interventions** au total, soit %.1f par branche"
+        % (len(interventions), len(interventions) / len(branch) if branch else 0),
+        "",
+        "## Qualité : fraction du front atteinte",
+        "",
+        "| | campagnes | fraction moyenne | atteignent %d %% |" % int(100 * TARGET),
+        "|---|---|---|---|",
+        "| BO seule | %d | %.3f | %d (%.0f %%) |"
+        % (len(base), mean([r["hv_final_fraction"] for r in base]), atteint_base,
+           100 * atteint_base / len(base) if base else 0),
+        "| + point au hasard | %d | %.3f | %d (%.0f %%) |"
+        % (len(branch), mean([r["hv_final_fraction"] for r in branch]), atteint_branche,
+           100 * atteint_branche / len(branch) if branch else 0),
+        "",
+    ]
+
+    if gains:
+        lignes += [
+            "**Gain apparié moyen : %+.1f points de fraction du front.** Chaque branche "
+            "est comparée à *sa propre* campagne parente, pas à la moyenne du bras "
+            "témoin : les deux partagent leur histoire jusqu'à la première alerte, "
+            "donc le préfixe commun s'annule et l'écart est attribuable à "
+            "l'intervention." % (100 * mean(gains)),
+            "",
+            "%d branches sur %d s'améliorent, intervalle de Wilson à 95 %% "
+            "[%.0f %% ; %.0f %%]. Étendue des gains : %+.1f à %+.1f points."
+            % (ameliorees, len(gains), 100 * low, 100 * high,
+               100 * min(gains), 100 * max(gains)),
+            "",
+        ]
+
+    lignes += [
+        "## Temps : expériences pour atteindre %d %% du front" % int(100 * TARGET),
+        "",
+        "| | y arrivent | expériences (moyenne) | censurées |",
+        "|---|---|---|---|",
+        "| BO seule | %d / %d | %s | %d |"
+        % (len(temps_base), len(base),
+           "%.1f" % mean(temps_base) if temps_base else "—",
+           sum(r["censored"] for r in base)),
+        "| + point au hasard | %d / %d | %s | %d |"
+        % (len(temps_branche), len(branch),
+           "%.1f" % mean(temps_branche) if temps_branche else "—",
+           sum(r["censored"] for r in branch)),
+        "",
+        "Les campagnes qui n'atteignent jamais le seuil sont **censurées**, pas "
+        "supprimées : les retirer de la moyenne flatterait le bras qui échoue le "
+        "plus souvent. La moyenne ci-dessus ne porte donc que sur celles qui y "
+        "arrivent, et la colonne de droite dit combien ont été laissées de côté.",
+        "",
+        "## À lire avec précaution",
+        "",
+        "- Le gain immédiat d'une intervention est presque toujours nul : un point "
+        "injecté améliore rarement le front sur-le-champ. Ce qu'il vaut se voit en "
+        "aval, d'où la colonne `final_gain` de `arms_interventions.csv`.",
+        "- Comme on intervient à **chaque** alerte, seule la première est commune "
+        "entre deux répétitions d'une même graine. Situer une réponse de chimiste "
+        "par un percentile demande beaucoup de tirages **au même checkpoint**, ce "
+        "que ce lot ne fournit pas : il donne l'effet moyen du hasard, pas la "
+        "distribution à un instant donné.",
+        "",
+        "## Fichiers",
+        "",
+        "- `arms_summary.csv` — une ligne par campagne",
+        "- `arms_interventions.csv` — une ligne par intervention",
+        "- `figures/arms_paired_%s.png` — campagnes appariées, éventail des résultats"
+        % benchmark,
+        "- `figures/arms_effect_%s.png` — distribution du gain apparié" % benchmark,
+        "",
+    ]
+
+    path = os.path.join(RESULTS, "arms_report_%s.md" % benchmark)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(chr(10).join(lignes))
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--benchmark", required=True)
@@ -332,6 +436,8 @@ def main():
     else:
         pas = (len(classees) - 1) / (args.show - 1)
         seeds_shown = [classees[round(i * pas)] for i in range(args.show)]
+    print("   rapport : %s" % write_report(args.benchmark, rows, interventions,
+                                             no_hitl, randoms))
     try:
         print("   figure : %s" % figure_paired(args.benchmark, parents, randoms, seeds_shown))
         path = figure_effect(args.benchmark, rows)
