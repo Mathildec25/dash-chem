@@ -31,6 +31,16 @@ from hitl_bench import metrics
 # --- frozen description of the benchmark -----------------------------------
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 CASES = ["i", "ii", "iii", "iv"]
+# The same four landscapes, on the identical 5670-point grid, as predicted by
+# Summit's pretrained emulators instead of the Olympus Bayesian neural networks
+# that Minerva shipped. Two surrogates fitted to the same Reizman campaigns
+# disagree by 8.8 yield points on average and by up to 34.6, so which one
+# produced a number must be recoverable from the campaign log: they are separate
+# case names, never a flag. Both put the entire Pareto front of case II on PCy3,
+# so the trap the study relies on is not an artefact of either.
+# See scripts/make_summit_grids.py.
+SUMMIT_CASES = ["summit_%s" % case for case in CASES]
+ALL_CASES = CASES + SUMMIT_CASES
 LIGANDS = ["L0", "L1", "L2", "L3", "L4", "L5", "L6"]
 LIGAND_KEY = "ligand"
 PROCESS_KEYS = ["res_time", "temperature", "catalyst_loading"]
@@ -49,8 +59,8 @@ class GridBenchmark:
     """One Suzuki case: its grid, its BoFire domain and its reference values."""
 
     def __init__(self, case, data_dir=DATA_DIR):
-        if case not in CASES:
-            raise ValueError("unknown case %r, expected one of %s" % (case, CASES))
+        if case not in ALL_CASES:
+            raise ValueError("unknown case %r, expected one of %s" % (case, ALL_CASES))
         self.case = case
         self.path = os.path.join(data_dir, "suzuki_%s.csv" % case)
         # Exposed as attributes so that the campaign loop works with any
