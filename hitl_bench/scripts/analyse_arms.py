@@ -217,14 +217,15 @@ def figure_paired(benchmark, parents, randoms, seeds_shown):
         for branch in [r for r in randoms
                        if r["config"].get("parent_seed") == seed]:
             axis.plot(range(1, len(branch["experiments"]) + 1),
-                      curve_fraction(branch), color=ALERTE, alpha=0.45, lw=1.1)
+                      curve_fraction(branch), color=ALERTE, alpha=0.85, lw=1.4)
             for item in branch.get("interventions", []):
                 x = item["injected_at"]
                 axis.plot(x, curve_fraction(branch)[x - 1], marker="v", ms=4,
                           color=ALERTE, mec="white", mew=0.5, zorder=5)
         axis.plot(range(1, len(parent["experiments"]) + 1), curve_fraction(parent),
-                  color=REUSSITE, lw=2.0)
-        axis.set_title("campagne %d" % seed, fontsize=9)
+                  color=REUSSITE, lw=2.4, zorder=3)
+        axis.set_title("campagne %d — BO seule %.0f%%"
+                       % (seed, 100 * curve_fraction(parent)[-1]), fontsize=9)
         axis.set_xlabel("expérience")
         axis.set_ylim(0, 1.05)
         axis.grid(alpha=0.25, lw=0.5)
@@ -322,7 +323,15 @@ def main():
                  sum(r["reached_target"] for r in branch), len(branch),
                  100 * TARGET, 100 * mean(gains)))
 
-    seeds_shown = sorted(parents)[: args.show]
+    # Les campagnes tracees couvrent l'eventail des resultats plutot que les
+    # premieres graines : montrer 1 a 5 serait arbitraire, et vingt panneaux
+    # seraient un mur. Les vingt figurent en supporting information.
+    classees = sorted(parents, key=lambda s: curve_fraction(parents[s])[-1])
+    if len(classees) <= args.show:
+        seeds_shown = classees
+    else:
+        pas = (len(classees) - 1) / (args.show - 1)
+        seeds_shown = [classees[round(i * pas)] for i in range(args.show)]
     try:
         print("   figure : %s" % figure_paired(args.benchmark, parents, randoms, seeds_shown))
         path = figure_effect(args.benchmark, rows)
