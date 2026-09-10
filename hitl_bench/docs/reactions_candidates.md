@@ -265,7 +265,43 @@ n'optimise pas. Comparer « chimiste » contre une BO qui lit la table dans
 l'ordre ne mesurerait rien. Ajoutons que la photophysique n'est pas le métier de
 tes chimistes et qu'une campagne coûte 25 minutes, la plus chère du lot.
 
-## Les formulaires
+## Les documents pour les chimistes
+
+Il y en a deux sortes, et l'ordre compte.
+
+### 1. L'invitation, `forms/00_invitation_chimistes.html`
+
+C'est le fichier que tu leur envoies en premier, avant qu'ils voient la moindre
+campagne. Il explique en quelques phrases ce qu'on cherche, ce qu'on leur
+demande et combien de temps ça prend, puis présente les trois réactions dans
+leurs termes : ce qu'on peut régler, ce qu'on mesure, avec les vrais niveaux lus
+directement dans les grilles — la page ne peut donc pas se désynchroniser de ce
+que les campagnes font vraiment. Il finit par quatre questions.
+
+Deux d'entre elles ne sont pas de la politesse.
+
+**« Connaissez-vous déjà ce système ? »**, posée *avant* de montrer quoi que ce
+soit. La conclusion de Reizman est publiée et figure dans le résumé de
+l'article : PCy3 à 110 °C. Un participant qui la connaît récitera au lieu de
+raisonner, et il faut pouvoir faire le tri après coup. Posée après avoir vu une
+campagne, la question invite à se sous-déclarer ; posée avant, sans enjeu, non.
+
+**« Qu'est-ce qui vous met la puce à l'oreille quand une série n'avance
+plus ? »** C'est littéralement l'énoncé de ton déclencheur, posé à des humains
+avant qu'on leur montre le nôtre. Si plusieurs chimistes citent spontanément un
+signal auquel on n'avait pas pensé, c'est un résultat en soi ; s'ils citent ceux
+qu'on a déjà testés et rejetés, c'est un argument pour la section « signaux
+écartés ».
+
+Les deux autres questions sont utilitaires : sur quelles réactions ils acceptent
+de se prononcer, et leur patience habituelle avant d'arrêter une campagne.
+
+Les sept ligands du Suzuki y sont nommés, sauf deux : la page dit « plus 2 paires
+dont le nom n'est pas publié (P1-L6, P1-L7) » plutôt que de lâcher un code
+inexpliqué au milieu d'une liste de phosphines. Deviner ces deux noms
+corromprait l'étude, c'est écrit dans `data/catalyst_names.json`.
+
+### 2. Les pages de checkpoint
 
 Les pages sont dans `hitl_bench/forms/`. Ce sont des fichiers HTML autonomes :
 un double-clic les ouvre dans n'importe quel navigateur, il n'y a rien à
