@@ -26,7 +26,7 @@ Local Olympus checkout, editable install used by `olympus_env`:
 | `dye_lasers` | 3458 | `olympus/dataset_dye_lasers` | numeric content identical |
 | `lnp3` | 768 | `olympus/dataset_lnp3` | numeric content identical |
 | `snar` | 900 | **Summit**, `summit.benchmarks.SnarBenchmark` | model replayed, values match |
-| `edbo_ch_arylation` | 1728 | **unknown** | see below |
+| `edbo_ch_arylation` | 1728 | **EDBO+**, Torres et al. JACS 2022 | downloaded and compared, identical |
 
 ### snar is not the Olympus SnAr dataset
 
@@ -43,19 +43,31 @@ which reproduces `sty` and `e_factor` to the last digit:
 Being a mechanistic model rather than a fit, it carries no observation noise,
 which is why plain BO reaches 100% of its front on every seed tried.
 
-### edbo_ch_arylation has no established source: do not use it
+### edbo_ch_arylation: the real EDBO+ measurements, not a virtual expansion
 
 1728 rows = 4 bases x 12 ligands x 4 solvents x 3 concentrations x 3
-temperatures, with named reagents and two objectives, `yield` and `cost`. No
-Olympus dataset has 1728 rows, no EDBO source exists anywhere on this machine,
-and nothing was written down when the grid was added.
+temperatures, named reagents, two objectives, `yield` and `cost`.
 
-The content is consistent with a real high-throughput screen - 29% of yields are
-exactly zero, values carry two decimals, and the ligand ranking is chemically
-sensible, with X-Phos and CgMe-PPh on top and PPhMe2 and PPhtBu2 dead - but
-consistency is not provenance. **The grid is excluded from the study until its
-source is named and this table records it.** Everything measured on it stands as
-a measurement and none of it is citable.
+Source established on 10 September, after it had been added with nothing written
+down and briefly withdrawn from the study:
+
+    github.com/doyle-lab-ucla/edboplus
+      examples/publication/BMS_yield_cost/data/experiments_yield_and_cost.csv
+
+Downloaded and compared row for row after sorting on the five conditions: the
+conditions match exactly and the maximum difference is **0.0 on both yield and
+cost**. Paper: Torres, Roch, Hickman et al., *A Multi-Objective Active Learning
+Platform and Web App for Reaction Optimization*, J. Am. Chem. Soc. 2022, 144,
+19999-20007, DOI 10.1021/jacs.2c08592.
+
+**These are measured reactions, not model output.** That distinction matters
+here. The Minerva repository also ships a C-H arylation file,
+`benchmark_datasets/edbo/edbo_ch.csv`, with 7680 rows over a finer grid - five
+concentrations and eight temperatures. Restricting it to our three
+concentrations and three temperatures gives exactly 1728 rows, so it is the same
+experimental design, but only 1 of 1429 value pairs coincides with ours: that
+file is an ML expansion trained on these measurements, and it stores cost
+negated as a maximisation. We use the measurements.
 
 ## What `olympus_meta.json` is, and is not
 

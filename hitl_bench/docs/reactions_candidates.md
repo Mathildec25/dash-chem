@@ -6,9 +6,11 @@ BO. Ce document dit laquelle retenir et pourquoi.
 
 > **Mise à jour du 10 septembre.** La provenance des neuf grilles ajoutées
 > cette nuit-là n'avait pas été consignée. Elle a depuis été rétablie et
-> vérifiée pour huit d'entre elles (`data/other/README.md`,
-> `scripts/verify_other_grids.py`). La neuvième, l'arylation C–H, n'a pas de
-> source identifiable : **elle est retirée de la recommandation.**
+> vérifiée pour **les neuf** (`data/other/README.md`,
+> `scripts/verify_other_grids.py`), y compris l'arylation C–H, qui s'avère être
+> les mesures expérimentales originales d'EDBO+. Deux surprises au passage : la
+> SNAr n'est pas un jeu de données mais un modèle cinétique sans bruit, et
+> l'arylation n'est pas l'expansion virtuelle de Minerva.
 
 ## Ce qu'on cherchait
 
@@ -48,7 +50,7 @@ initiaux + 30 propositions de la BO), sur 3 à 5 graines.
 |---|---|---|---|---|---|
 | **Suzuki cas ii** | 5 670 | rendement, TON | 67 % | **63 points** | oui |
 | **Suzuki cas i** | 5 670 | rendement, TON | 87 % | **45 points** | oui |
-| ~~Arylation C–H~~ (provenance inconnue) | 1 728 | rendement, coût | 85 % | 22 points | oui |
+| **Arylation C–H (EDBO+)** | 1 728 | rendement, coût | 85 % | **22 points** | oui |
 | Suzuki cas iii | 5 670 | rendement, TON | 95 % | 20 points | oui |
 | Buchwald-Hartwig (a) | 792 | rendement seul | 84 % | 9 points | non (SMILES) |
 | Nanoparticules lipidiques | 768 | 3 objectifs | 97,5 % | 3 points | oui |
@@ -77,17 +79,17 @@ résumé. Un participant qui reconnaît le système récite au lieu de raisonner
 C'est pour ça que le formulaire pose la question « avez-vous reconnu cette
 réaction ? » — sans elle on ne peut pas séparer les deux après coup.
 
-### Deuxième réaction : l'arylation C–H — RETIRÉE, provenance inconnue
+### Deuxième réaction : l'arylation C–H d'EDBO+
 
-> **Cette recommandation est suspendue.** En reprenant les grilles le 10
-> septembre, aucune source n'a pu être établie pour `edbo_ch_arylation` : aucun
-> jeu Olympus n'a ses 1728 lignes, aucun fichier EDBO n'existe sur la machine, et
-> rien n'avait été consigné au moment de l'ajouter. Voir
-> `data/other/README.md`. Tout ce qui suit reste vrai **de cette grille**, et
-> rien n'en est citable tant qu'on ne sait pas d'où elle vient.
+> **Provenance établie le 10 septembre**, après une alerte : la grille avait été
+> ajoutée sans que rien ne soit consigné, et elle a été brièvement retirée. Elle
+> est identique, au dernier chiffre sur le rendement **et** sur le coût, au
+> fichier `experiments_yield_and_cost.csv` du dépôt officiel EDBO+
+> (Torres et al., JACS 2022, DOI 10.1021/jacs.2c08592).
 >
-> Les sept autres grilles sont, elles, re-vérifiées valeur par valeur contre le
-> dépôt Olympus local, et la SNAr contre le modèle cinétique de Summit.
+> Point important découvert au passage : ce sont les **mesures réelles**, pas
+> l'expansion virtuelle par modèle que distribue Minerva (7680 lignes, mêmes
+> niveaux mais valeurs de modèle). Voir `data/other/README.md`.
 
 C'était la trouvaille de la nuit, et elle est complémentaire du Suzuki sur un
 point précis.

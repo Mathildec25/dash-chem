@@ -46,6 +46,11 @@ DEFAULT_OLYMPUS = os.path.join(
 KNOWN_ELSEWHERE = {
     "snar": "summit.benchmarks.SnarBenchmark, kinetic model on a 6x6x5x5 factorial "
             "grid; verified by replaying the model on sample points",
+    "edbo_ch_arylation":
+        "EDBO+ (Torres et al., JACS 2022, 10.1021/jacs.2c08592), file "
+        "examples/publication/BMS_yield_cost/data/experiments_yield_and_cost.csv "
+        "of github.com/doyle-lab-ucla/edboplus; downloaded and compared "
+        "row-for-row, max difference 0.0 on both yield and cost",
 }
 
 

@@ -306,13 +306,27 @@ unaccounted for:
     buchwald_a..e, dye_lasers, lnp3   olympus/dataset_<same name>, identical
     snar                              Summit's SnarBenchmark kinetic model on a
                                       6x6x5x5 grid, replayed and matching
-    edbo_ch_arylation                 no source found anywhere
+    edbo_ch_arylation                 EDBO+ (Torres et al., JACS 2022,
+                                      10.1021/jacs.2c08592), file
+                                      examples/publication/BMS_yield_cost/data/
+                                      experiments_yield_and_cost.csv of
+                                      github.com/doyle-lab-ucla/edboplus;
+                                      downloaded and compared row for row, max
+                                      difference 0.0 on yield and on cost
 
-Two consequences. `snar` is a mechanistic model rather than measured data, which
-is why plain BO reaches 100% of its front on every seed - that is a property of
-a noiseless kinetic model, not a hard-won result. And `edbo_ch_arylation`, which
-had been recommended as the study's second benchmark, is withdrawn until its
-source is named: its measurements stand, none of it is citable.
+Two findings came out of the exercise, both of which change how a result reads.
+
+`snar` is a mechanistic model rather than measured data: no observation noise
+and four smooth continuous variables. Plain BO reaching 100% of its front on
+every seed is what such a landscape gives, not a hard-won result.
+
+`edbo_ch_arylation` is the **measured** EDBO+ dataset, not the ML expansion.
+Minerva also ships a C-H arylation file, benchmark_datasets/edbo/edbo_ch.csv,
+with 7680 rows over five concentrations and eight temperatures; restricted to
+our three and three it gives exactly 1728 rows, so it is the same experimental
+design, but only 1 of 1429 value pairs coincides with ours. That file is model
+output trained on these measurements and it stores cost negated. We use the
+measurements, and an article must not cite the two as if they were one thing.
 
 `olympus_meta.json` records shapes only and is out of step with the directory -
 it describes three grids whose CSVs are absent and omits the two that were added
