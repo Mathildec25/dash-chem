@@ -66,6 +66,24 @@ COOLDOWN_FRACTION = WINDOW_FRACTION
 # earliest, for W = 3 as well as for W = 5.
 MIN_BO_FRACTION = 0.125
 
+# The threshold P* is compared to. 0.30 reads as "advancing three times more
+# slowly than this campaign has been", and it is chosen with W = 5 rather than
+# separately: detection is set by the pair, not by either alone.
+#
+# Measured on the 18 case II campaigns, cooldown 5, every setting reaching full
+# coverage of the failed campaigns:
+#
+#     W=3 threshold 0.10  3.1 alerts  0 silent  first firing 19.4  35% left
+#     W=5 threshold 0.30  2.5 alerts  1 silent  first firing 22.6  26% left
+#
+# W = 5 with 0.30 was adopted: it costs three experiments of lateness and nine
+# points of remaining margin, and saves 0.6 solicitation per campaign - more on
+# the arylation, 3.7 against 4.3. Its single silent campaign is the one that
+# ends at 100% of the front, which is the only campaign it is right never to
+# interrupt. At W = 5 a threshold of 0.10 would leave four campaigns silent, two
+# of them failures: the threshold is not independent of the window.
+THRESHOLD = 0.30
+
 
 def _window(budget, fraction, floor=2):
     return max(floor, int(round(fraction * budget)))
@@ -101,7 +119,7 @@ def plateau(history, budget, fraction=0.125):
     return curve[-1] - curve[-1 - k] <= EPS
 
 
-def pace_ratio(history, budget, fraction=WINDOW_FRACTION, threshold=0.10):
+def pace_ratio(history, budget, fraction=WINDOW_FRACTION, threshold=THRESHOLD):
     """The campaign's recent pace against its own average pace. The study's trigger.
 
     This is the study owner's original signal with its denominator fixed. Hers

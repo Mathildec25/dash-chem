@@ -384,3 +384,28 @@ a chemist is not asked to judge three proposals, and the lookback must not reach
 back into the initial design or the "recent pace" is measured partly on draws
 that were never proposals. On a budget of 40 the earliest firing is therefore
 experiment 15 for W = 3 as well as for W = 5.
+
+### The frozen settings
+
+    signal    P* = recent pace / average pace, both per experiment
+    W         5 experiments (0.125 of the budget)
+    threshold 0.30
+    cooldown  5 experiments
+    burn-in   experiment 15 = n_init + max(5 BO experiments, W)
+
+On the 18 case II campaigns this alerts 13 of 13 failed campaigns at 2.5
+solicitations each, first firing at experiment 22.6 with 26% of the final gain
+still to come. One campaign is never interrupted and it is the one that reaches
+100% of the front.
+
+Both remaining knobs were settled by measurement rather than preference. The
+cooldown is 5 because 3 gives the same detection, the same first firing and the
+same margin for one extra solicitation per campaign - a cooldown can only move
+the firings after the first, never the first. And W and the threshold were
+chosen as a pair: at W = 5 a threshold of 0.10 leaves four campaigns silent, two
+of them failures.
+
+The alternative that was declined, and why it is worth recording: W = 3 with a
+threshold of 0.10 fires three experiments earlier and leaves 35% of the gain
+rather than 26%, at 3.1 solicitations. It is the better setting for detection;
+W = 5 was adopted for the load on five chemists.

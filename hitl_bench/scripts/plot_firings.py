@@ -56,7 +56,10 @@ def load(stem):
 # l'original est dix fois plus bas que celui de P*, donc l'echelle verticale ne
 # peut pas etre commune : elle est calee sur le seuil du signal trace.
 SIGNAUX = {
-    "pace_ratio": (triggers.pace_ratio, triggers.pace_ratio_value, 0.10, "P*"),
+    # Le seuil vient du trigger lui-meme : le recopier ici, c'est se preparer
+    # a tracer un seuil different de celui qui declenche.
+    "pace_ratio": (triggers.pace_ratio, triggers.pace_ratio_value,
+                   triggers.THRESHOLD, "P*"),
     "original_ratio": (triggers.original_ratio, triggers.original_ratio_value, 0.05,
                        "P (original)"),
 }
