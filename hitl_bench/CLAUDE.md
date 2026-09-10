@@ -292,3 +292,28 @@ during the initial design, judged it poor, and never returned - while case I's
 40% failure rate is a continuous local optimum reached with the right catalyst.
 A chemist has to contradict a catalyst choice in one and fix temperature or
 residence time in the other, which is not the same intervention.
+
+### Provenance is part of the benchmark, and was missing for nine grids
+
+data/README.md documents the four Suzuki grids to the repository, the paper and
+the check that was run. The nine grids added on the night of 9 September were
+checked as they were collected but nothing was written down, and a night later
+none of it could be recovered from the repository. Re-established on 10
+September with scripts/verify_other_grids.py, which matches sorted numeric
+content against a local Olympus checkout and exits non-zero while any grid is
+unaccounted for:
+
+    buchwald_a..e, dye_lasers, lnp3   olympus/dataset_<same name>, identical
+    snar                              Summit's SnarBenchmark kinetic model on a
+                                      6x6x5x5 grid, replayed and matching
+    edbo_ch_arylation                 no source found anywhere
+
+Two consequences. `snar` is a mechanistic model rather than measured data, which
+is why plain BO reaches 100% of its front on every seed - that is a property of
+a noiseless kinetic model, not a hard-won result. And `edbo_ch_arylation`, which
+had been recommended as the study's second benchmark, is withdrawn until its
+source is named: its measurements stand, none of it is citable.
+
+`olympus_meta.json` records shapes only and is out of step with the directory -
+it describes three grids whose CSVs are absent and omits the two that were added
+after the Olympus pass. It is not provenance and must not be read as such.

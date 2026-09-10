@@ -4,6 +4,12 @@ Compte rendu de la recherche de nouveaux bancs d'essai, nuit du 8 au 9 septembre
 Onze grilles ont été récupérées et dix ont été effectivement testées avec notre
 BO. Ce document dit laquelle retenir et pourquoi.
 
+> **Mise à jour du 10 septembre.** La provenance des neuf grilles ajoutées
+> cette nuit-là n'avait pas été consignée. Elle a depuis été rétablie et
+> vérifiée pour huit d'entre elles (`data/other/README.md`,
+> `scripts/verify_other_grids.py`). La neuvième, l'arylation C–H, n'a pas de
+> source identifiable : **elle est retirée de la recommandation.**
+
 ## Ce qu'on cherchait
 
 Le protocole a besoin d'une réaction qui remplit trois conditions à la fois, et
@@ -42,7 +48,7 @@ initiaux + 30 propositions de la BO), sur 3 à 5 graines.
 |---|---|---|---|---|---|
 | **Suzuki cas ii** | 5 670 | rendement, TON | 67 % | **63 points** | oui |
 | **Suzuki cas i** | 5 670 | rendement, TON | 87 % | **45 points** | oui |
-| **Arylation C–H (EDBO+)** | 1 728 | rendement, coût | 85 % | **22 points** | oui |
+| ~~Arylation C–H~~ (provenance inconnue) | 1 728 | rendement, coût | 85 % | 22 points | oui |
 | Suzuki cas iii | 5 670 | rendement, TON | 95 % | 20 points | oui |
 | Buchwald-Hartwig (a) | 792 | rendement seul | 84 % | 9 points | non (SMILES) |
 | Nanoparticules lipidiques | 768 | 3 objectifs | 97,5 % | 3 points | oui |
@@ -71,9 +77,19 @@ résumé. Un participant qui reconnaît le système récite au lieu de raisonner
 C'est pour ça que le formulaire pose la question « avez-vous reconnu cette
 réaction ? » — sans elle on ne peut pas séparer les deux après coup.
 
-### Deuxième réaction : l'arylation C–H d'EDBO+
+### Deuxième réaction : l'arylation C–H — RETIRÉE, provenance inconnue
 
-C'est la trouvaille de la nuit, et elle est complémentaire du Suzuki sur un
+> **Cette recommandation est suspendue.** En reprenant les grilles le 10
+> septembre, aucune source n'a pu être établie pour `edbo_ch_arylation` : aucun
+> jeu Olympus n'a ses 1728 lignes, aucun fichier EDBO n'existe sur la machine, et
+> rien n'avait été consigné au moment de l'ajouter. Voir
+> `data/other/README.md`. Tout ce qui suit reste vrai **de cette grille**, et
+> rien n'en est citable tant qu'on ne sait pas d'où elle vient.
+>
+> Les sept autres grilles sont, elles, re-vérifiées valeur par valeur contre le
+> dépôt Olympus local, et la SNAr contre le modèle cinétique de Summit.
+
+C'était la trouvaille de la nuit, et elle est complémentaire du Suzuki sur un
 point précis.
 
 Sur le Suzuki, nos deux objectifs sont le rendement et le TON, qui sont
@@ -103,6 +119,14 @@ il faudra en lancer plusieurs centaines pour la comparaison appariée.
 À garder, mais pas pour la même chose. Les trois graines atteignent **100 % du
 front**, à chaque fois. Il n'y a rien à réparer, donc rien à demander à un
 chimiste.
+
+Vérification faite, ce n'est pas la grille SNAr d'Olympus — celle-ci fait 66
+lignes, la nôtre 900. C'est le **modèle cinétique** `SnarBenchmark` de Summit
+évalué sur une grille 6×6×5×5, confirmé en le rejouant. Autrement dit ce sont
+des valeurs calculées par un modèle mécanistique, **sans aucun bruit de mesure**,
+et quatre variables continues et lisses. Les 100 % ne sont donc pas un exploit de
+la BO, c'est ce qu'on attend d'un paysage analytique sans bruit. À dire tel quel
+si on s'en sert comme contrôle.
 
 J'y étais allé en pensant que ce serait le cas où le déclencheur doit rester
 silencieux. Mesuré, il ne l'est pas : il se déclenche 4 à 5 fois par campagne.
