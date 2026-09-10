@@ -1,7 +1,7 @@
 # Quelles réactions montrer aux chimistes
 
 Compte rendu de la recherche de nouveaux bancs d'essai, nuit du 8 au 9 septembre.
-Onze grilles ont été récupérées et neuf ont été effectivement testées avec notre
+Onze grilles ont été récupérées et dix ont été effectivement testées avec notre
 BO. Ce document dit laquelle retenir et pourquoi.
 
 ## Ce qu'on cherchait
@@ -49,6 +49,7 @@ initiaux + 30 propositions de la BO), sur 3 à 5 graines.
 | Buchwald-Hartwig (d) | 792 | rendement seul | 92 % | 3 points | non (SMILES) |
 | Suzuki cas iv | 5 670 | rendement, TON | 96 % | 2 points | oui |
 | SNAr en flux | 900 | productivité, facteur E | 100 % | **0 point** | pas de catalyseur |
+| Colorants laser | 3 458 | 3 objectifs | **27 %** | 29 points | SMILES seuls |
 
 La colonne qui décide est l'avant-dernière, pas la moyenne.
 
@@ -186,6 +187,35 @@ et 40, le maximum de l'acquisition est **unique à chaque fois**, sans aucun ex
 æquo. Un seul catégoriel à 7 niveaux, ça se couvre en 40 expériences ; trois
 catégoriels qui font 192 cellules, non.
 
+### Le même défaut, en pire, sur les colorants laser
+
+Les colorants laser en donnent la forme extrême, et c'est ce qui les élimine
+vraiment. Leur grille est faite de trois fragments moléculaires et de rien
+d'autre : 14 × 13 × 19 = **3 458 combinaisons, toutes catégorielles, sans aucune
+variable continue**. Une campagne de 40 expériences en visite 30.
+
+À l'expérience 30, la mesure donne : maximum de l'acquisition −4,59192, médiane
+−4,59192, minimum −4,59192. **Les 3 428 candidats restants sont tous à égalité,
+à 100 %.** Le modèle n'a aucune opinion sur quoi que ce soit, et la campagne
+n'est plus qu'une lecture de la table dans l'ordre. C'est pour ça qu'elle
+n'atteint que 27 % du front : elle n'optimise pas du tout.
+
+Les trois cas se rangent proprement, et le classement suit la part de l'espace
+catégoriel que le budget permet de visiter :
+
+| Réaction | Cellules catégorielles | Visitées en 40 exp. | Candidats à égalité |
+|---|---|---|---|
+| Suzuki (1 catégoriel, 7 niveaux) | 7 | toutes | **0** |
+| Arylation C–H | 192 | 17 (9 %) | 175 sur 1 698 (10 %) |
+| Colorants laser | 3 458 | 30 (0,9 %) | 3 428 sur 3 428 (**100 %**) |
+
+Ça donne au passage une mesure simple qu'on pourrait mettre dans l'article : **la
+proportion de candidats à égalité dit si la BO fonctionne encore**. À 0 % elle
+optimise, à 100 % elle épelle la table. C'est calculable en cours de campagne,
+sans rien connaître du front.
+
+### Ce que ça change pour l'arylation
+
 Est-ce que ça disqualifie l'arylation ? Je ne pense pas, mais ça change ce
 qu'elle raconte. Le Suzuki et l'arylation illustrent **deux façons différentes
 dont une BO à petit budget échoue** :
@@ -222,8 +252,18 @@ demanderait le même travail de vérification qu'on a fait pour les catalyseurs 
 Suzuki, et je ne veux pas deviner. Je les garde de côté au cas où tu voudrais
 plus tard une extension mono-objectif.
 
-**Les colorants laser.** Les fragments sont désignés par des codes, pas par des
-noms de molécules. Éliminé sur le critère 2.
+**Les colorants laser.** Correction de ce que j'avais écrit plus haut dans la
+nuit : leurs fragments ne sont pas des codes anonymes, ce sont des SMILES —
+acides boroniques, cœurs BODIPY, dibromoarènes. Un chimiste peut les lire, mais
+avec un effort, et ce n'est pas l'ergonomie « donne-moi un nom de ligand » qu'on
+cherche.
+
+Ce n'est de toute façon pas le motif décisif. C'est la réaction où la BO échoue
+le plus fort — 15 %, 23 % et 44 % du front — et j'ai failli la retenir pour ça.
+Mais la mesure ci-dessus montre qu'elle n'échoue pas *en optimisant mal* : elle
+n'optimise pas. Comparer « chimiste » contre une BO qui lit la table dans
+l'ordre ne mesurerait rien. Ajoutons que la photophysique n'est pas le métier de
+tes chimistes et qu'une campagne coûte 25 minutes, la plus chère du lot.
 
 ## Les formulaires
 

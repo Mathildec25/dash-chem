@@ -232,3 +232,22 @@ So the two kept reactions illustrate two different failure modes of small-budget
 BO - Suzuki ii over-exploits a wrong belief, edbo has no belief at all over most
 of the space - and any comparison on edbo must state that the unaided baseline
 is partly decided by table order.
+
+### The tie fraction measures whether BO is working at all
+
+Extending the tie measurement to dye_lasers gives a clean ordering, and it
+follows how much of the categorical space a 40-experiment budget can visit:
+
+    Suzuki (one categorical, 7 levels)   7 cells,    all visited,  0 tied
+    edbo_ch_arylation                  192 cells,  17 visited,   175 / 1698 tied
+    dye_lasers                        3458 cells,  30 visited,  3428 / 3428 tied
+
+On dye_lasers the maximum, median and minimum of the acquisition are all
+-4.59192: every remaining candidate is tied, the campaign is a table scan, and
+that is why it reaches only 27% of the front. It is rejected for that, not for
+its reagents - correcting an earlier note, its fragments are SMILES (boronic
+acids, BODIPY cores, dibromoarenes), not anonymous codes.
+
+The tie fraction is worth reporting in its own right: it is computable during a
+live campaign, needs no knowledge of the front, and says whether the optimiser
+is still choosing or merely enumerating.
