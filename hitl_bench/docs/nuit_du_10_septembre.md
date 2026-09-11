@@ -65,35 +65,54 @@ première alerte possible à l'expérience 15.
 
 ## 3. Ce que ça donne sur l'arylation C–H
 
-Chiffres à 19 branches sur 40 ; ils bougeront encore un peu.
+Lot complet : 20 campagnes témoins, 40 branches, 130 interventions.
 
 | | campagnes | fraction du front | atteignent 90 % |
 |---|---|---|---|
-| BO seule | 20 | 0,888 | **10 / 20 (50 %)** |
-| + point au hasard aux alertes | 19 | 0,915 | **14 / 19 (74 %)** |
+| BO seule | 20 | 0,888 | 10 / 20 (50 %) |
+| + point au hasard aux alertes | 40 | 0,901 | 26 / 40 (65 %) |
 
-**Gain apparié moyen : +2,7 points** de fraction du front. Il était de +4,0 à
-onze branches : l'estimation redescend quand l'échantillon grandit, ce qui est
-attendu, et c'est une raison de ne pas s'emballer sur le chiffre moyen.
+**Gain apparié moyen : +1,3 point.** Mais **18 branches sur 40 seulement
+s'améliorent**, intervalle de Wilson [31 % ; 60 %] — qui contient 50 %. Et les
+gains s'étalent de **−26,7 à +23,1 points**. Sur le temps, aucun effet : 26,2
+expériences pour atteindre 90 % du front sans intervention, 26,4 avec.
 
-**L'effet le plus net n'est pas le gain moyen mais le taux de succès** : la
-moitié des campagnes atteignent 90 % du front sans intervention, les trois quarts
-avec.
+**Conclusion : un point au hasard aux alertes ne fait essentiellement rien.**
+Il déplace la campagne beaucoup, dans les deux sens, et en moyenne presque pas.
 
-### D'où vient le gain
+C'est une **bonne nouvelle pour ton étude**, et il faut le lire ainsi : le bras
+aléatoire est un vrai témoin nul. Si tes chimistes le battent, ce sera de
+l'expertise et non l'effet d'une secousse exploratoire. Si le hasard avait
+apporté +4 points, distinguer les deux aurait été beaucoup plus difficile.
 
-C'est le résultat que je trouve le plus utile pour l'article, parce qu'il est
-mécanistique et pas seulement descriptif.
+### L'avertissement le plus important de la nuit
+
+L'estimation du gain s'est effondrée à mesure que l'échantillon grandissait :
+
+| branches | 11 | 19 | **40** |
+|---|---|---|---|
+| gain apparié moyen | +4,0 pt | +2,7 pt | **+1,3 pt** |
+
+Elle a été divisée par trois. C'est de l'optimisme de petit échantillon dans sa
+forme la plus classique — et c'est exactement le régime dans lequel se trouvera
+ton bras humain, avec cinq chimistes et quelques réponses chacun.
+
+**Conséquence pratique : ne pas conclure sur une moyenne calculée sur une
+dizaine de réponses.** Il faudra soit beaucoup de réponses, soit une comparaison
+appariée à un témoin mesuré sur les mêmes checkpoints, ce qui est précisément ce
+que le bras aléatoire fournit.
+
+### D'où vient le peu de gain qu'il y a
 
 ```
-points injectés sur un ligand du front : 16 / 63
-gain final moyen : +4,2 pt quand oui, +2,7 pt quand non
+points injectés sur un ligand du front : 25 / 130  (19 %)
+gain final moyen : +3,2 pt quand oui, +0,9 pt quand non
 ```
 
-Tomber sur un ligand qui porte le front rapporte nettement plus, et le hasard n'y
-tombe qu'**une fois sur quatre**. C'est exactement la quantité que ton bras humain
-doit battre : un chimiste qui sait quel ligand choisir devrait faire mieux, et on
-sait désormais de combien.
+Tomber sur un ligand qui porte le front rapporte trois fois plus, et le hasard
+n'y tombe qu'une fois sur cinq. C'est la quantité que ton bras humain doit
+battre, et la raison de penser qu'il le peut : un chimiste ne choisit pas son
+ligand au hasard.
 
 ## 4. Ce qui est prêt pour les chimistes
 
@@ -138,8 +157,33 @@ processus, et le vrai processus s'appelle `python3.11` et non `python`. J'ai
 perdu une vingtaine de minutes. La seule mesure fiable est le nombre de fichiers
 écrits.
 
-## 6. Où en est le calcul
+## 6. Le Suzuki cas ii, en prime
 
-Bras 1 arylation complet, bras 2 en cours, Suzuki cas ii en cours. Les deux
-boucles reprennent d'elles-mêmes après une coupure mémoire et sautent ce qui
-existe déjà.
+Les 20 campagnes témoins du cas ii ont aussi été calculées, avec l'acquisition
+graînée donc rejouables. Elles n'ont pas de branches : la nuit n'y suffisait pas.
+
+    BO seule : fraction moyenne 0,654 | 7 / 20 atteignent 90 % du front
+
+C'est un banc d'essai beaucoup plus dur que l'arylation — 35 % d'échec contre
+50 % ici, mais surtout une fraction moyenne de 0,654 contre 0,888. Les branches
+aléatoires y auraient probablement plus de marge, et c'est la première chose à
+lancer si tu veux une deuxième réaction dans l'article.
+
+## 7. Ce qui tourne encore
+
+Rien. Tout le calcul prévu est terminé à 02:31 :
+
+| | | |
+|---|---|---|
+| arylation, BO seule | 20 / 20 | ✔ |
+| arylation, point au hasard | 40 / 40 | ✔ |
+| Suzuki cas ii, BO seule | 20 / 20 | ✔ |
+
+## 8. Ce que je ferais ensuite, dans l'ordre
+
+1. **Envoyer les checkpoints aux chimistes.** Tout est prêt, c'est le chemin
+   critique : leurs réponses conditionnent le reste.
+2. **Le tir groupé sur la première alerte** — vingt tirages au hasard sur cinq
+   campagnes — pour pouvoir situer chaque réponse individuelle par un percentile
+   plutôt que de comparer des moyennes.
+3. **Les branches aléatoires du Suzuki cas ii**, pour avoir deux réactions.
