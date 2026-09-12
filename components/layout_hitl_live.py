@@ -291,7 +291,7 @@ def _chemistry_card(c, open_by_default):
         file, credit = ch["figure"]
         scheme = [
             html.Div(html.Img(src="/assets/hitl/%s" % file,
-                              style={"maxWidth": "100%", "maxHeight": "26rem"}),
+                              style={"maxWidth": "100%", "maxHeight": "34rem"}),
                      className="text-center"),
             html.P([html.B("This case: "), caption], className="text-center small mb-1"),
             html.P(credit, className="text-center text-muted", style={"fontSize": "0.75rem"}),

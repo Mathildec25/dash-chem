@@ -10,9 +10,9 @@ Every structure below was checked before being shown:
 - Suzuki substrates, reagents and named ligands: SMILES resolved on PubChem by
   name (RuPhos under its systematic name, PubChem's "RuPhos" being a pesticide
   of the same trade name) and compared canonically with RDKit, 12 September 2026.
-  PPh3 and P(t-Bu)3 need no lookup. The Suzuki page shows the article's own
-  Scheme 1 (assets/hitl/reizman_2016_scheme1.jpg, CC BY 3.0) rather than a
-  redrawn scheme and gallery.
+  PPh3 and P(t-Bu)3 need no lookup. The Suzuki page shows one drawing with the
+  four cases (assets/hitl/reizman_cases_scheme.png, supplied by the study
+  owner) rather than a redrawn scheme and gallery.
 - C-H arylation partners, product and precatalyst: InChI taken from the EDBO+
   repository (examples/publication/BMS_yield_cost/data/PCI_PMI_cost_full_update.csv)
   and matched against the SMILES written here; ligand, base and solvent SMILES
@@ -97,11 +97,14 @@ SUZUKI = {
              "reaction (an Olympus emulator fitted to the flow campaigns of Reizman et al.) "
              "evaluated on a complete grid of conditions, the grid published with Minerva "
              "(Sin et al., Nat. Commun. 2025). Every condition you can propose exists on that grid."),
-    # Scheme 1 of the article, reproduced under its CC BY 3.0 licence: the general
-    # reaction, the conditions, the precatalyst scaffolds and the seven ligands.
-    "figure": ("reizman_2016_scheme1.jpg",
-               "Scheme 1 of Reizman, Wang, Buchwald & Jensen, React. Chem. Eng. 2016, 1, 658 "
-               "(CC BY 3.0). Het1–X and Het2–B(OR)2 are the partners of this case."),
+    # The scheme the study owner chose (12 September 2026): general reaction,
+    # conditions, precatalyst scaffolds, the seven ligands and the substrates of
+    # the four cases in one drawing. Its "optimized conditions" column was cut
+    # off before it reached this folder: it named the winning catalyst of each
+    # case, which is what the campaign has to find.
+    "figure": ("reizman_cases_scheme.png",
+               "General reaction, precatalysts, ligands and the substrates of cases I–IV of "
+               "Reizman, Wang, Buchwald & Jensen, React. Chem. Eng. 2016, 1, 658."),
     "sources": [
         ("Reizman, Wang, Buchwald & Jensen, React. Chem. Eng. 2016, 1, 658",
          "https://doi.org/10.1039/C6RE00153J"),
