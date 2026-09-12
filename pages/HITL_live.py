@@ -83,12 +83,15 @@ def identify(n_clicks, opened, name, field, session):
     Output("hl-interval", "disabled"),
     Input("hl-session", "data"),
     Input("hl-interval", "n_intervals"),
-    Input("hl-launch", "n_clicks"),
+    Input({"type": "hl-launch", "b": ALL, "s": ALL}, "n_clicks"),
     prevent_initial_call=True,
 )
 def advance(session, n_intervals, launch):
     trigger = ctx.triggered_id
-    if trigger in ("hl-launch", "hl-interval"):
+    launched = isinstance(trigger, dict) and trigger.get("type") == "hl-launch"
+    if launched and not any(launch or []):
+        return no_update, no_update           # the button appeared, nobody clicked it
+    if launched or trigger == "hl-interval":
         # A live experiment takes longer than one tick. If the previous tick is
         # still running its step, this one does nothing rather than run a second
         # step on the same state: two concurrent steps would each load the
@@ -100,7 +103,7 @@ def advance(session, n_intervals, launch):
             campaign = _open(session)
             if campaign is None:
                 return html.Div(), True
-            if trigger == "hl-interval" and (campaign.waiting or campaign.finished):
+            if not launched and (campaign.waiting or campaign.finished):
                 return campaign_view(campaign), True
             campaign.step()
             return campaign_view(campaign), campaign.waiting or campaign.finished

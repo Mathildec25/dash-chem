@@ -236,7 +236,11 @@ def campaign_view(c):
                             "by the algorithm. Launch the optimisation once you have "
                             "looked at them."], color="light", className="border")
         controls = dbc.Button([html.I(className="bi bi-play-fill me-1"),
-                               "Launch the optimisation"], id="hl-launch", color="primary",
+                               "Launch the optimisation"],
+                              # a pattern id: the browser refuses to fire a callback whose
+                              # plain-id Input is absent from the page, and this button only
+                              # exists between the initial design and the first BO step
+                              id={"type": "hl-launch", "b": c.name, "s": c.seed}, color="primary",
                               size="lg", className="mb-3")
     else:
         status = dbc.Alert([dbc.Spinner(size="sm", color="primary"),
