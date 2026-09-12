@@ -31,6 +31,7 @@ what an Excel sheet cannot - the decisions, the alerts, the timings, the mode.
 """
 
 import datetime
+import glob
 import json
 import os
 import re
@@ -111,26 +112,29 @@ def label(benchmark, key, value):
     return number(value, 4)
 
 
+def _is_code(value):
+    """Suzuki stores its catalysts as L0..L6; a chemist is never shown those."""
+    return isinstance(value, str) and value.startswith("L") and value[1:].isdigit()
+
+
 def levels(benchmark, key):
-    """Every level of one variable, as the chemist reads it, from the grid."""
+    """Every level of one variable, as the chemist reads it, from the grid.
+    The same `label` as the table, so that what can be proposed is spelled
+    exactly as what has been run."""
     import pandas as pd
-    if key not in benchmark.grid.columns:              # Suzuki: ligand is one-hot
-        from hitl_bench.benchmark import LIGANDS
-        return [label(benchmark, "ligand", code) for code in LIGANDS]
     column = benchmark.grid[key]
     values = sorted(column.unique(), key=lambda v: (isinstance(v, str), v))
     if pd.api.types.is_numeric_dtype(column):
         return [number(v) for v in values]
-    return [str(v) for v in values]
+    return [label(benchmark, key, v) for v in values]
 
 
 def unlabel(benchmark, key, shown):
     """Map a shown label back to what the grid stores; raise rather than guess."""
-    if key == "ligand" and key not in benchmark.grid.columns:
-        from hitl_bench.scripts.make_chemist_form import catalyst_names, label_value
-        names = catalyst_names()
-        for code in names["mapping"]:
-            if label_value("ligand", code, names) == shown:
+    column = benchmark.grid[key]
+    if key == "ligand" and any(_is_code(v) for v in column.unique()[:5]):
+        for code in sorted(column.unique()):
+            if label(benchmark, key, code) == shown:
                 return code
         raise KeyError("unknown catalyst: %r" % shown)
     try:
@@ -396,3 +400,20 @@ def campaigns_for(chemist):
                 })
             out.append(item)
     return out
+
+
+def participants():
+    """Every chemist who has started at least one campaign, with a one-line
+    summary of where they stand, for the "resume" list of the page."""
+    seen = {}
+    for path in sorted(glob.glob(os.path.join(LIVE, "*__*__seed*.json"))):
+        with open(path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        who = seen.setdefault(state["chemist"], {"chemist": state["chemist"],
+                                                 "field": state.get("field", ""),
+                                                 "finished": 0, "in_progress": 0})
+        if state["done"] or len(state["experiments"]) >= state["budget"]:
+            who["finished"] += 1
+        else:
+            who["in_progress"] += 1
+    return list(seen.values())

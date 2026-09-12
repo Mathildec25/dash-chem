@@ -10,7 +10,7 @@ chemist would look at during a real campaign, which is the point of the study.
 
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
-from dash import dcc, html
+from dash import dash_table, dcc, html
 
 from hitl_bench import live
 
@@ -23,6 +23,14 @@ TO_CHOOSE = "— choose —"
 
 # --- the page --------------------------------------------------------------
 def create_hitl_live_layout():
+    """Built at every page load, so that the list of people who can resume is
+    current. Two cards, as on the Optimization home page: start as a new
+    participant, or pick your name to resume."""
+    people = live.participants()
+    options = [{"label": "%s — %s" % (p["chemist"], ", ".join(
+                    ([("%d in progress" % p["in_progress"])] if p["in_progress"] else [])
+                    + ([("%d finished" % p["finished"])] if p["finished"] else []))),
+                "value": p["chemist"]} for p in people]
     return html.Div([
         dbc.Row(dbc.Col([
             html.H1("Optimisation with a chemist in the loop", className="mb-2 mt-4",
@@ -30,29 +38,45 @@ def create_hitl_live_layout():
             html.Hr(style={"borderTop": "3px solid %s" % BLUE, "width": "100px"}),
         ])),
 
-        # --- identity ---------------------------------------------------------
-        dbc.Card(dbc.CardBody([
-            html.H5("Who are you?", style={"color": BLUE}),
-            dbc.Row([
-                dbc.Col([dbc.Label("Name or initials", className="fw-bold small"),
-                         dbc.Input(id="hl-name", placeholder="e.g. MC")], md=4),
-                dbc.Col([dbc.Label("Field", className="fw-bold small"),
-                         dbc.Input(id="hl-field",
-                                   placeholder="catalysis, flow chemistry, process...")], md=5),
-                dbc.Col([dbc.Label(" ", className="small"),
-                         dbc.Button("Start", id="hl-start", color="primary",
-                                    className="w-100")], md=3),
-            ]),
-            html.Div("Your answers are saved under this name. Always use the same one "
-                     "to resume a campaign in progress.",
-                     className="text-muted small mt-2"),
-        ]), className="mb-3", style={"borderRadius": "12px"}),
+        dbc.Row([
+            # --- new participant ----------------------------------------------
+            dbc.Col(dbc.Card(dbc.CardBody([
+                html.Div(html.I(className="bi bi-person-plus",
+                                style={"fontSize": "2rem", "color": "#6366f1"}),
+                         className="text-center mb-1"),
+                html.H5("New participant", className="text-center"),
+                html.P("Three campaigns, ten to fifteen minutes each.",
+                       className="text-center text-muted small mb-3"),
+                dbc.Input(id="hl-name", placeholder="Name or initials, e.g. MC", className="mb-2"),
+                dbc.Input(id="hl-field", placeholder="Field: catalysis, flow chemistry, process...",
+                          className="mb-3"),
+                dbc.Button([html.I(className="bi bi-arrow-right me-2"), "Start"],
+                           id="hl-start", className="w-100",
+                           style={"backgroundColor": "#6366f1", "border": "none"}),
+            ]), style={"borderRadius": "12px", "height": "100%"}), md=6, className="mb-3"),
+
+            # --- resume ---------------------------------------------------------
+            dbc.Col(dbc.Card(dbc.CardBody([
+                html.Div(html.I(className="bi bi-folder2-open",
+                                style={"fontSize": "2rem", "color": GREEN}),
+                         className="text-center mb-1"),
+                html.H5("Resume", className="text-center"),
+                html.P("Your campaigns are saved as you go. Pick your name to carry on.",
+                       className="text-center text-muted small mb-3"),
+                dcc.Dropdown(id="hl-existing", options=options,
+                             placeholder="Select your name..." if options else "Nobody has started yet",
+                             disabled=not options, className="mb-3"),
+                dbc.Button([html.I(className="bi bi-folder2-open me-2"), "Resume"],
+                           id="hl-resume", className="w-100", disabled=not options,
+                           style={"backgroundColor": GREEN, "border": "none"}),
+            ]), style={"borderRadius": "12px", "height": "100%"}), md=6, className="mb-3"),
+        ]),
 
         html.Div(id="hl-campaigns"),        # the list of campaigns, once named
         html.Div(id="hl-view"),             # the running campaign
-        # {chemist, field, benchmark, seed}; kept in the browser so that a chemist
-        # who closes the page finds their name and their campaign on their return
-        dcc.Store(id="hl-session", storage_type="local"),
+        # {chemist, name, field, benchmark, seed}; session-scoped like the other
+        # REACTO stores: it survives moving between pages, not closing the tab
+        dcc.Store(id="hl-session", storage_type="session"),
         dcc.Store(id="hl-tick", data=0),
         dcc.Interval(id="hl-interval", interval=900, disabled=True),
     ], style={"maxWidth": "68rem", "margin": "0 auto", "padding": "0 1rem 4rem"})
@@ -94,9 +118,7 @@ def campaign_list(chemist, field):
         ], className="d-flex justify-content-between align-items-center"))
     return dbc.Card(dbc.CardBody([
         html.H5("Your campaigns", style={"color": BLUE}),
-        html.P("Three reactions, one campaign each. Do them in whichever order you "
-               "like; each takes ten to fifteen minutes. Everything is saved as you "
-               "go: you can close this page and resume later under the same name.",
+        html.P("Three reactions, one campaign each, in whichever order you like.",
                className="small"),
         dbc.ListGroup(rows, flush=True),
     ]), className="mb-3", style={"borderRadius": "12px"})
@@ -117,23 +139,34 @@ def _with_unit(entry):
 
 
 def _table(c):
+    """Every experiment so far, as on the Results page: a sortable table, the
+    chemist's own rows in red, the optimiser's in blue, the starting design grey."""
     keys = c.benchmark.parameter_keys
     objs = c.benchmark.objectives
-    head = [html.Th("#"), html.Th("")]
-    head += [html.Th(_with_unit(c.pres["params"].get(k, (k, "")))) for k in keys]
-    head += [html.Th(_with_unit(c.pres["objectives"].get(o, (o, "", "")))) for o in objs]
-    rows = []
-    for r in c.experiments:
-        badge = {"lhs": ("start", "secondary"), "bo": ("algorithm", "info"),
-                 "chemist": ("you", "danger")}[r["phase"]]
-        cells = [html.Td(r["experiment"]),
-                 html.Td(dbc.Badge(badge[0], color=badge[1], className="small"))]
-        cells += [html.Td(live.label(c.benchmark, k, r[k])) for k in keys]
-        cells += [html.Td(live.number(r[o], 4), style={"textAlign": "right"}) for o in objs]
-        rows.append(html.Tr(cells))
-    return html.Div(dbc.Table([html.Thead(html.Tr(head)), html.Tbody(rows)],
-                              size="sm", hover=True, responsive=True),
-                    style={"maxHeight": "22rem", "overflowY": "auto"})
+    who = {"lhs": "start", "bo": "algorithm", "chemist": "you"}
+    columns = [{"name": "#", "id": "n"}, {"name": "chosen by", "id": "who"}]
+    columns += [{"name": _with_unit(c.pres["params"].get(k, (k, ""))), "id": k} for k in keys]
+    columns += [{"name": _with_unit(c.pres["objectives"].get(o, (o, "", ""))), "id": o,
+                 "type": "numeric", "format": {"specifier": ".4g"}} for o in objs]
+    data = [{"n": r["experiment"], "who": who[r["phase"]],
+             **{k: live.label(c.benchmark, k, r[k]) for k in keys},
+             **{o: r[o] for o in objs}} for r in c.experiments]
+    return dash_table.DataTable(
+        data=data, columns=columns, sort_action="native",
+        fixed_rows={"headers": True},
+        style_table={"maxHeight": "30rem", "overflowY": "auto", "overflowX": "auto"},
+        style_cell={"textAlign": "center", "padding": "6px", "fontSize": "0.85rem",
+                    "fontFamily": "Inter, -apple-system, sans-serif", "minWidth": "70px"},
+        style_header={"backgroundColor": "#f8f9fa", "fontWeight": "bold",
+                      "borderBottom": "2px solid #dee2e6"},
+        style_data_conditional=[
+            {"if": {"filter_query": '{who} = "start"'}, "color": "#6c757d"},
+            {"if": {"filter_query": '{who} = "algorithm"'}, "color": BLUE},
+            {"if": {"filter_query": '{who} = "you"'}, "color": RED, "fontWeight": "bold",
+             "backgroundColor": "rgba(193, 18, 31, 0.06)"},
+            {"if": {"column_id": objs}, "backgroundColor": "rgba(99, 102, 241, 0.05)"},
+        ],
+    )
 
 
 def _scatter(c):
@@ -274,6 +307,11 @@ def campaign_view(c):
         html.H3(c.pres["title"], style={"color": BLUE}, className="mt-2"),
         html.P(c.pres["intro"]),
         dbc.Alert(c.pres["note"], color="secondary", className="small py-2"),
+        status,
+        # the experiments come first: they are what a chemist reads before deciding
+        dbc.Card(dbc.CardBody([html.H6("All experiments", className="text-muted"),
+                               _table(c)]), style={"borderRadius": "12px"}, className="mb-3"),
+        controls,
         dbc.Row([
             _kpi("bi-clipboard-data", "%d / %d" % (c.n_done, c.budget), "experiments", "#6366f1"),
             _kpi("bi-cpu", str(n_bo), "chosen by the algorithm", BLUE),
@@ -281,7 +319,6 @@ def campaign_view(c):
             _kpi("bi-trophy", live.number(best1, 3) + (" " + o1[1] if o1[1] else ""),
                  "best %s" % o1[0].lower(), GREEN),
         ]),
-        status, controls,
         dbc.Row([
             dbc.Col(dbc.Card(dbc.CardBody([
                 html.H6("The two objectives", className="text-muted"),
@@ -292,6 +329,4 @@ def campaign_view(c):
                 dcc.Graph(figure=_progress(c), config={"displayModeBar": False})]),
                 style={"borderRadius": "12px"}), md=6, className="mb-3"),
         ]),
-        dbc.Card(dbc.CardBody([html.H6("All experiments", className="text-muted"),
-                               _table(c)]), style={"borderRadius": "12px"}),
     ])
