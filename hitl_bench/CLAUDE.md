@@ -434,8 +434,44 @@ the outcome. That is the reading to give the chemists: what they are asked to
 overturn is a consequence of the ten starting points, not bad luck inside the
 optimiser.
 
-Caveat, stated because it was not measured: arylation has tied acquisition
-maxima, which makes its BO tail nearly deterministic given the data. Suzuki has
-none, so the acquisition seed may matter more there. The same test on the
-assigned Suzuki campaigns (case i seed 2, case ii seed 3) is the natural next
-check, at about four minutes per campaign.
+The arylation result could have been an artefact of its tied acquisition
+maxima, which make the BO tail nearly deterministic given the data. So the same
+test was run on the assigned Suzuki campaign, case ii seed 3, where the
+acquisition maximum is always unique. Initial design of seed 3 held fixed
+(PCy3 = L4 drawn twice in it, the front lying on L4 alone); every source of BO
+randomness moved with the acquisition seed (`torch.manual_seed` re-seeded
+before the first BO step, plus `_acquisition_seed`):
+
+    LHS 3 / BO   3   37.3 % of the front   L2 x8 in the last ten   3 % of BO trials on L4   (the control)
+    LHS 3 / BO 101   37.3 %                L2 x6                   3 %
+    LHS 3 / BO 102   37.3 %                L2 x7                   3 %
+    LHS 3 / BO 103   37.3 %                L2 x6                   3 %
+
+Same conclusion, on a benchmark without ties: the campaign visits L4 once in
+thirty BO experiments whatever the optimiser's own randomness. Given this
+optimiser (qLogNEHVI, one experiment at a time, thirty iterations), the outcome
+of a campaign is a function of its ten starting points. That is the only
+correct reading; it does not say that another optimiser would be trapped by
+the same design.
+
+### What this means for the article (owner's decision, 12 September)
+
+The human study is a **case study on trapped initial designs**, and says so.
+The frame that follows from the measurement:
+
+1. The base rate comes from the twenty seeds per benchmark: the fraction of
+   initial designs that trap plain BO (13 of 18 on case ii). It is reported so
+   that a reader can weight the case study back to an average benefit.
+2. On a trapped design, three paired branches share the same history up to the
+   alert: plain BO (deterministic given the design, as just shown), a random
+   point at the alert (the null, already measured at about nothing), and a
+   chemist at the alert (the live page). `forms/live/assignment.json` already
+   lists exactly such designs: case i seed 2, case ii seed 3, arylation seed 2.
+3. The question the study answers is therefore precise: does a chemist, called
+   between experiments 15 and 22, get the campaign out of a trap that neither
+   the optimiser nor a random point leaves? Not "does HITL help on average",
+   which the sample size cannot carry.
+
+Stated alongside, so the case study is not mistaken for an unbiased estimate:
+the trigger also fires on healthy campaigns (snar, case ii seed 4), and that is
+accepted; it books an appointment, it does not diagnose.
