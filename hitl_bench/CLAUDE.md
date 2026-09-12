@@ -409,3 +409,33 @@ The alternative that was declined, and why it is worth recording: W = 3 with a
 threshold of 0.10 fires three experiments earlier and leaves 35% of the gain
 rather than 26%, at 3.1 solicitations. It is the better setting for detection;
 W = 5 was adopted for the load on five chemists.
+
+## The trap is in the initial design, not in the optimiser's own randomness
+
+Asked on 12 September, once the acquisition could be seeded: does a trapped
+seed owe its outcome to the Latin hypercube it started from, or to the Monte
+Carlo samples of qLogNEHVI? In every campaign we hold the two are set by the
+same integer (`sampling(..., seed=seed)` and `_acquisition_seed(seed, i)`), so
+the question could not be read off the existing logs.
+
+Measured on the assigned arylation campaign, initial design of seed 2 held
+fixed, acquisition seed varied:
+
+    LHS 2 / BO   2   72.5 % of the front   (the control)
+    LHS 2 / BO 101   72.5 %
+    LHS 2 / BO 102   72.5 %
+    LHS 2 / BO 103   72.5 %
+
+Identical ceiling on all four; only the alphabetical tail differs (JackiePhos
+instead of P(fur)3 on one of them, which is the acquisition-tie sweep already
+documented). So on this benchmark "seed 2 is trapped" means "this initial
+design traps the optimiser", and the acquisition seed contributes nothing to
+the outcome. That is the reading to give the chemists: what they are asked to
+overturn is a consequence of the ten starting points, not bad luck inside the
+optimiser.
+
+Caveat, stated because it was not measured: arylation has tied acquisition
+maxima, which makes its BO tail nearly deterministic given the data. Suzuki has
+none, so the acquisition seed may matter more there. The same test on the
+assigned Suzuki campaigns (case i seed 2, case ii seed 3) is the natural next
+check, at about four minutes per campaign.
