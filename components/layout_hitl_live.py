@@ -50,7 +50,9 @@ def create_hitl_live_layout():
 
         html.Div(id="hl-campaigns"),        # the list of campaigns, once named
         html.Div(id="hl-view"),             # the running campaign
-        dcc.Store(id="hl-session"),         # {chemist, field, benchmark, seed}
+        # {chemist, field, benchmark, seed}; kept in the browser so that a chemist
+        # who closes the page finds their name and their campaign on their return
+        dcc.Store(id="hl-session", storage_type="local"),
         dcc.Store(id="hl-tick", data=0),
         dcc.Interval(id="hl-interval", interval=900, disabled=True),
     ], style={"maxWidth": "68rem", "margin": "0 auto", "padding": "0 1rem 4rem"})
@@ -61,23 +63,42 @@ def campaign_list(chemist, field):
     items = live.campaigns_for(chemist)
     if not items:
         return dbc.Alert("No campaign is available yet.", color="warning")
-    buttons = []
-    for name, seed, done in items:
+    rows = []
+    for it in items:
+        name, seed = it["benchmark"], it["seed"]
         pres = live.presentation(name)
-        buttons.append(dbc.ListGroupItem([
+        if it["done"]:
+            status = dbc.Badge("finished", color="success")
+            action = html.Span()
+        elif it["waiting_at"]:
+            status = dbc.Badge("paused at experiment %d — waiting for you" % it["waiting_at"],
+                               color="danger")
+            action = dbc.Button("Resume", id={"type": "hl-open", "b": name, "s": seed},
+                                size="sm", color="danger")
+        elif it["started"]:
+            status = dbc.Badge("in progress — %d / %d" % (it["n_done"], it["budget"]),
+                               color="info")
+            action = dbc.Button("Resume", id={"type": "hl-open", "b": name, "s": seed},
+                                size="sm", color="primary")
+        else:
+            status = dbc.Badge("not started", color="secondary")
+            action = dbc.Button("Open", id={"type": "hl-open", "b": name, "s": seed},
+                                size="sm", color="primary", outline=True)
+        rows.append(dbc.ListGroupItem([
             html.Div([
                 html.B(pres["title"]),
-                html.Span(" — campaign %d" % seed, className="text-muted"),
+                html.Span(" — campaign %d  " % seed, className="text-muted"),
+                status,
             ]),
-            dbc.Badge("finished", color="success", className="me-2") if done
-            else dbc.Button("Open", id={"type": "hl-open", "b": name, "s": seed},
-                            size="sm", color="primary", outline=True),
+            action,
         ], className="d-flex justify-content-between align-items-center"))
     return dbc.Card(dbc.CardBody([
         html.H5("Your campaigns", style={"color": BLUE}),
         html.P("Three reactions, one campaign each. Do them in whichever order you "
-               "like; each takes ten to fifteen minutes.", className="small"),
-        dbc.ListGroup(buttons, flush=True),
+               "like; each takes ten to fifteen minutes. Everything is saved as you "
+               "go: you can close this page and resume later under the same name.",
+               className="small"),
+        dbc.ListGroup(rows, flush=True),
     ]), className="mb-3", style={"borderRadius": "12px"})
 
 

@@ -65,8 +65,8 @@ def identify(n_clicks, opened, name, field, session):
     if trigger == "hl-start":
         if not (name or "").strip():
             return dbc.Alert("Enter your name or initials.", color="warning"), no_update
-        session = {"chemist": live.slug(name), "field": (field or "").strip(),
-                   "benchmark": None, "seed": None}
+        session = {"chemist": live.slug(name), "name": name.strip(),
+                   "field": (field or "").strip(), "benchmark": None, "seed": None}
         return campaign_list(session["chemist"], session["field"]), session
     if isinstance(trigger, dict) and trigger.get("type") == "hl-open":
         if not any(opened or []):
@@ -77,6 +77,23 @@ def identify(n_clicks, opened, name, field, session):
     return no_update, no_update
 
 
+# --- coming back: the browser remembers who was here and what was open ----------
+@callback(
+    Output("hl-name", "value"),
+    Output("hl-field", "value"),
+    Output("hl-campaigns", "children", allow_duplicate=True),
+    Input("hl-session", "data"),
+    prevent_initial_call="initial_duplicate",
+)
+def restore(session):
+    """On every page load, and whenever the session changes: fill the name back in
+    and redraw the list with each campaign's current status."""
+    if not session or not session.get("chemist"):
+        return no_update, no_update, no_update
+    return (session.get("name") or session["chemist"], session.get("field", ""),
+            campaign_list(session["chemist"], session.get("field", "")))
+
+
 # --- drawing the campaign, and ticking it --------------------------------------
 @callback(
     Output("hl-view", "children"),
@@ -84,7 +101,8 @@ def identify(n_clicks, opened, name, field, session):
     Input("hl-session", "data"),
     Input("hl-interval", "n_intervals"),
     Input({"type": "hl-launch", "b": ALL, "s": ALL}, "n_clicks"),
-    prevent_initial_call=True,
+    # fires on page load too: a campaign left open is drawn, and resumes if it was running
+    prevent_initial_call=False,
 )
 def advance(session, n_intervals, launch):
     trigger = ctx.triggered_id

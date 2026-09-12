@@ -140,7 +140,9 @@ def unlabel(benchmark, key, shown):
 
 
 def slug(text):
-    return re.sub(r"[^A-Za-z0-9_-]", "", str(text).strip().replace(" ", "_"))[:24] or "anonymous"
+    """The file-name form of a chemist's name. Case and punctuation are dropped
+    so that "MC", "mc" and "M.C." find the same campaigns on their return."""
+    return re.sub(r"[^a-z0-9_-]", "", str(text).strip().lower().replace(" ", "_"))[:24] or "anonymous"
 
 
 # --- the state machine ------------------------------------------------------
@@ -369,7 +371,9 @@ def assignment():
 
 
 def campaigns_for(chemist):
-    """(benchmark, seed, done?) for one chemist, in the order they should be run."""
+    """One dict per campaign a chemist is given, in the order they should be run:
+    benchmark, seed, and where the chemist stands on it (not started, running,
+    waiting at an alert, finished)."""
     out = []
     for name, seeds in assignment().items():
         if name.startswith("_"):            # a comment key, not a reaction
@@ -379,10 +383,16 @@ def campaigns_for(chemist):
             if not os.path.exists(parent):
                 continue
             path = os.path.join(LIVE, "%s__%s__seed%02d.json" % (slug(chemist), name, seed))
-            done = False
+            item = {"benchmark": name, "seed": seed, "started": False, "done": False,
+                    "waiting_at": None, "n_done": 0, "budget": None}
             if os.path.exists(path):
                 with open(path, encoding="utf-8") as handle:
                     state = json.load(handle)
-                done = state["done"] or len(state["experiments"]) >= state["budget"]
-            out.append((name, seed, done))
+                item.update({
+                    "started": len(state["experiments"]) > state["n_init"],
+                    "done": state["done"] or len(state["experiments"]) >= state["budget"],
+                    "waiting_at": (state["pending_alert"] or {}).get("experiment"),
+                    "n_done": len(state["experiments"]), "budget": state["budget"],
+                })
+            out.append(item)
     return out
