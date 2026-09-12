@@ -5,15 +5,16 @@ from dash import page_registry
 # Icon mapping for each page
 ICON_MAP = {
     "Optimization": "/assets/BO_icon.svg",
+    "HITL live": "bi-people",
     "Tutorial": "bi-book",
     "About": "bi-info-circle",
 }
 
 # Pages to exclude from sidebar
-EXCLUDED_PAGES = {"Opti parameterization", "Opti run", "Results & Analysis"}
+EXCLUDED_PAGES = {"Opti parameterization", "Opti run", "Results & Analysis", "Chemist input"}
 
 # Display order for sidebar pages
-PAGE_ORDER = ["Optimization", "Tutorial", "About"]
+PAGE_ORDER = ["Optimization", "HITL live", "Tutorial", "About"]
 
 # Default icon for pages without specific mapping
 DEFAULT_ICON = "bi-circle"

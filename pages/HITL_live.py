@@ -15,6 +15,8 @@ a validation with no choice is refused, and an imposed point with a condition
 left blank is refused with the count of what is missing.
 """
 
+import threading
+
 import dash
 import dash_bootstrap_components as dbc
 from dash import ALL, Input, Output, State, callback, ctx, html, no_update
@@ -34,6 +36,17 @@ def _open(session):
         return None
     return live.LiveCampaign(session["chemist"], session["benchmark"],
                              session["seed"], session.get("domaine", ""))
+
+
+# One lock per campaign, so that two ticks never step the same campaign at once.
+_locks, _locks_guard = {}, threading.Lock()
+
+
+def _lock_for(session):
+    key = ((session or {}).get("chemist"), (session or {}).get("benchmark"),
+           (session or {}).get("seed"))
+    with _locks_guard:
+        return _locks.setdefault(key, threading.Lock())
 
 
 # --- identity -> list of campaigns -------------------------------------------
@@ -74,22 +87,29 @@ def identite(n_clicks, ouvrir, nom, domaine, session):
     prevent_initial_call=True,
 )
 def avancer(session, n_intervals, lancer):
+    trigger = ctx.triggered_id
+    if trigger in ("hl-lancer", "hl-interval"):
+        # A live experiment takes longer than one tick. If the previous tick is
+        # still running its step, this one does nothing rather than run a second
+        # step on the same state: two concurrent steps would each load the
+        # campaign, each append an experiment, and the last save would win.
+        lock = _lock_for(session)
+        if not lock.acquire(blocking=False):
+            return no_update, no_update
+        try:
+            campaign = _open(session)
+            if campaign is None:
+                return html.Div(), True
+            if trigger == "hl-interval" and (campaign.waiting or campaign.finished):
+                return campaign_view(campaign), True
+            campaign.step()
+            return campaign_view(campaign), campaign.waiting or campaign.finished
+        finally:
+            lock.release()
+
     campaign = _open(session)
     if campaign is None:
         return html.Div(), True
-
-    trigger = ctx.triggered_id
-    if trigger == "hl-lancer":
-        # The chemist has looked at the initial design and starts the optimiser.
-        campaign.step()
-        return campaign_view(campaign), campaign.waiting or campaign.finished
-
-    if trigger == "hl-interval":
-        if campaign.waiting or campaign.finished:
-            return campaign_view(campaign), True
-        campaign.step()
-        return campaign_view(campaign), campaign.waiting or campaign.finished
-
     # session changed: just draw where the campaign stands, ticking if it was mid-run
     en_cours = (campaign.n_done > campaign.n_init and not campaign.waiting
                 and not campaign.finished)
