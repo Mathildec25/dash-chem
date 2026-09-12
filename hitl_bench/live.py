@@ -364,6 +364,8 @@ def campaigns_for(chemist):
     """(benchmark, seed, done?) for one chemist, in the order they should be run."""
     out = []
     for name, seeds in assignment().items():
+        if name.startswith("_"):            # a comment key, not a reaction
+            continue
         for seed in seeds:
             parent = os.path.join(ARMS, "%s__no_hitl__seed%02d.json" % (name, seed))
             if not os.path.exists(parent):
