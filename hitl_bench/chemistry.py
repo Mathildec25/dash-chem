@@ -169,6 +169,15 @@ ARYLATION = {
     "data": ("Every value you will see is a real measurement: the 1,728 conditions were all run "
              "at Bristol Myers Squibb and published with EDBO+ (Torres et al., JACS 2022). "
              "Yields are single runs, so a surprising number can be a real outlier."),
+    # Panel a of Fig. 4 of Shields et al., chosen by the study owner (12 September
+    # 2026): reaction 3 with the twelve ligands drawn, the bases, solvents,
+    # temperatures and concentrations. Panels b-e (optimiser against human
+    # players) were cut off: they are the subject of our own study. Nature is
+    # not open access - fine for the participants' page, but an article would
+    # need Springer Nature's permission or the redrawn scheme (arylation.svg).
+    "figure": ("shields_2021_fig4a.png",
+               "Adapted from Shields et al., Nature 2021, 590, 89, Fig. 4a (reaction 3), "
+               "© Springer Nature; shown here to the study participants only."),
     "sources": [
         ("Shields et al., Nature 2021, 590, 89 (reaction 3)", "https://doi.org/10.1038/s41586-021-03213-y"),
         ("Torres et al., J. Am. Chem. Soc. 2022, 144, 19999 (EDBO+, yield and cost)",
