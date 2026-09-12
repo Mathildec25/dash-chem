@@ -1,6 +1,6 @@
 {
-  "_pourquoi": "Une campagne piegee par reaction, la meme pour tous les chimistes. Choisies le 12 septembre parmi les temoins rejouables : fin sous 90 % du front, premiere alerte precoce, et un catalyseur d'arrivee qui n'est pas celui du front, pour que le chimiste ait quelque chose a contredire.",
+  "_why": "One trapped campaign per reaction, the same for every chemist. Chosen on 12 September from the replayable controls (scripts/seed_choice.py): ends under 90 % of the front, first alert early enough to leave room for an intervention, the front ligand drawn in the initial design so that a chemist reading the data can notice it was dismissed. Case II seed 12: 44 %, alert at 16, PCy3 seen once at 0 % yield. Arylation seed 2: 72 %, alert at 16, 77 % on CgMe-PPh in the initial design then nothing for 28 experiments. Case I: to be set once its twenty controls are in.",
   "i": [2],
-  "ii": [3],
+  "ii": [12],
   "edbo_ch_arylation": [2]
 }
