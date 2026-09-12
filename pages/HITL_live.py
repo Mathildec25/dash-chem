@@ -11,7 +11,7 @@ give the campaign a visible pace; a live experiment takes several seconds and
 the tick simply waits for it.
 
 Nothing is inferred from silence. A tick with no pending campaign does nothing,
-a validation with no choice is refused, and an imposed point with a condition
+a submission with no choice is refused, and an imposed point with a condition
 left blank is refused with the count of what is missing.
 """
 
@@ -22,7 +22,7 @@ import dash_bootstrap_components as dbc
 from dash import ALL, Input, Output, State, callback, ctx, html, no_update
 
 from components.layout_hitl_live import (
-    A_CHOISIR, campaign_list, campaign_view, create_hitl_live_layout,
+    TO_CHOOSE, campaign_list, campaign_view, create_hitl_live_layout,
 )
 from hitl_bench import live
 
@@ -35,7 +35,7 @@ def _open(session):
     if not session or not session.get("benchmark"):
         return None
     return live.LiveCampaign(session["chemist"], session["benchmark"],
-                             session["seed"], session.get("domaine", ""))
+                             session["seed"], session.get("field", ""))
 
 
 # One lock per campaign, so that two ticks never step the same campaign at once.
@@ -51,44 +51,44 @@ def _lock_for(session):
 
 # --- identity -> list of campaigns -------------------------------------------
 @callback(
-    Output("hl-campagnes", "children"),
+    Output("hl-campaigns", "children"),
     Output("hl-session", "data"),
-    Input("hl-commencer", "n_clicks"),
-    Input({"type": "hl-ouvrir", "b": ALL, "s": ALL}, "n_clicks"),
-    State("hl-nom", "value"),
-    State("hl-domaine", "value"),
+    Input("hl-start", "n_clicks"),
+    Input({"type": "hl-open", "b": ALL, "s": ALL}, "n_clicks"),
+    State("hl-name", "value"),
+    State("hl-field", "value"),
     State("hl-session", "data"),
     prevent_initial_call=True,
 )
-def identite(n_clicks, ouvrir, nom, domaine, session):
+def identify(n_clicks, opened, name, field, session):
     trigger = ctx.triggered_id
-    if trigger == "hl-commencer":
-        if not (nom or "").strip():
-            return dbc.Alert("Indiquez votre nom ou vos initiales.", color="warning"), no_update
-        session = {"chemist": live.slug(nom), "domaine": (domaine or "").strip(),
+    if trigger == "hl-start":
+        if not (name or "").strip():
+            return dbc.Alert("Enter your name or initials.", color="warning"), no_update
+        session = {"chemist": live.slug(name), "field": (field or "").strip(),
                    "benchmark": None, "seed": None}
-        return campaign_list(session["chemist"], session["domaine"]), session
-    if isinstance(trigger, dict) and trigger.get("type") == "hl-ouvrir":
-        if not any(ouvrir or []):
+        return campaign_list(session["chemist"], session["field"]), session
+    if isinstance(trigger, dict) and trigger.get("type") == "hl-open":
+        if not any(opened or []):
             return no_update, no_update
         session = dict(session or {})
         session["benchmark"], session["seed"] = trigger["b"], trigger["s"]
-        return campaign_list(session["chemist"], session.get("domaine", "")), session
+        return campaign_list(session["chemist"], session.get("field", "")), session
     return no_update, no_update
 
 
 # --- drawing the campaign, and ticking it --------------------------------------
 @callback(
-    Output("hl-vue", "children"),
+    Output("hl-view", "children"),
     Output("hl-interval", "disabled"),
     Input("hl-session", "data"),
     Input("hl-interval", "n_intervals"),
-    Input("hl-lancer", "n_clicks"),
+    Input("hl-launch", "n_clicks"),
     prevent_initial_call=True,
 )
-def avancer(session, n_intervals, lancer):
+def advance(session, n_intervals, launch):
     trigger = ctx.triggered_id
-    if trigger in ("hl-lancer", "hl-interval"):
+    if trigger in ("hl-launch", "hl-interval"):
         # A live experiment takes longer than one tick. If the previous tick is
         # still running its step, this one does nothing rather than run a second
         # step on the same state: two concurrent steps would each load the
@@ -111,59 +111,59 @@ def avancer(session, n_intervals, lancer):
     if campaign is None:
         return html.Div(), True
     # session changed: just draw where the campaign stands, ticking if it was mid-run
-    en_cours = (campaign.n_done > campaign.n_init and not campaign.waiting
-                and not campaign.finished)
-    return campaign_view(campaign), not en_cours
+    running = (campaign.n_done > campaign.n_init and not campaign.waiting
+               and not campaign.finished)
+    return campaign_view(campaign), not running
 
 
 @callback(
-    Output("hl-proposition", "style"),
-    Input("hl-choix", "value"),
+    Output("hl-proposal", "style"),
+    Input("hl-choice", "value"),
     prevent_initial_call=True,
 )
-def montrer_menus(choix):
-    return {"display": "block"} if choix == "chemist" else {"display": "none"}
+def show_menus(choice):
+    return {"display": "block"} if choice == "chemist" else {"display": "none"}
 
 
 # --- the chemist's answer at an alert --------------------------------------------
 @callback(
-    Output("hl-retour", "children"),
+    Output("hl-feedback", "children"),
     Output("hl-tick", "data"),
-    Input("hl-valider", "n_clicks"),
+    Input("hl-submit", "n_clicks"),
     State("hl-session", "data"),
-    State("hl-choix", "value"),
-    State({"type": "hl-param", "cle": ALL}, "value"),
-    State({"type": "hl-param", "cle": ALL}, "id"),
-    State("hl-pourquoi", "value"),
+    State("hl-choice", "value"),
+    State({"type": "hl-param", "key": ALL}, "value"),
+    State({"type": "hl-param", "key": ALL}, "id"),
+    State("hl-why", "value"),
     State("hl-tick", "data"),
     prevent_initial_call=True,
 )
-def repondre(n_clicks, session, choix, valeurs, identifiants, pourquoi, tick):
+def answer(n_clicks, session, choice, values, identifiers, why, tick):
     if not n_clicks:
         return no_update, no_update
     campaign = _open(session)
     if campaign is None or not campaign.waiting:
-        return dbc.Alert("Aucune pause en attente.", color="secondary"), no_update
-    if choix is None:
-        return dbc.Alert("Choisissez une des trois options.", color="warning"), no_update
+        return dbc.Alert("No pause is pending.", color="secondary"), no_update
+    if choice is None:
+        return dbc.Alert("Choose one of the three options.", color="warning"), no_update
 
-    why = (pourquoi or "").strip()
-    if choix == "stop":
+    why = (why or "").strip()
+    if choice == "stop":
         campaign.stop(why=why)
-    elif choix == "optimiser":
+    elif choice == "optimiser":
         campaign.take_proposal(why=why)
     else:
-        point = {i["cle"]: v for i, v in zip(identifiants, valeurs) if v and v != A_CHOISIR}
-        manquantes = [i["cle"] for i in identifiants if i["cle"] not in point]
-        if manquantes:
-            return dbc.Alert("Il manque %d condition(s) : votre essai n'est pas réalisable "
-                             "tel quel." % len(manquantes), color="warning"), no_update
+        point = {i["key"]: v for i, v in zip(identifiers, values) if v and v != TO_CHOOSE}
+        missing = [i["key"] for i in identifiers if i["key"] not in point]
+        if missing:
+            return dbc.Alert("%d condition(s) missing: your experiment cannot be run "
+                             "as it stands." % len(missing), color="warning"), no_update
         try:
             campaign.impose(point, why=why)
         except KeyError as exc:
-            return dbc.Alert("Conditions non reconnues : %s" % exc, color="danger"), no_update
+            return dbc.Alert("Unrecognised conditions: %s" % exc, color="danger"), no_update
     # bump the tick store so the drawing callback resumes
-    return dbc.Alert("Enregistré.", color="success", className="py-1"), (tick or 0) + 1
+    return dbc.Alert("Saved.", color="success", className="py-1"), (tick or 0) + 1
 
 
 @callback(
@@ -172,7 +172,7 @@ def repondre(n_clicks, session, choix, valeurs, identifiants, pourquoi, tick):
     State("hl-session", "data"),
     prevent_initial_call=True,
 )
-def reprendre(tick, session):
+def resume(tick, session):
     """After an answer, re-emit the session so the campaign redraws and resumes."""
     if not tick or not session:
         return no_update

@@ -48,33 +48,32 @@ PHASE_CHEMIST = "chemist"
 # --- what a chemist is shown about each reaction ----------------------------
 REACTIONS = {
     "edbo_ch_arylation": {
-        "titre": "Arylation C–H",
-        "intro": "Un criblage à haut débit. À chaque essai on choisit une base, un "
-                 "ligand, un solvant, une concentration et une température ; on "
-                 "mesure le rendement et le coût des réactifs. Les deux objectifs "
-                 "sont indépendants : améliorer l'un n'améliore pas l'autre.",
-        "reserve": "Données réelles publiées (Torres et al., JACS 2022). Le substrat "
-                   "n'est pas redistribué avec le jeu de données : raisonnez sur les "
-                   "réactifs et les conditions.",
+        "title": "C–H arylation",
+        "intro": "A high-throughput screen. At each experiment you choose a base, a "
+                 "ligand, a solvent, a concentration and a temperature; the yield and "
+                 "the cost of the reagents are measured. The two objectives are "
+                 "independent: improving one does not improve the other.",
+        "note": "Real published data (Torres et al., JACS 2022). The substrate is not "
+                "distributed with the dataset: reason on the reagents and the conditions.",
         "params": {"base": ("Base", ""), "ligand": ("Ligand", ""),
-                   "solvent": ("Solvant", ""), "concentration": ("Concentration", "M"),
-                   "temperature": ("Température", "°C")},
-        "objectives": {"yield": ("Rendement", "%", "max"),
-                       "cost": ("Coût des réactifs", "", "min")},
+                   "solvent": ("Solvent", ""), "concentration": ("Concentration", "M"),
+                   "temperature": ("Temperature", "°C")},
+        "objectives": {"yield": ("Yield", "%", "max"),
+                       "cost": ("Reagent cost", "", "min")},
     },
     "suzuki": {
-        "titre": "Couplage de Suzuki-Miyaura en flux continu",
-        "intro": "Un montage en flux teste une condition à la fois. À chaque essai "
-                 "on choisit une paire précatalyseur-ligand au palladium, un temps "
-                 "de séjour, une température et une charge en palladium ; on mesure "
-                 "le rendement et le nombre de rotations du catalyseur.",
-        "reserve": "Données des campagnes en flux de Reizman et al. (React. Chem. "
-                   "Eng. 2016), interpolées sur une grille complète. Deux paires "
-                   "n'ont pas de nom publié et gardent leur code.",
-        "params": {"ligand": ("Catalyseur", ""), "res_time": ("Temps de séjour", "s"),
-                   "temperature": ("Température", "°C"),
-                   "catalyst_loading": ("Charge en Pd", "mol%")},
-        "objectives": {"yield": ("Rendement", "%", "max"),
+        "title": "Suzuki–Miyaura coupling in continuous flow",
+        "intro": "A flow set-up tests one condition at a time. At each experiment you "
+                 "choose a palladium precatalyst–ligand pair, a residence time, a "
+                 "temperature and a palladium loading; the yield and the catalyst "
+                 "turnover number are measured.",
+        "note": "Data from the flow campaigns of Reizman et al. (React. Chem. Eng. "
+                "2016), interpolated on a complete grid. Two pairs have no published "
+                "name and keep their code.",
+        "params": {"ligand": ("Catalyst", ""), "res_time": ("Residence time", "s"),
+                   "temperature": ("Temperature", "°C"),
+                   "catalyst_loading": ("Pd loading", "mol%")},
+        "objectives": {"yield": ("Yield", "%", "max"),
                        "turnover": ("TON", "", "max")},
     },
 }
@@ -87,7 +86,7 @@ def presentation(benchmark_name):
     case = benchmark_name.replace("summit_", "")
     if case in ("i", "ii", "iii", "iv"):
         pres = dict(REACTIONS["suzuki"])
-        pres["titre"] = "%s — cas %s" % (REACTIONS["suzuki"]["titre"], case.upper())
+        pres["title"] = "%s — case %s" % (REACTIONS["suzuki"]["title"], case.upper())
         return pres
     return REACTIONS[benchmark_name]
 
@@ -98,8 +97,9 @@ def load_benchmark(name):
 
 
 # --- labels: what the chemist reads, and the way back --------------------------
-def french(value, digits=6):
-    return (("%." + str(digits) + "g") % float(value)).replace(".", ",")
+def number(value, digits=6):
+    """A number as the chemist reads it: significant digits, decimal point."""
+    return ("%." + str(digits) + "g") % float(value)
 
 
 def label(benchmark, key, value):
@@ -108,7 +108,7 @@ def label(benchmark, key, value):
             from hitl_bench.scripts.make_chemist_form import catalyst_names, label_value
             return label_value("ligand", value, catalyst_names())
         return value
-    return french(value, 4)
+    return number(value, 4)
 
 
 def levels(benchmark, key):
@@ -120,7 +120,7 @@ def levels(benchmark, key):
     column = benchmark.grid[key]
     values = sorted(column.unique(), key=lambda v: (isinstance(v, str), v))
     if pd.api.types.is_numeric_dtype(column):
-        return [french(v) for v in values]
+        return [number(v) for v in values]
     return [str(v) for v in values]
 
 
@@ -132,7 +132,7 @@ def unlabel(benchmark, key, shown):
         for code in names["mapping"]:
             if label_value("ligand", code, names) == shown:
                 return code
-        raise KeyError("catalyseur non reconnu : %r" % shown)
+        raise KeyError("unknown catalyst: %r" % shown)
     try:
         return float(str(shown).replace(" ", "").replace(",", "."))
     except ValueError:
@@ -140,16 +140,16 @@ def unlabel(benchmark, key, shown):
 
 
 def slug(text):
-    return re.sub(r"[^A-Za-z0-9_-]", "", str(text).strip().replace(" ", "_"))[:24] or "anonyme"
+    return re.sub(r"[^A-Za-z0-9_-]", "", str(text).strip().replace(" ", "_"))[:24] or "anonymous"
 
 
 # --- the state machine ------------------------------------------------------
 class LiveCampaign:
     """One chemist, one control campaign, driven experiment by experiment."""
 
-    def __init__(self, chemist, benchmark_name, seed, domaine=""):
+    def __init__(self, chemist, benchmark_name, seed, field=""):
         self.chemist = slug(chemist)
-        self.domaine = domaine
+        self.field = field
         self.name = benchmark_name
         self.seed = int(seed)
         self.benchmark = load_benchmark(benchmark_name)
@@ -169,7 +169,7 @@ class LiveCampaign:
                 self.state = json.load(handle)
         else:
             self.state = {
-                "chemist": self.chemist, "domaine": domaine,
+                "chemist": self.chemist, "field": field,
                 "benchmark": benchmark_name, "seed": self.seed,
                 "n_init": self.n_init, "budget": self.budget,
                 "started": datetime.datetime.now().isoformat(timespec="seconds"),
