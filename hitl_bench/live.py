@@ -275,6 +275,8 @@ class LiveCampaign:
                 "p_star": triggers.pace_ratio_value(self.experiments, self.budget),
                 "proposal": self.optimiser_proposal(),   # shown to the chemist
             }
+        if self.n_done >= self.budget:
+            self.state["done"] = True           # the budget is spent; stopped_at stays None
         self.save()
         return record
 
