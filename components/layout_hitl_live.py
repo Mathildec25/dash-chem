@@ -12,7 +12,7 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from dash import dash_table, dcc, html
 
-from hitl_bench import live
+from hitl_bench import chemistry, live
 
 BLUE = "#219ebc"
 GREY = "#8b93a1"
@@ -265,6 +265,68 @@ def _alert_panel(c):
     ]), className="mb-3", style={"borderRadius": "12px", "border": "2px solid %s" % RED})
 
 
+# --- the chemistry behind the campaign ---------------------------------------------
+def _chemistry_card(c, open_by_default):
+    """Reaction scheme, conditions, variables, objectives, sources and the ligand
+    structures: what a chemist needs before judging a campaign. Collapsible, open
+    while the chemist is still looking at the initial design, folded once the
+    optimiser runs so that the table stays first."""
+    ch = chemistry.for_benchmark(c.name)
+    if ch is None:
+        return html.Div()
+    p = ch["partners"]
+    if "halide" in p:
+        caption = "%s + %s → %s" % (p["halide"][0], p["boron"][0], p["product"][0])
+    else:
+        caption = "%s + %s → %s" % (p["nucleophile"][0], p["electrophile"][0], p["product"][0])
+
+    ligands = []
+    for entry in ch["ligands"]:
+        if len(entry) == 5:                       # Suzuki: code, pair, name, family, smiles
+            code, pair, name, family, smiles = entry
+            title = "%s (%s)" % (name, pair) if name else pair
+            sub = family or "structure not published"
+        else:                                     # arylation: name, smiles
+            name, smiles = entry
+            title, sub = name, ""
+        body = [html.Img(src="/assets/hitl/%s.svg" % chemistry.ligand_figure(name),
+                         style={"width": "100%", "height": "7rem", "objectFit": "contain"})
+                if name else html.Div("?", className="text-muted text-center",
+                                      style={"fontSize": "3rem", "lineHeight": "7rem"}),
+                html.Div(html.B(title), className="text-center small"),
+                html.Div(sub, className="text-center text-muted", style={"fontSize": "0.72rem"})]
+        ligands.append(dbc.Col(dbc.Card(dbc.CardBody(body, className="p-2"),
+                                        className="h-100"), xs=6, md=3, lg=2, className="mb-2"))
+
+    def rows(pairs):
+        return html.Table([html.Tr([html.Td(html.B(k), style={"whiteSpace": "nowrap",
+                                                                "paddingRight": "0.8rem"}),
+                                    html.Td(v)]) for k, v in pairs], className="small")
+
+    content = html.Div([
+        html.Div(html.Img(src="/assets/hitl/%s.svg" % ch["scheme"],
+                          style={"maxWidth": "100%", "maxHeight": "14rem"}),
+                 className="text-center"),
+        html.P(caption, className="text-center text-muted small"),
+        html.P(ch["summary"]),
+        dbc.Row([
+            dbc.Col([html.H6("Conditions", className="text-muted"),
+                     html.Ul([html.Li(x, className="small") for x in ch["conditions"]])], md=4),
+            dbc.Col([html.H6("What you control", className="text-muted"), rows(ch["variables"])], md=4),
+            dbc.Col([html.H6("What is measured", className="text-muted"), rows(ch["objectives"])], md=4),
+        ]),
+        html.P(ch["data"], className="small text-muted"),
+        html.H6("The catalysts", className="text-muted mt-2"),
+        dbc.Row(ligands),
+        html.P(["Sources: "] + sum([[html.A(t, href=u, target="_blank"), " · "]
+                                    for t, u in ch["sources"]], [])[:-1],
+               className="small text-muted mb-0"),
+    ])
+    return dbc.Accordion([dbc.AccordionItem(content, title="About this reaction — %s" % ch["reaction"])],
+                         start_collapsed=not open_by_default, className="mb-3",
+                         style={"borderRadius": "12px"})
+
+
 def campaign_view(c):
     """The whole campaign screen, rebuilt on every tick."""
     n_bo = sum(1 for r in c.experiments if r["phase"] == "bo")
@@ -307,6 +369,7 @@ def campaign_view(c):
         html.H3(c.pres["title"], style={"color": BLUE}, className="mt-2"),
         html.P(c.pres["intro"]),
         dbc.Alert(c.pres["note"], color="secondary", className="small py-2"),
+        _chemistry_card(c, open_by_default=c.n_done <= c.n_init),
         status,
         # the experiments come first: they are what a chemist reads before deciding
         dbc.Card(dbc.CardBody([html.H6("All experiments", className="text-muted"),
