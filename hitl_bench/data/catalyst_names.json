@@ -7,14 +7,42 @@
     "olympus suzuki_ii dataset"
   ],
   "mapping": {
-    "L0": {"pair": "P1-L1", "ligand": "XPhos", "family": "dialkylbiarylphosphine"},
-    "L1": {"pair": "P1-L2", "ligand": "SPhos", "family": "dialkylbiarylphosphine"},
-    "L2": {"pair": "P1-L3", "ligand": "RuPhos", "family": "dialkylbiarylphosphine"},
-    "L3": {"pair": "P1-L4", "ligand": "Xantphos", "family": "bidentate phosphine"},
-    "L4": {"pair": "P1-L5", "ligand": "PCy3", "family": "trialkylphosphine"},
-    "L5": {"pair": "P1-L6", "ligand": null, "family": null},
-    "L6": {"pair": "P1-L7", "ligand": null, "family": "bidentate"}
+    "L0": {
+      "pair": "P1-L1",
+      "ligand": "XPhos",
+      "family": "dialkylbiarylphosphine"
+    },
+    "L1": {
+      "pair": "P1-L2",
+      "ligand": "SPhos",
+      "family": "dialkylbiarylphosphine"
+    },
+    "L2": {
+      "pair": "P1-L3",
+      "ligand": "RuPhos",
+      "family": "dialkylbiarylphosphine"
+    },
+    "L3": {
+      "pair": "P1-L4",
+      "ligand": "Xantphos",
+      "family": "bidentate phosphine"
+    },
+    "L4": {
+      "pair": "P1-L5",
+      "ligand": "PCy3",
+      "family": "trialkylphosphine"
+    },
+    "L5": {
+      "pair": "P1-L6",
+      "ligand": "PPh3",
+      "family": "triarylphosphine"
+    },
+    "L6": {
+      "pair": "P1-L7",
+      "ligand": "P(t-Bu)3",
+      "family": "trialkylphosphine"
+    }
   },
-  "unnamed": "L5 and L6 keep their precatalyst-ligand codes: the paper's accessible text names L1 to L5 only. Do not guess them; a wrong name shown to a chemist would corrupt the study.",
+  "unnamed": "L6 and L7 were first left as codes because the paper's text names L1 to L5 only. Scheme 1 of the article (Reizman et al., React. Chem. Eng. 2016, 1, 658, CC BY 3.0) names all seven: L5 PCy3, L6 PPh3, L7 P(t-Bu)3, and the precatalyst scaffolds P1 (X = OMs) and P2 (X = Cl). Read from the scheme on 12 September 2026.",
   "why_it_matters": "The global Pareto front of case ii sits entirely on L4, that is PCy3, which is exactly the catalyst the paper reports as optimal for case 2 at 110 C and about 2 mol% Pd. Campaigns that fail settle on L0, XPhos, which the paper describes as giving modest yields at lower temperature. The trap is real chemistry, not an artefact of the emulator."
 }

@@ -280,34 +280,40 @@ def _chemistry_card(c, open_by_default):
     else:
         caption = "%s + %s → %s" % (p["nucleophile"][0], p["electrophile"][0], p["product"][0])
 
-    ligands = []
-    for entry in ch["ligands"]:
-        if len(entry) == 5:                       # Suzuki: code, pair, name, family, smiles
-            code, pair, name, family, smiles = entry
-            title = "%s (%s)" % (name, pair) if name else pair
-            sub = family or "structure not published"
-        else:                                     # arylation: name, smiles
-            name, smiles = entry
-            title, sub = name, ""
-        body = [html.Img(src="/assets/hitl/%s.svg" % chemistry.ligand_figure(name),
-                         style={"width": "100%", "height": "7rem", "objectFit": "contain"})
-                if name else html.Div("?", className="text-muted text-center",
-                                      style={"fontSize": "3rem", "lineHeight": "7rem"}),
-                html.Div(html.B(title), className="text-center small"),
-                html.Div(sub, className="text-center text-muted", style={"fontSize": "0.72rem"})]
-        ligands.append(dbc.Col(dbc.Card(dbc.CardBody(body, className="p-2"),
-                                        className="h-100"), xs=6, md=3, lg=2, className="mb-2"))
-
     def rows(pairs):
         return html.Table([html.Tr([html.Td(html.B(k), style={"whiteSpace": "nowrap",
                                                                 "paddingRight": "0.8rem"}),
                                     html.Td(v)]) for k, v in pairs], className="small")
 
-    content = html.Div([
-        html.Div(html.Img(src="/assets/hitl/%s.svg" % ch["scheme"],
-                          style={"maxWidth": "100%", "maxHeight": "14rem"}),
-                 className="text-center"),
-        html.P(caption, className="text-center text-muted small"),
+    if ch.get("figure"):
+        # the article's own scheme, reproduced under its licence: it carries the
+        # general reaction, the conditions and every catalyst, so no gallery
+        file, credit = ch["figure"]
+        scheme = [
+            html.Div(html.Img(src="/assets/hitl/%s" % file,
+                              style={"maxWidth": "100%", "maxHeight": "26rem"}),
+                     className="text-center"),
+            html.P([html.B("This case: "), caption], className="text-center small mb-1"),
+            html.P(credit, className="text-center text-muted", style={"fontSize": "0.75rem"}),
+        ]
+        gallery = []
+    else:
+        scheme = [
+            html.Div(html.Img(src="/assets/hitl/%s.svg" % ch["scheme"],
+                              style={"maxWidth": "100%", "maxHeight": "14rem"}),
+                     className="text-center"),
+            html.P(caption, className="text-center text-muted small"),
+        ]
+        ligands = []
+        for name, smiles in ch["ligands"]:
+            ligands.append(dbc.Col(dbc.Card(dbc.CardBody([
+                html.Img(src="/assets/hitl/%s.svg" % chemistry.ligand_figure(name),
+                         style={"width": "100%", "height": "7rem", "objectFit": "contain"}),
+                html.Div(html.B(name), className="text-center small"),
+            ], className="p-2"), className="h-100"), xs=6, md=3, lg=2, className="mb-2"))
+        gallery = [html.H6("The catalysts", className="text-muted mt-2"), dbc.Row(ligands)]
+
+    content = html.Div(scheme + [
         html.P(ch["summary"]),
         dbc.Row([
             dbc.Col([html.H6("Conditions", className="text-muted"),
@@ -316,8 +322,7 @@ def _chemistry_card(c, open_by_default):
             dbc.Col([html.H6("What is measured", className="text-muted"), rows(ch["objectives"])], md=4),
         ]),
         html.P(ch["data"], className="small text-muted"),
-        html.H6("The catalysts", className="text-muted mt-2"),
-        dbc.Row(ligands),
+    ] + gallery + [
         html.P(["Sources: "] + sum([[html.A(t, href=u, target="_blank"), " · "]
                                     for t, u in ch["sources"]], [])[:-1],
                className="small text-muted mb-0"),

@@ -69,8 +69,7 @@ REACTIONS = {
                  "temperature and a palladium loading; the yield and the catalyst "
                  "turnover number are measured.",
         "note": "Data from the flow campaigns of Reizman et al. (React. Chem. Eng. "
-                "2016), interpolated on a complete grid. Two pairs have no published "
-                "name and keep their code.",
+                "2016), interpolated on a complete grid.",
         "params": {"ligand": ("Catalyst", ""), "res_time": ("Residence time", "s"),
                    "temperature": ("Temperature", "°C"),
                    "catalyst_loading": ("Pd loading", "mol%")},
