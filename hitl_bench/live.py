@@ -81,8 +81,14 @@ REACTIONS = {
 
 
 def presentation(benchmark_name):
-    if benchmark_name in ("i", "ii", "iii", "iv") or benchmark_name.startswith("summit_"):
-        return REACTIONS["suzuki"]
+    """What to tell a chemist about this benchmark. The four Suzuki cases share
+    one description but must not share one title: a participant given two of
+    them needs to tell them apart by something other than a seed number."""
+    case = benchmark_name.replace("summit_", "")
+    if case in ("i", "ii", "iii", "iv"):
+        pres = dict(REACTIONS["suzuki"])
+        pres["titre"] = "%s — cas %s" % (REACTIONS["suzuki"]["titre"], case.upper())
+        return pres
     return REACTIONS[benchmark_name]
 
 
