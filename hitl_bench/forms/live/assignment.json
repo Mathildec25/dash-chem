@@ -1,6 +1,12 @@
 {
-  "_why": "One trapped campaign per reaction, the same for every chemist. Chosen on 12 September from the replayable controls (scripts/seed_choice.py): ends under 90 % of the front, first alert early enough to leave room for an intervention, the front ligand drawn in the initial design so that a chemist reading the data can notice it was dismissed. Case II seed 12: 44 %, alert at 16, PCy3 seen once at 0 % yield. Arylation seed 2: 72 %, alert at 16, 77 % on CgMe-PPh in the initial design then nothing for 28 experiments. Case I: to be set once its twenty controls are in.",
-  "i": [2],
-  "ii": [12],
-  "edbo_ch_arylation": [2]
+  "_why": "One trapped campaign per reaction, the same for every chemist. Chosen on 12 September from the twenty replayable controls of each benchmark (scripts/seed_choice.py): ends under 90 % of the front, first alert early enough to leave room for an intervention, the front ligand drawn in the initial design so that a chemist reading the data can notice it was dismissed. Case I seed 8: 69 %, alert at 20; Xantphos was drawn once in the initial design at 40 C and gave 0 %, the optimiser only returned to it at experiment 27 and ran out of budget while climbing. Case II seed 12: 44 %, alert at 16, PCy3 seen once at 0 % yield, ends on XPhos. Arylation seed 2: 72 %, alert at 16, 77 % on CgMe-PPh in the initial design then nothing for 28 experiments.",
+  "i": [
+    8
+  ],
+  "ii": [
+    12
+  ],
+  "edbo_ch_arylation": [
+    2
+  ]
 }
