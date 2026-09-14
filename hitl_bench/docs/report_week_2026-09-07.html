@@ -85,12 +85,23 @@ footer{margin-top:4rem;padding-top:1rem;border-top:1px solid var(--rule);color:v
 
 <h2>The week at a glance</h2>
 <ul class="timeline">
+  <li><span class="d">Mon 7</span><span>The study moved into REACTO's own repository (branch <span class="mono">hitl-bench</span>) and now calls REACTO's optimiser; Olympus and its environment dropped; the Minerva grids verified and versioned; campaign core written; the first five case II campaigns reproduce the known bimodality.</span></li>
   <li><span class="d">Tue 8 → Wed 9</span><span>Trigger candidates measured on the Suzuki campaigns; overnight, nine additional reaction grids collected and plain BO run on each to find reactions where the optimiser <em>can</em> fail.</span></li>
   <li><span class="d">Wed 9</span><span>Decisions: Suzuki cases I and II plus the EDBO+ C–H arylation are the study's reactions; the chemist may also <em>stop</em> a campaign (third answer at a checkpoint); no more Suzuki-only work.</span></li>
   <li><span class="d">Thu 10</span><span>Provenance of every grid re-established and verified by script. Trigger frozen: P*, W = 5, threshold 0.30, cooldown 5. Three-arm design agreed. Root cause of non-reproducibility found and fixed in REACTO.</span></li>
   <li><span class="d">Thu 10 → Fri 11</span><span>Overnight: reproducibility verified to twelve decimals; control arm and random-intervention arm computed (arylation complete, Suzuki II controls); figures for the article and the SI.</span></li>
   <li><span class="d">Fri 11</span><span>Night report. The live HITL page built as a tested state machine (<span class="mono">hitl_bench/live.py</span>) with a thin Dash skin.</span></li>
   <li><span class="d">Sat 12</span><span>Shown that the initial design alone decides a trapped campaign. Seeds chosen for the chemists from 20 controls per benchmark. Page verified in the browser; several fixes; English; chemistry cards with the source figures; your own trial of the three campaigns.</span></li>
+</ul>
+
+<h2>0 · One repository, one optimiser: the move into REACTO</h2>
+<p>Until Monday the benchmark lived in a standalone folder (<span class="mono">Documents/Thèse/BO/hitl-bench</span>) with its own copy of the optimisation code, an Olympus installation that needed three patches to run (a circular import, sixteen Windows path fixes, a protobuf / TensorFlow 1.15 work-around) and a separate Python environment that turned out to be broken — the interpreter died on any BLAS call. None of that could be handed to a successor.</p>
+<ul>
+<li><b>The study now lives inside REACTO</b>, in <code>hitl_bench/</code> on the branch <code>hitl-bench</code> of <span class="mono">github.com/Mathildec25/dash-chem</span>, and <em>imports</em> REACTO's own <code>bayesian_optimization()</code> instead of keeping a copy. There is a single Bayesian optimiser in the project, so the in-silico study tests literally the tool that will run the real campaigns.</li>
+<li><b>Olympus is out.</b> The Minerva grids already carry yield and turnover, so no emulator, no TensorFlow 1.15 and no Python 3.7 are needed to reproduce any result. One environment, REACTO's venv, is enough.</li>
+<li><b>Input data are versioned, outputs are not.</b> REACTO's <code>.gitignore</code> excluded every CSV; an exception now versions the benchmark grids (inputs, not exports), while <code>results/</code>, the chemists' files and the checkpoints are ignored.</li>
+<li><b>The old folder was emptied</b> (eleven items, including the earlier results and exact fronts), a deletion confirmed as deliberate; the project restarted from zero in REACTO with the grids re-verified against a repaired Olympus (r ≥ 0.997, mean absolute gap ≤ 1 point).</li>
+<li><b>One scare on Tuesday morning:</b> the working tree had been switched to <code>main</code> from the editor, so <code>hitl_bench/</code> vanished from the disk. Nothing was lost — a branch is a drawer, not the desk — and since then every commit is pushed the day it is made; nothing exists only locally.</li>
 </ul>
 
 <h2>1 · Benchmarks: where they come from and why these three</h2>
