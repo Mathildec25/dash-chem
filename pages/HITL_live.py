@@ -11,8 +11,8 @@ give the campaign a visible pace; a live experiment takes several seconds and
 the tick simply waits for it.
 
 Nothing is inferred from silence. A tick with no pending campaign does nothing,
-a submission with no choice is refused, and an imposed point with a condition
-left blank is refused with the count of what is missing.
+a submission with no choice or no reason is refused, and an imposed point with
+a condition left blank is refused with the count of what is missing.
 """
 
 import threading
@@ -181,6 +181,10 @@ def answer(n_clicks, session, choice, values, identifiers, why, tick):
         return dbc.Alert("Choose one of the three options.", color="warning"), no_update
 
     why = (why or "").strip()
+    if len(why) < 3:
+        # the reasoning is half the result: no answer is recorded without one
+        return dbc.Alert("Please write why, in a sentence — it matters as much as the choice.",
+                         color="warning"), no_update
     if choice == "stop":
         campaign.stop(why=why)
     elif choice == "optimiser":

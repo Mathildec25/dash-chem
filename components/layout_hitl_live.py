@@ -257,7 +257,7 @@ def _alert_panel(c):
             dbc.Card(dbc.CardBody([html.P(html.B("Your conditions"), className="mb-2"),
                                    dbc.Row(menus)]), className="border-danger mb-2"),
         ]),
-        dbc.Label("Why?", className="fw-bold"),
+        dbc.Label("Why? (required)", className="fw-bold"),
         dbc.Textarea(id="hl-why", rows=2, className="mb-2",
                      placeholder="One sentence is enough. Your reasoning matters as much as your choice."),
         dbc.Button("Submit", id="hl-submit", color="danger"),
