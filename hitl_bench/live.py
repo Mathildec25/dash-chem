@@ -35,6 +35,7 @@ import glob
 import json
 import os
 import re
+import threading
 import time
 
 from hitl_bench import triggers
@@ -44,6 +45,11 @@ ARMS = os.path.join(HERE, "results", "arms")
 LIVE = os.path.join(HERE, "forms", "live")
 
 PHASE_CHEMIST = "chemist"
+
+# One live optimiser run at a time, server-wide. A run takes about ten seconds
+# and up to two gigabytes; on a shared machine two chemists in live mode at once
+# would double that, so the second one simply waits its turn.
+OPTIMISER_LOCK = threading.Lock()
 
 
 # --- what a chemist is shown about each reaction ----------------------------
@@ -258,9 +264,10 @@ class LiveCampaign:
         from utils.bofire_optimization import bayesian_optimization
         limit_acquisition_memory()
         iteration = self.n_done - self.n_init + 1
-        candidate = bayesian_optimization(
-            self.benchmark.domain, self._frame(), n_candidates=1, verbose=False,
-            seed=_acquisition_seed(self.seed, iteration)).iloc[0]
+        with OPTIMISER_LOCK:
+            candidate = bayesian_optimization(
+                self.benchmark.domain, self._frame(), n_candidates=1, verbose=False,
+                seed=_acquisition_seed(self.seed, iteration)).iloc[0]
         return {k: (candidate[k].item() if hasattr(candidate[k], "item") else candidate[k])
                 for k in self.benchmark.parameter_keys}
 
