@@ -111,7 +111,7 @@ def number(value, digits=6):
 def label(benchmark, key, value):
     if isinstance(value, str):
         if key == "ligand" and value.startswith("L") and value[1:].isdigit():
-            from hitl_bench.scripts.make_chemist_form import catalyst_names, label_value
+            from hitl_bench.names import catalyst_names, label_value
             return label_value("ligand", value, catalyst_names())
         return value
     return number(value, 4)

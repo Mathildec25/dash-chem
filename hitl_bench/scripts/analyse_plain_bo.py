@@ -118,7 +118,7 @@ def front_levels(stem, key):
     import numpy as np
     import pandas as pd
     from hitl_bench import metrics
-    from hitl_bench.scripts.make_chemist_form import catalyst_names, label_value
+    from hitl_bench.names import catalyst_names, label_value
 
     data = os.path.join(HERE, "data")
     suzuki = stem.replace("summit_", "") in ("i", "ii", "iii", "iv")
@@ -225,7 +225,7 @@ def _label(key, value, stem):
     """Codes are unreadable in a figure and in a report: L4 becomes PCy3."""
     if key != "ligand" or not stem.replace("summit_", "") in ("i", "ii", "iii", "iv"):
         return str(value)
-    from hitl_bench.scripts.make_chemist_form import catalyst_names, label_value
+    from hitl_bench.names import catalyst_names, label_value
     return label_value("ligand", value, catalyst_names())
 
 

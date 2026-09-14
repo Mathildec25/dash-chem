@@ -31,10 +31,7 @@ hitl_bench/results/
 # Figures are derived from the logs, regenerate with scripts/plot_triggers.py
 hitl_bench/figures/
 
-# Chemist forms are generated from the logs by scripts/make_chemist_form.py
+# The chemists' answers: written by the live page, backed up outside git
 hitl_bench/forms/
 hitl_bench/results/arms/
-hitl_bench/forms/checkpoints/
-hitl_bench/forms/checkpoint_keys/
-hitl_bench/forms/reponses/
 hitl_bench/forms/live/

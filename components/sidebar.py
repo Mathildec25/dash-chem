@@ -11,7 +11,7 @@ ICON_MAP = {
 }
 
 # Pages to exclude from sidebar
-EXCLUDED_PAGES = {"Opti parameterization", "Opti run", "Results & Analysis", "Chemist input"}
+EXCLUDED_PAGES = {"Opti parameterization", "Opti run", "Results & Analysis"}
 
 # Display order for sidebar pages
 PAGE_ORDER = ["Optimization", "HITL live", "Tutorial", "About"]

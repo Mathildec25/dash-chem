@@ -9,22 +9,30 @@ It lives inside REACTO on purpose. The optimiser is REACTO's own
 so the in-silico study and a real campaign run through the same code. There is
 one Bayesian optimisation in this repository, not two.
 
-## Running it
+## Where to start
 
-Everything runs from the `dash-chem` directory, in REACTO's own virtualenv:
+Read `CLAUDE.md` first: it holds every scientific decision, dated, and the
+settings that are frozen. Then, depending on what you need:
+
+| You want to… | Run / read |
+|---|---|
+| let chemists run the study | the REACTO page `/hitl-live`; `deploy/README.md` for what to install and back up; `docs/protocole_chimistes.md` for what they are told |
+| collect what the chemists did | `python -m hitl_bench.scripts.collect_live` → `results/live_campaigns.csv`, `results/live_decisions.csv` |
+| recompute the control and random arms | `python -m hitl_bench.scripts.run_arms --benchmark ii --arm no_hitl` then `--arm hitl_random`; `analyse_arms.py` writes the reports and figures |
+| see why these three campaigns were assigned | `python -m hitl_bench.scripts.seed_choice` |
+| see where the trigger fires with other settings | `scripts/plot_firings.py --signal pace_ratio --window 5 --threshold 0.30` |
+| check a grid against its source | `scripts/verify_other_grids.py`; provenance in `data/README.md` and `data/other/README.md` |
+| redraw the reaction schemes | `scripts/make_chemistry_figures.py` (needs RDKit, see the file) |
+
+Everything runs from the `dash-chem` directory, in REACTO's own virtualenv,
+with `PYTHONIOENCODING=utf-8` set (some REACTO modules print emoji on import,
+which the Windows console rejects):
 
 ```
 cd C:\Users\mathi\REACTO\dash-chem
 set PYTHONIOENCODING=utf-8
-.venv\Scripts\python.exe hitl_bench/scripts/run_screening.py --case ii --seeds 5
+.venv\Scripts\python.exe -m hitl_bench.scripts.run_arms --benchmark ii --arm no_hitl --seeds 20
 ```
-
-Two things that will otherwise waste an afternoon:
-
-- **Run from `dash-chem`.** The harness imports `utils.*`, which is only on the
-  path from there.
-- **Set `PYTHONIOENCODING=utf-8`.** Some REACTO modules print emoji when
-  imported, which raises `UnicodeEncodeError` on the Windows console.
 
 Do **not** use the `hitl_env` conda environment: its numpy crashes the
 interpreter on any BLAS call, so a GP fit dies with no traceback.
@@ -33,13 +41,18 @@ interpreter on any BLAS call, so a GP fit dies with no traceback.
 
 | File | Role |
 |---|---|
-| `data/` | the four benchmark grids and their provenance, see `data/README.md` |
-| `benchmark.py` | `GridBenchmark`: a grid, its BoFire domain, its true front |
-| `campaign.py` | one campaign: initial design, optimisation loop, metrics |
+| `CLAUDE.md` | the decisions, frozen settings and findings, dated |
+| `data/` | the benchmark grids and their provenance (`data/README.md`, `data/other/README.md`) |
+| `benchmark.py` | `GridBenchmark`: a Suzuki grid, its BoFire domain, its true front; `scripts/run_other_benchmarks.py` holds `TableBenchmark` for the other grids |
+| `campaign.py` | one campaign: initial design, optimisation loop, metrics, forks |
+| `triggers.py` | P* (`pace_ratio`) and the candidates kept for comparison |
 | `metrics.py` | hypervolume, IGD+, areas under curves |
-| `campaign_log.py` | one JSON file per campaign, under `results/` |
-| `scripts/` | entry points |
-| `results/` | campaign logs. Raw study data: never delete, not in git |
+| `runtime.py` | thread and memory settings that keep a campaign reproducible and under a gigabyte |
+| `live.py` | the chemist's campaign as a state machine (replay, alert, three answers, live mode); `chemistry.py` and `names.py` what they are shown |
+| `scripts/` | entry points, each with its usage in its docstring |
+| `results/arms/` | campaign logs, one JSON each. The three the chemists replay are in git; the rest is raw study data, never delete |
+| `forms/live/` | the chemists' answers, written by the page. Not in git: back it up |
+| `docs/` | the candidate-reaction study, the chemists' protocol, the night and weekly reports |
 
 ## The protocol, frozen
 
@@ -56,15 +69,19 @@ Do not change any of this without asking the study's owner.
 - Two objectives, yield and turnover, both maximised, each normalised to [0, 1]
   by its minimum and maximum over the grid. Hypervolume against (0, 0).
 - Seeds 1 to 5 while testing, 20 for anything reported.
+- Trigger P* with W = 5, threshold 0.30, cooldown 5, first alert at experiment 15.
 
 ### Seeding, and why it needs care
 
-`torch.manual_seed(seed)` alone does **not** make a campaign reproducible:
-BoFire's `RandomStrategy` carries its own generator, so the initial design comes
-out different every time. The seed is therefore also handed to `sampling()`
-explicitly. On a grid the acquisition step is evaluated exhaustively over every
-untested point, which makes it near-deterministic given the data, so in
-practice the seed acts almost entirely through the initial design.
+`torch.manual_seed(seed)` alone does **not** make a campaign reproducible.
+Two generators escape it: BoFire's `RandomStrategy` for the initial design,
+and the `MoboStrategy` itself, which without a `seed` draws one from operating
+system entropy at every acquisition step. The campaign seed is therefore handed
+to `sampling()` and, through `_acquisition_seed(seed, iteration)`, to
+`bayesian_optimization(..., seed=)`. With that, two runs coincide to the
+twelfth decimal and a fork reproduces its parent exactly. Measured on 12
+September: the outcome of a campaign is then a function of its initial design
+alone; the acquisition seed changes nothing but the tail of a tied sweep.
 
 ## Metrics
 

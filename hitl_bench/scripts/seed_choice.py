@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from hitl_bench import triggers
-from hitl_bench.scripts.make_chemist_form import catalyst_names, label_value
+from hitl_bench.names import catalyst_names, label_value
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARMS = os.path.join(HERE, "results", "arms")
