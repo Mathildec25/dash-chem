@@ -70,33 +70,24 @@ SUZUKI_CASES = {
 
 SUZUKI = {
     "reaction": "Suzuki–Miyaura cross-coupling",
-    "summary": ("A palladium-catalysed C–C coupling between a heteroaryl halide and a boronic "
-                "acid or ester. The catalytic cycle is oxidative addition of the aryl halide to "
-                "Pd(0), transmetalation of the aryl group from boron (activated by the base), "
-                "and reductive elimination of the biaryl product. A chloride is harder to "
-                "activate than a bromide, and an electron-poor or nitrogen-rich heteroarene "
-                "can bind palladium and slow the catalyst down."),
+    "summary": ("Pd-catalysed coupling of a heteroaryl halide with a boronate: oxidative addition, "
+                "base-assisted transmetalation, reductive elimination. A chloride is harder to "
+                "activate than a bromide, and a nitrogen heterocycle can bind palladium."),
     "conditions": [
-        "Palladacycle precatalyst P1 (X = OMs) with one of seven ligands, the pairs P1-L1 … P1-L7.",
-        "Boron reagent 1.5 equiv.; DBU 2.0 equiv.; THF / water 5 : 1.",
-        "Automated droplet-flow microreactor: the reaction runs for one residence time in a heated "
-        "Teflon tube under 6.9 bar of argon, one condition at a time.",
+        "Palladacycle precatalyst P1 (X = OMs) + one of seven ligands.",
+        "Boronate 1.5 equiv., DBU 2.0 equiv., THF/water 5:1, droplet flow, one condition per run.",
     ],
     "variables": [
-        ("Catalyst", "one of the seven precatalyst–ligand pairs"),
-        ("Residence time", "60 to 600 s, the time the droplet spends in the heated reactor"),
-        ("Temperature", "30 to 110 °C"),
-        ("Pd loading", "0.5 to 2.5 mol% of palladium"),
+        ("Catalyst", "one of 7 precatalyst–ligand pairs"),
+        ("Residence time", "60–600 s"),
+        ("Temperature", "30–110 °C"),
+        ("Pd loading", "0.5–2.5 mol%"),
     ],
     "objectives": [
-        ("Yield", "% of the coupled product, to maximise"),
-        ("TON", "turnover number, moles of product per mole of catalyst, to maximise — high TON needs "
-                "a low loading, high yield often needs more catalyst: the two pull in opposite directions"),
+        ("Yield", "%, maximise"),
+        ("TON", "mol product / mol catalyst, maximise — favours low loading, yield favours high"),
     ],
-    "data": ("The values you will see are not new measurements: they come from a model of the "
-             "reaction (an Olympus emulator fitted to the flow campaigns of Reizman et al.) "
-             "evaluated on a complete grid of conditions, the grid published with Minerva "
-             "(Sin et al., Nat. Commun. 2025). Every condition you can propose exists on that grid."),
+    "data": "Values from an emulator of the Reizman campaigns (Olympus), on the complete grid published with Minerva.",
     # The scheme the study owner chose (12 September 2026): general reaction,
     # conditions, precatalyst scaffolds, the seven ligands and the substrates of
     # the four cases in one drawing. Its "optimized conditions" column was cut
@@ -140,35 +131,35 @@ ARYLATION = {
     "nucleophile": ("1-methyl-1H-imidazole-4-carbonitrile", "Cn1cnc(C#N)c1"),
     "electrophile": ("1-bromo-2-fluorobenzene", "Fc1ccccc1Br"),
     "product": ("5-(2-fluorophenyl)-1-methyl-1H-imidazole-4-carbonitrile", "Cn1cnc(C#N)c1-c1ccccc1F"),
-    "summary": ("The C5–H bond of the imidazole is arylated directly by the aryl bromide, with "
-                "no prior functionalisation of the heterocycle. The carboxylate base is not a "
-                "spectator: in this class of reaction it takes part in the C–H cleavage step "
-                "(concerted metalation–deprotonation), which is why acetate and pivalate are "
-                "the bases on offer. The reaction is related to a key step in the commercial "
-                "synthesis of the JAK2 inhibitor BMS-911543 (Bristol Myers Squibb)."),
+    "summary": ("Direct arylation of the imidazole C5–H by the aryl bromide; the carboxylate base "
+                "takes part in the C–H cleavage (concerted metalation–deprotonation). A step of this "
+                "kind is used in the commercial synthesis of the JAK2 inhibitor BMS-911543."),
     "conditions": [
-        "[Pd(allyl)Cl]₂ 2.25 mol% as precatalyst, ligand 5 mol%.",
-        "Imidazole 2 equiv., aryl bromide 1 equiv., base 3 equiv.",
-        "24 h; high-throughput screening in 96-well plates in a glovebox, 15 µmol scale, "
-        "one run per condition, no replicate.",
+        "[Pd(allyl)Cl]₂ 2.25 mol%, ligand 5 mol%; imidazole 2 equiv., bromide 1 equiv., base 3 equiv.",
+        "24 h, 96-well plates in a glovebox, 15 µmol scale, single run per condition.",
     ],
     "variables": [
-        ("Ligand", "one of twelve phosphines, drawn below"),
-        ("Base", "KOAc, KOPiv, CsOAc or CsOPiv"),
-        ("Solvent", "DMAc, BuOAc, BuCN or p-xylene"),
-        ("Concentration", "0.057, 0.100 or 0.153 M"),
-        ("Temperature", "90, 105 or 120 °C"),
+        ("Ligand", "12 phosphines"),
+        ("Base", "KOAc, KOPiv, CsOAc, CsOPiv"),
+        ("Solvent", "DMAc, BuOAc, BuCN, p-xylene"),
+        ("Concentration", "0.057, 0.100, 0.153 M"),
+        ("Temperature", "90, 105, 120 °C"),
     ],
     "objectives": [
-        ("Yield", "% of the arylated product, to maximise"),
-        ("Reagent cost", "cost of the ligand, base and solvent used for the reaction, computed by "
-                         "the EDBO+ authors from catalogue prices (arbitrary units), to minimise — "
-                         "it is set almost entirely by the ligand, and a caesium base costs more "
-                         "than a potassium one"),
+        ("Yield", "%, maximise"),
+        ("Reagent cost", "$ of ligand + base + solvent for one 15 µmol reaction, minimise"),
     ],
-    "data": ("Every value you will see is a real measurement: the 1,728 conditions were all run "
-             "at Bristol Myers Squibb and published with EDBO+ (Torres et al., JACS 2022). "
-             "Yields are single runs, so a surprising number can be a real outlier."),
+    "data": "All 1,728 conditions were run at Bristol Myers Squibb; every value is a real single measurement.",
+    # Catalogue prices behind the cost objective, $/g, from the EDBO+ cost file
+    # (X_price.mol / X_MW; e.g. BrettPhos $29.7 for 0.10 g). The solvent mass
+    # follows the concentration, so a dilute reaction costs more solvent.
+    "prices": [
+        ("Ligand", [("tBPh-CPhos", 800), ("JackiePhos", 552), ("BrettPhos", 297), ("CgMe-PPh", 144),
+                    ("PPhtBu2", 102), ("P(fur)3", 71), ("GorlosPhos HBF4", 36), ("PPhMe2", 23),
+                    ("X-Phos", 23), ("PCy3 HBF4", 22), ("PPh2Me", 7.7), ("PPh3", 0.50)]),
+        ("Base", [("CsOPiv", 9.4), ("CsOAc", 6.7), ("KOAc", 2.8), ("KOPiv", 1.8)]),
+        ("Solvent", [("BuCN", 0.25), ("BuOAc", 0.19), ("p-Xylene", 0.12), ("DMAc", 0.10)]),
+    ],
     # Panel a of Fig. 4 of Shields et al., chosen by the study owner (12 September
     # 2026): reaction 3 with the twelve ligands drawn, the bases, solvents,
     # temperatures and concentrations. Panels b-e (optimiser against human

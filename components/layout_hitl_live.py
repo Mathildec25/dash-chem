@@ -267,67 +267,60 @@ def _alert_panel(c):
 
 # --- the chemistry behind the campaign ---------------------------------------------
 def _chemistry_card(c, open_by_default):
-    """Reaction scheme, conditions, variables, objectives, sources and the ligand
-    structures: what a chemist needs before judging a campaign. Collapsible, open
-    while the chemist is still looking at the initial design, folded once the
-    optimiser runs so that the table stays first."""
+    """The source figure, three short columns, the prices when cost is an
+    objective, the sources. Open while the initial design is on screen, folded
+    once the optimiser runs so that the table stays first."""
     ch = chemistry.for_benchmark(c.name)
     if ch is None:
         return html.Div()
     p = ch["partners"]
     if "halide" in p:
-        caption = "%s + %s → %s" % (p["halide"][0], p["boron"][0], p["product"][0])
+        this_case = "%s + %s → %s" % (p["halide"][0], p["boron"][0], p["product"][0])
     else:
-        caption = "%s + %s → %s" % (p["nucleophile"][0], p["electrophile"][0], p["product"][0])
+        this_case = None                       # the arylation figure already shows them
 
-    def rows(pairs):
-        return html.Table([html.Tr([html.Td(html.B(k), style={"whiteSpace": "nowrap",
-                                                                "paddingRight": "0.8rem"}),
-                                    html.Td(v)]) for k, v in pairs], className="small")
+    small = {"fontSize": "0.82rem"}
+
+    def block(title, pairs):
+        return dbc.Col([
+            html.Div(title, className="text-muted fw-bold mb-1", style=small),
+            html.Table([html.Tr([html.Td(html.B(k), style={"whiteSpace": "nowrap", "paddingRight": "0.6rem",
+                                                           "verticalAlign": "top"}),
+                                 html.Td(v)]) for k, v in pairs], style=small),
+        ], md=4, className="mb-2")
 
     if ch.get("figure"):
-        # the article's own scheme, reproduced under its licence: it carries the
-        # general reaction, the conditions and every catalyst, so no gallery
         file, credit = ch["figure"]
-        scheme = [
-            html.Div(html.Img(src="/assets/hitl/%s" % file,
-                              style={"maxWidth": "100%", "maxHeight": "34rem"}),
-                     className="text-center"),
-            html.P([html.B("This case: "), caption], className="text-center small mb-1"),
-            html.P(credit, className="text-center text-muted", style={"fontSize": "0.75rem"}),
-        ]
-        gallery = []
+        figure = [html.Div(html.Img(src="/assets/hitl/%s" % file,
+                                    style={"maxWidth": "100%", "maxHeight": "34rem"}),
+                           className="text-center"),
+                  html.Div(credit, className="text-center text-muted mb-2", style={"fontSize": "0.72rem"})]
     else:
-        scheme = [
-            html.Div(html.Img(src="/assets/hitl/%s.svg" % ch["scheme"],
-                              style={"maxWidth": "100%", "maxHeight": "14rem"}),
-                     className="text-center"),
-            html.P(caption, className="text-center text-muted small"),
-        ]
-        ligands = []
-        for name, smiles in ch["ligands"]:
-            ligands.append(dbc.Col(dbc.Card(dbc.CardBody([
-                html.Img(src="/assets/hitl/%s.svg" % chemistry.ligand_figure(name),
-                         style={"width": "100%", "height": "7rem", "objectFit": "contain"}),
-                html.Div(html.B(name), className="text-center small"),
-            ], className="p-2"), className="h-100"), xs=6, md=3, lg=2, className="mb-2"))
-        gallery = [html.H6("The catalysts", className="text-muted mt-2"), dbc.Row(ligands)]
+        figure = [html.Div(html.Img(src="/assets/hitl/%s.svg" % ch["scheme"],
+                                    style={"maxWidth": "100%", "maxHeight": "14rem"}),
+                           className="text-center mb-2")]
 
-    content = html.Div(scheme + [
-        html.P(ch["summary"]),
-        dbc.Row([
-            dbc.Col([html.H6("Conditions", className="text-muted"),
-                     html.Ul([html.Li(x, className="small") for x in ch["conditions"]])], md=4),
-            dbc.Col([html.H6("What you control", className="text-muted"), rows(ch["variables"])], md=4),
-            dbc.Col([html.H6("What is measured", className="text-muted"), rows(ch["objectives"])], md=4),
-        ]),
-        html.P(ch["data"], className="small text-muted"),
-    ] + gallery + [
-        html.P(["Sources: "] + sum([[html.A(t, href=u, target="_blank"), " · "]
-                                    for t, u in ch["sources"]], [])[:-1],
-               className="small text-muted mb-0"),
+    prices = []
+    if ch.get("prices"):
+        prices = [html.Div("Catalogue prices, $/g", className="text-muted fw-bold mt-1 mb-1", style=small),
+                  dbc.Row([dbc.Col(html.Table(
+                      [html.Tr([html.Th(kind, colSpan=2, style={"fontWeight": "normal", "color": "#6c757d"})])]
+                      + [html.Tr([html.Td(n, style={"paddingRight": "0.8rem"}),
+                                  html.Td(("%.2f" if v < 1 else "%.0f") % v, style={"textAlign": "right"})])
+                         for n, v in items], style=small), md=4) for kind, items in ch["prices"]])]
+
+    content = html.Div(figure + [
+        html.P([html.B("This case: "), this_case], className="mb-1", style=small) if this_case else None,
+        html.P(ch["summary"], className="mb-2", style=small),
+        dbc.Row([block("Conditions", [("", x) for x in ch["conditions"]]),
+                 block("You choose", ch["variables"]),
+                 block("Measured", ch["objectives"])]),
+    ] + prices + [
+        html.P([ch["data"], " Sources: "] + sum([[html.A(t, href=u, target="_blank"), " · "]
+                                                for t, u in ch["sources"]], [])[:-1],
+               className="text-muted mt-2 mb-0", style={"fontSize": "0.75rem"}),
     ])
-    return dbc.Accordion([dbc.AccordionItem(content, title="About this reaction — %s" % ch["reaction"])],
+    return dbc.Accordion([dbc.AccordionItem(content, title="About this reaction")],
                          start_collapsed=not open_by_default, className="mb-3",
                          style={"borderRadius": "12px"})
 
