@@ -72,9 +72,9 @@ def create_hitl_live_layout():
 
         html.Div(id="hl-campaigns"),        # the list of campaigns, once named
         html.Div(id="hl-view"),             # the running campaign
-        # {chemist, name, benchmark, seed}; session-scoped like the other
-        # REACTO stores: it survives moving between pages, not closing the tab
-        dcc.Store(id="hl-session", storage_type="session"),
+        # {chemist, name, benchmark, seed}. In memory only: the page opens blank
+        # every time, and the list of campaigns appears after Start or Resume
+        dcc.Store(id="hl-session", storage_type="memory"),
         dcc.Store(id="hl-tick", data=0),
         dcc.Interval(id="hl-interval", interval=900, disabled=True),
     ], style={"maxWidth": "68rem", "margin": "0 auto", "padding": "0 1rem 4rem"})

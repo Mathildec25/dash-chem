@@ -84,22 +84,6 @@ def identify(n_start, n_resume, opened, name, existing, session):
     return no_update, no_update
 
 
-# --- coming back: the browser remembers who was here and what was open ----------
-@callback(
-    Output("hl-name", "value"),
-    Output("hl-campaigns", "children", allow_duplicate=True),
-    Input("hl-session", "data"),
-    prevent_initial_call="initial_duplicate",
-)
-def restore(session):
-    """When the page is reached again in the same tab (back from Results, say),
-    and whenever the session changes: the name is filled back in and the list
-    redrawn with each campaign's current status."""
-    if not session or not session.get("chemist"):
-        return no_update, no_update
-    return session.get("name") or session["chemist"], campaign_list(session["chemist"])
-
-
 # --- drawing the campaign, and ticking it --------------------------------------
 @callback(
     Output("hl-view", "children"),
@@ -107,8 +91,7 @@ def restore(session):
     Input("hl-session", "data"),
     Input("hl-interval", "n_intervals"),
     Input({"type": "hl-launch", "b": ALL, "s": ALL}, "n_clicks"),
-    # fires on page load too: a campaign left open is drawn, and resumes if it was running
-    prevent_initial_call=False,
+    prevent_initial_call=True,
 )
 def advance(session, n_intervals, launch):
     trigger = ctx.triggered_id
