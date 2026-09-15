@@ -1,4 +1,4 @@
-bout-time==4.2.1
+about-time==4.2.1
 alive-progress==3.3.0
 annotated-types==0.7.0
 ansicolors==1.1.8
