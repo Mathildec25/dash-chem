@@ -1,243 +1,79 @@
-# MET - Molecular Experimental Toolkit
+# REACTO
 
-![Logo](assets/REACTO_logo.png)
+![REACTO](assets/REACTO_logo.png)
 
-## Overview
+REACTO is a web application for the Bayesian optimisation of chemical
+reactions, written for chemists who run the experiments themselves. A campaign
+is an Excel sheet: the app proposes the next experiment, the chemist runs it
+and types in the result, and the model updates. It also carries a
+**human-in-the-loop** mechanism — an alarm that pauses a stalling campaign and
+asks the chemist what to do — together with the in-silico benchmark used to
+design and evaluate it.
 
-**MET** is a comprehensive, AI-powered platform for experimental design, data analysis, and optimization in chemistry. Built for chemists, researchers, and data scientists, MET combines intuitive data management with cutting-edge Bayesian optimization to accelerate scientific discovery and reduce experimental costs.
+Built at CiTOS, University of Liège, on [BoFire](https://github.com/experimental-design/bofire)
+/ [BoTorch](https://botorch.org) and [Dash](https://dash.plotly.com).
 
-### 🎯 Key Capabilities
+## What it does
 
-- **Intelligent Data Management**: Upload, visualize, and edit experimental data with a easy to use spreadsheet interface
-- **Interactive Visualization**: Explore data relationships through dynamic charts and plots
-- **Domain Configuration**: Define complex experimental spaces with multiple parameters and objectives
-- **AI-Powered Optimization**: Leverage Bayesian optimization to intelligently suggest next experiments
-- **Experiment Tracking**: Manage optimization campaigns from initial sampling through iterative improvement
+**Optimisation.** Define the reaction space — continuous, discrete or
+categorical parameters, with solvent and base libraries and boiling-point or
+linear constraints — and one or two objectives to maximise or minimise. REACTO
+draws an initial design (random, Latin hypercube, Sobol or constrained
+k-means), then proposes one experiment at a time with qLogNEI (one objective)
+or qLogNEHVI (two). Results, Pareto fronts and parameter effects are shown on
+the Results page; a sensitivity screen around the optimum, after Glorius et
+al., checks its robustness.
 
-## 🚀 Platform Modules
+**Human in the loop.** Switched on when a project is created. The campaign's
+pace is monitored as
 
-### 📁 Data Hub
+    P* = progress over the last 5 experiments / average progress since the initial design
 
-#### Data management and file handling
+and when P* falls below 0.30 the campaign pauses and asks the chemist to
+choose: let the optimiser continue, propose the next experiment, or stop. The
+alarm cannot fire before five optimiser proposals nor more than once every
+five experiments; each answer and its reason are recorded with the project.
 
-- Upload and manage Excel files containing experimental data
-- Select and switch between different datasets and worksheets  
-- Organized file tracking with domain availability indicators
-- Seamless integration between data management and optimization workflows
+**In-silico study** (`/hitl-live`). The page used to measure what a chemist's
+intervention is worth: participants replay a real campaign that plain
+Bayesian optimisation gets wrong — two Suzuki–Miyaura couplings from Reizman
+et al. and the C–H arylation of Shields et al. — and answer the same alarm.
+Their branch is compared, paired, with the optimiser left alone and with a
+random point injected at the same moment. The benchmark, the trigger's
+calibration, every decision and its date are in [`hitl_bench/`](hitl_bench/README.md).
 
-### 📊 Dashboard
+## Install and run
 
-#### Interactive data viewing and editing
+Python 3.11.
 
-- Spreadsheet-like interface for direct data manipulation
-- Real-time cell editing
-- Add new experimental rows easily
-- Advanced filtering, sorting, and column selection
-- Save changes directly back to Excel files
-
-### 📈 Visualization
-
-#### Dynamic data exploration and insights
-
-- Automatic chart generation upon data loading
-- Interactive scatter plots with customizable axes, colors, and sizing
-- Box plots for comparing distributions across categories
-- Real-time plot configuration with intuitive dropdown controls
-- Export-ready visualizations for presentations and reports
-
-### 🤖 Bayesian Optimization Suite
-
-#### Optimization Hub
-
-- **New Projects**: Start fresh optimization campaigns with guided setup
-- **Existing Projects**: Continue and manage ongoing optimization workflows
-- **AI Integration**: Powered by BoFire framework for robust optimization
-
-#### Domain Configuration
-
-- **Parameters**: Define experimental variables (continuous, discrete, categorical)
-- **Objectives**: Set optimization goals (minimize/maximize) with bounds
-- **Sampling Strategies**: Choose from Random, Latin Hypercube, or Sobol sampling
-- **Intelligent Defaults**: Built-in recommendations and validation
-
-#### Optimization Execution
-
-- **Experiment Management**: View and edit experimental data in real-time
-- **AI Recommendations**: Get intelligent suggestions for next experiments
-- **Results Visualization**: Track optimization progress with interactive plots
-- **Campaign Analytics**: Monitor performance and convergence
-
-#### Human in the Loop
-
-- **Stall alarm on a real campaign**: switch it on when creating a project. The Run page then watches the campaign's pace (P* = recent pace over average pace; window 5, threshold 0.30, cooldown 5, first alert after 5 optimiser proposals) and, when it stalls, pauses and asks: let the optimiser continue, propose the next experiment yourself, or stop. Every answer and its reason are kept in the project's metadata.
-- **In-silico study page** (`/hitl-live`): chemists replay a real campaign that Bayesian optimisation gets wrong and answer the same alarm; used to measure what a chemist's intervention is worth against plain BO and against chance.
-- The benchmark, the decisions and the scripts behind both live in [`hitl_bench/`](hitl_bench/README.md); deployment notes for the study in [`deploy/`](deploy/README.md).
-
-## 🧬 Target Applications
-
-- **Chemical Synthesis Optimization**: Reaction condition screening and optimization
-- **Material Discovery**: Property optimization for new materials
-- **Process Development**: Manufacturing parameter optimization
-- **Formulation Science**: Recipe and composition optimization
-- **Analytical Method Development**: Instrument parameter optimization
-
-## 🛠 Technical Foundation
-
-### Built With
-
-- **Frontend**: Dash (Python) with Bootstrap components for professional UI
-- **Optimization Engine**: BoFire - Bayesian optimization framework for experimental design
-- **Data Processing**: Pandas for robust data manipulation
-- **Visualization**: Plotly for interactive, publication-ready charts
-- **File Handling**: OpenPyXL for Excel integration
-
-### Key Features
-
-- **Professional UI**: Modern, responsive design with intuitive navigation
-- **Real-time Updates**: Instant feedback and live data synchronization
-- **Export Capabilities**: Save results and configurations for reproducibility
-
-## 📋 Installation & Setup
-
-### Prerequisites
-
-- Python 3.10+
-- pip or conda package manager
-
-### Quick Start
-
-1. **Clone the repository**:
-
-    ```bash
     git clone https://github.com/Mathildec25/dash-chem.git
     cd dash-chem
-    ```
-
-2. **Create virtual environment** (recommended):
-
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # Windows: venv\Scripts\activate
-    ```
-
-3. **Install dependencies**:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4. **Launch the platform**:
-
-    ```bash
+    python -m venv .venv
+    .venv\Scripts\activate            # Linux / macOS: source .venv/bin/activate
+    pip install -r requirements.txt   # on Linux, drop the pywin32 and pywinpty lines
     python app.py
-    ```
 
-5. **Access the application**: Navigate to `http://localhost:8080`
+then open <http://localhost:8088>. To serve it to others, `python
+deploy/serve.py` runs the same app under a production server; see
+[`deploy/README.md`](deploy/README.md) for what to install and what to back up.
 
-## 🎮 Usage Workflow
+Projects live in `data/excel_files/` (the experiments) and `data/domains/`
+(the reaction space and the human-in-the-loop log); neither is versioned.
 
-### 1. Data Import & Management
+## Repository
 
-- Upload your Excel files through the intuitive file manager
-- Select datasets and worksheets for analysis
-- Preview and validate data structure
+| | |
+|---|---|
+| `app.py`, `pages/`, `components/`, `callbacks/` | the Dash application |
+| `utils/` | BoFire domain construction, acquisition functions, descriptors |
+| `hitl_bench/` | the human-in-the-loop study: benchmark grids, campaign engine, trigger, analysis scripts, the live page's engine, and `CLAUDE.md` with the frozen decisions |
+| `deploy/` | production entry point and deployment notes |
 
-### 2. Data Exploration
+## Citing
 
-- Use the Dashboard for detailed data inspection and editing
-- Explore relationships with interactive visualizations
-- Identify trends and patterns in your experimental data
+A manuscript describing the human-in-the-loop study is in preparation. Until
+it is out, please cite this repository.
 
-### 3. Optimization Setup
+## Contact
 
-- Create new optimization projects with descriptive names
-- Define your experimental parameters with appropriate types and ranges
-- Set optimization objectives (minimize/maximize)
-- Configure initial sampling strategy
-
-### 4. AI-Driven Experimentation
-
-- Execute initial sampling to generate starting experiments
-- Run experiments and input results
-- Receive intelligent recommendations for next experiments
-- Iterate until optimization goals are achieved
-
-### 5. Results Analysis
-
-- Visualize optimization progress with parallel coordinates plots
-- Analyze parameter-objective relationships
-- Export optimized conditions and campaign data
-
-## 📊 Example Configuration
-
-**Parameter Definition**:
-
-```json
-[
-  {
-    "name": "Temperature",
-    "type": "float",
-    "type_info": {"range": [20.0, 100.0]}
-  },
-  {
-    "name": "Catalyst_Loading", 
-    "type": "int",
-    "type_info": {"range": [1, 2, 5, 10]}
-  },
-  {
-    "name": "Solvent",
-    "type": "cat", 
-    "type_info": {"values": ["DMSO", "Water", "Methanol", "THF"]}
-  }
-]
-```
-
-**Objective Definition**:
-
-```json
-[
-  {
-    "name": "Yield",
-    "direction": "max",
-    "lower_bound": 0,
-    "upper_bound": 100
-  },
-  {
-    "name": "Cost",
-    "direction": "min",
-    "lower_bound": 0,
-    "upper_bound": 35
-  }
-]
-```
-
-## 🤝 Contributing
-
-We welcome contributions to enhance MET's capabilities:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **BoFire Team**: For providing the robust Bayesian optimization framework
-- **Dash Community**: For the excellent web application framework
-- **Scientific Community**: For inspiring the need for better experimental design tools
-
-## 📧 Contact & Support
-
-For questions, suggestions, or collaboration opportunities:
-
-- **Issues**: [GitHub Issues](https://github.com/Mathildec25/dash-chem/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Mathildec25/dash-chem/discussions)
-
----
-
-**Accelerate your experimental discoveries with intelligent design and AI-powered optimization.**
+Mathilde Croissant — mathilde.croissant@uliege.be — CiTOS, University of Liège.
