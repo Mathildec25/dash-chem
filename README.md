@@ -6,8 +6,8 @@ REACTO is a web application for the Bayesian optimisation of chemical
 reactions, written for chemists who run the experiments themselves. A campaign
 is an Excel sheet: the app proposes the next experiment, the chemist runs it
 and types in the result, and the model updates. It also carries a
-**human-in-the-loop** mechanism — an alarm that pauses a stalling campaign and
-asks the chemist what to do — together with the in-silico benchmark used to
+**human-in-the-loop** mechanism, an alarm that pauses a stalling campaign and
+asks the chemist what to do, together with the in-silico benchmark used to
 design and evaluate it.
 
 Built at CiTOS, University of Liège, on [BoFire](https://github.com/experimental-design/bofire)
@@ -15,9 +15,9 @@ Built at CiTOS, University of Liège, on [BoFire](https://github.com/experimenta
 
 ## What it does
 
-**Optimisation.** Define the reaction space — continuous, discrete or
+**Optimisation.** Define the reaction space (continuous, discrete or
 categorical parameters, with solvent and base libraries and boiling-point or
-linear constraints — and one or two objectives to maximise or minimise. REACTO
+linear constraints) and one or two objectives to maximise or minimise. REACTO
 draws an initial design (random, Latin hypercube, Sobol or constrained
 k-means), then proposes one experiment at a time with qLogNEI (one objective)
 or qLogNEHVI (two). Results, Pareto fronts and parameter effects are shown on
@@ -36,8 +36,8 @@ five experiments; each answer and its reason are recorded with the project.
 
 **In-silico study** (`/hitl-live`). The page used to measure what a chemist's
 intervention is worth: participants replay a real campaign that plain
-Bayesian optimisation gets wrong — two Suzuki–Miyaura couplings from Reizman
-et al. and the C–H arylation of Shields et al. — and answer the same alarm.
+Bayesian optimisation gets wrong (two Suzuki-Miyaura couplings from Reizman
+et al. and the C-H arylation of Shields et al.) and answer the same alarm.
 Their branch is compared, paired, with the optimiser left alone and with a
 random point injected at the same moment. The benchmark, the trigger's
 calibration, every decision and its date are in [`hitl_bench/`](hitl_bench/README.md).
@@ -76,4 +76,4 @@ it is out, please cite this repository.
 
 ## Contact
 
-Mathilde Croissant — mathilde.croissant@uliege.be — CiTOS, University of Liège.
+Mathilde Croissant, mathilde.croissant@uliege.be, CiTOS, University of Liège.
