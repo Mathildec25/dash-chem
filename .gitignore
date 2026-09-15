@@ -35,3 +35,8 @@ hitl_bench/figures/
 hitl_bench/forms/
 hitl_bench/results/arms/
 hitl_bench/forms/live/
+
+# local test projects and logs, never versioned
+excels/
+bofire_logs/
+results.txt

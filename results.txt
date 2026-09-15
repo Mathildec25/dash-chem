@@ -1,3 +1,0 @@
-YIELD = 1
-
-YIELD = 5
