@@ -37,7 +37,10 @@ The first live optimiser step after a chemist proposes a point takes about ten
 seconds and up to two gigabytes of RAM; give the VM at least 4 GB. Replayed
 steps cost nothing.
 
-HTTPS stays on the VM's existing reverse proxy, forwarding to `127.0.0.1:8088`.
+HTTPS: `deploy/nginx-reacto.conf` is the site as installed on fsc-cloud163, with the
+certificate SEGI issued in `/etc/nginx/ssl/`; `deploy/reacto.service` keeps the app
+running; `deploy/backup.sh` in cron copies the chemists' files nightly. Certbot does
+not work there (port 80 is closed to the public internet).
 
 ## Before the link goes out
 
