@@ -34,8 +34,7 @@ layout = create_hitl_live_layout      # a function: rebuilt at every page load
 def _open(session):
     if not session or not session.get("benchmark"):
         return None
-    return live.LiveCampaign(session["chemist"], session["benchmark"],
-                             session["seed"], session.get("field", ""))
+    return live.LiveCampaign(session["chemist"], session["benchmark"], session["seed"])
 
 
 # One lock per campaign, so that two ticks never step the same campaign at once.
@@ -57,41 +56,37 @@ def _lock_for(session):
     Input("hl-resume", "n_clicks"),
     Input({"type": "hl-open", "b": ALL, "s": ALL}, "n_clicks"),
     State("hl-name", "value"),
-    State("hl-field", "value"),
     State("hl-existing", "value"),
     State("hl-session", "data"),
     prevent_initial_call=True,
 )
-def identify(n_start, n_resume, opened, name, field, existing, session):
+def identify(n_start, n_resume, opened, name, existing, session):
     trigger = ctx.triggered_id
     if trigger == "hl-start":
         if not (name or "").strip():
             return dbc.Alert("Enter your name or initials.", color="warning"), no_update
-        session = {"chemist": live.slug(name), "name": name.strip(),
-                   "field": (field or "").strip(), "benchmark": None, "seed": None}
-        return campaign_list(session["chemist"], session["field"]), session
+        session = {"chemist": live.slug(name), "name": name.strip(), "benchmark": None, "seed": None}
+        return campaign_list(session["chemist"]), session
     if trigger == "hl-resume":
         if not existing:
             return dbc.Alert("Select your name in the list.", color="warning"), no_update
         who = next((p for p in live.participants() if p["chemist"] == existing), None)
         if who is None:
             return dbc.Alert("No saved campaign under that name.", color="warning"), no_update
-        session = {"chemist": who["chemist"], "name": who["chemist"], "field": who["field"],
-                   "benchmark": None, "seed": None}
-        return campaign_list(session["chemist"], session["field"]), session
+        session = {"chemist": who["chemist"], "name": who["chemist"], "benchmark": None, "seed": None}
+        return campaign_list(session["chemist"]), session
     if isinstance(trigger, dict) and trigger.get("type") == "hl-open":
         if not any(opened or []):
             return no_update, no_update
         session = dict(session or {})
         session["benchmark"], session["seed"] = trigger["b"], trigger["s"]
-        return campaign_list(session["chemist"], session.get("field", "")), session
+        return campaign_list(session["chemist"]), session
     return no_update, no_update
 
 
 # --- coming back: the browser remembers who was here and what was open ----------
 @callback(
     Output("hl-name", "value"),
-    Output("hl-field", "value"),
     Output("hl-campaigns", "children", allow_duplicate=True),
     Input("hl-session", "data"),
     prevent_initial_call="initial_duplicate",
@@ -101,9 +96,8 @@ def restore(session):
     and whenever the session changes: the name is filled back in and the list
     redrawn with each campaign's current status."""
     if not session or not session.get("chemist"):
-        return no_update, no_update, no_update
-    return (session.get("name") or session["chemist"], session.get("field", ""),
-            campaign_list(session["chemist"], session.get("field", "")))
+        return no_update, no_update
+    return session.get("name") or session["chemist"], campaign_list(session["chemist"])
 
 
 # --- drawing the campaign, and ticking it --------------------------------------

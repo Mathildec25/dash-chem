@@ -47,9 +47,7 @@ def create_hitl_live_layout():
                 html.H5("New participant", className="text-center"),
                 html.P("Three campaigns, ten to fifteen minutes each.",
                        className="text-center text-muted small mb-3"),
-                dbc.Input(id="hl-name", placeholder="Name or initials, e.g. MC", className="mb-2"),
-                dbc.Input(id="hl-field", placeholder="Field: catalysis, flow chemistry, process...",
-                          className="mb-3"),
+                dbc.Input(id="hl-name", placeholder="Name or initials, e.g. MC", className="mb-3"),
                 dbc.Button([html.I(className="bi bi-arrow-right me-2"), "Start"],
                            id="hl-start", className="w-100",
                            style={"backgroundColor": "#6366f1", "border": "none"}),
@@ -74,7 +72,7 @@ def create_hitl_live_layout():
 
         html.Div(id="hl-campaigns"),        # the list of campaigns, once named
         html.Div(id="hl-view"),             # the running campaign
-        # {chemist, name, field, benchmark, seed}; session-scoped like the other
+        # {chemist, name, benchmark, seed}; session-scoped like the other
         # REACTO stores: it survives moving between pages, not closing the tab
         dcc.Store(id="hl-session", storage_type="session"),
         dcc.Store(id="hl-tick", data=0),
@@ -82,7 +80,7 @@ def create_hitl_live_layout():
     ], style={"maxWidth": "68rem", "margin": "0 auto", "padding": "0 1rem 4rem"})
 
 
-def campaign_list(chemist, field):
+def campaign_list(chemist):
     """The three campaigns a chemist is given, with what is done."""
     items = live.campaigns_for(chemist)
     if not items:
