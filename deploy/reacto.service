@@ -1,0 +1,18 @@
+# systemd unit for REACTO. Install with:
+#   cp deploy/reacto.service /etc/systemd/system/reacto.service
+#   systemctl daemon-reload && systemctl enable --now reacto
+# Logs: journalctl -u reacto -f
+[Unit]
+Description=REACTO (Bayesian optimisation of chemical reactions)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/reacto
+Environment=PORT=8088
+Environment=PYTHONIOENCODING=utf-8
+ExecStart=/opt/reacto/.venv/bin/python deploy/serve.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
