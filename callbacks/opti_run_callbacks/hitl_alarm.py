@@ -9,15 +9,20 @@ a panel appears - the same three answers as on the HITL live page - and the
 
 Answers are appended to the project's metadata under `hitl_log`, with the
 experiment number, P* at that moment, the reason, and the time. "Stop" keeps
-the button disabled for good; "propose" leaves the user to add their own row
-(the table already has Add Row) and mark it "Chemist" in Point type.
+the button disabled for good; "propose" appends an empty row marked "Chemist"
+to the table (and to the Excel file) for the user to fill in.
 """
 
-from dash import ALL, Input, Output, State, callback, html, no_update
-import dash_bootstrap_components as dbc
+import os
 
+from dash import Input, Output, State, callback, html, no_update
+import dash_bootstrap_components as dbc
+import pandas as pd
+
+from config_path import EXCEL_FOLDER
 from domain_storage import DomainStorage
 from hitl_bench import alarm
+from utils.safe_excel import safe_excel_save
 
 RED = "#c1121f"
 
@@ -54,8 +59,8 @@ def _panel(st):
         dbc.RadioItems(id="hitl-choice", value=None, className="mb-2", options=[
             {"label": "Let the optimiser continue — ask it for the next experiment as usual",
              "value": "continue"},
-            {"label": "Propose the next experiment myself — add a row below with my conditions, "
-                      "mark it \"Chemist\" in Point type, run it and fill in the result",
+            {"label": "Propose the next experiment myself — an empty row marked \"Chemist\" is added "
+                      "to the table for my conditions; run it and fill in the result",
              "value": "chemist"},
             {"label": "Stop the campaign here", "value": "stop"},
         ]),
@@ -97,32 +102,46 @@ def show_alarm(table_data, tick, excel_file):
 @callback(
     Output("hitl-feedback", "children"),
     Output("hitl-tick", "data"),
+    Output("experiment-datatable", "data", allow_duplicate=True),
     Input("hitl-submit", "n_clicks"),
     State("hitl-choice", "value"),
     State("hitl-why", "value"),
     State("experiment-datatable", "data"),
+    State("experiment-datatable", "columns"),
     State("current-excel-file", "data"),
     State("hitl-tick", "data"),
     prevent_initial_call=True,
 )
-def answer_alarm(n_clicks, choice, why, table_data, excel_file, tick):
+def answer_alarm(n_clicks, choice, why, table_data, columns, excel_file, tick):
     if not n_clicks:
-        return no_update, no_update
+        return no_update, no_update, no_update
     project = _project(excel_file)
     if project is None:
-        return dbc.Alert("This project has no alarm.", color="secondary"), no_update
+        return dbc.Alert("This project has no alarm.", color="secondary"), no_update, no_update
     objectives, config, log = project
     st = alarm.state(table_data, objectives, log)
     if not st["pending"]:
-        return dbc.Alert("No pause is pending.", color="secondary"), no_update
+        return dbc.Alert("No pause is pending.", color="secondary"), no_update, no_update
     if choice is None:
-        return dbc.Alert("Choose one of the three options.", color="warning"), no_update
+        return dbc.Alert("Choose one of the three options.", color="warning"), no_update, no_update
     why = (why or "").strip()
     if len(why) < 3:
         return dbc.Alert("Please write why, in a sentence — it matters as much as the choice.",
-                         color="warning"), no_update
+                         color="warning"), no_update, no_update
     log = log + [alarm.log_entry(st["pending"], choice, why, st["p_star"])]
     ok, message = DomainStorage.update_metadata(excel_file, "hitl_log", log)
     if not ok:
-        return dbc.Alert("Could not save the answer: %s" % message, color="danger"), no_update
-    return dbc.Alert("Saved.", color="success", className="py-1"), (tick or 0) + 1
+        return dbc.Alert("Could not save the answer: %s" % message, color="danger"), no_update, no_update
+
+    new_data = no_update
+    if choice == "chemist":
+        # the chemist's experiment: an empty row to fill in, already marked as theirs
+        row = {c["id"]: ("Chemist" if c["id"] == "Point type" else "") for c in columns}
+        new_data = list(table_data) + [row]
+        df = pd.DataFrame(new_data)
+        saved, message = safe_excel_save(os.path.join(EXCEL_FOLDER, excel_file),
+                                         lambda path: df.to_excel(path, index=False, engine="openpyxl"))
+        if not saved:
+            return dbc.Alert("Answer saved, but the new row could not be written: %s" % message,
+                             color="danger"), (tick or 0) + 1, no_update
+    return dbc.Alert("Saved.", color="success", className="py-1"), (tick or 0) + 1, new_data
