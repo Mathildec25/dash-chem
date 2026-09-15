@@ -75,7 +75,8 @@ def enable_button(param_names, obj_names, project_name):
      State('nb-sampling-points', 'value'),
      State('solvent-config-store', 'data'),
      State('base-config-store', 'data'),
-     State('constraints-store', 'data'),],
+     State('constraints-store', 'data'),
+     State('hitl-enabled', 'value'),],
     prevent_initial_call=True
 )
 def create_domain_and_excel(n_clicks, project_name, 
@@ -86,7 +87,8 @@ def create_domain_and_excel(n_clicks, project_name,
                            obj_ids, obj_names, obj_directions, obj_lowers, obj_uppers,
                            extra_ids, extra_names,
                            sampling_method, nb_points,
-                           solvent_config, base_config, constraints_config):
+                           solvent_config, base_config, constraints_config,
+                           hitl_enabled=False):
     """
     Main callback: Create domain, generate Excel with sampling, and redirect
     """
@@ -466,6 +468,9 @@ def create_domain_and_excel(n_clicks, project_name,
                 'solvent_config': solvent_config,
                 'base_config': base_config,
                 'constraints_config': constraints_config,
+                # the study's alarm, frozen settings (see hitl_bench/alarm.py)
+                'hitl': {'enabled': bool(hitl_enabled), 'window': 5, 'threshold': 0.30,
+                         'cooldown': 5, 'min_bo_experiments': 5},
             }
         )
         

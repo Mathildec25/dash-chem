@@ -376,6 +376,34 @@ def create_opti_param_layout():
             ], md=12, className="mb-3")
         ]),
         
+        # Human in the loop: the campaign pauses and asks when it stalls
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Human in the loop", className="mb-2", style={"fontWeight": "600"}),
+                        dbc.Switch(
+                            id="hitl-enabled",
+                            label="Pause the campaign and ask me when the optimiser stalls",
+                            value=False,
+                        ),
+                        html.P(
+                            "The alarm compares the progress of the last five experiments with the "
+                            "campaign's average pace; when it drops below 30 % of that pace, the "
+                            "Run page pauses and asks whether to let the optimiser continue, "
+                            "propose the next experiment yourself, or stop. It cannot fire before "
+                            "five optimiser proposals, nor more than once every five experiments.",
+                            className="text-muted small mb-0 mt-2"),
+                    ], style={"padding": "1.25rem"})
+                ], style={
+                    "borderRadius": "12px",
+                    "border": "1px solid #e0e0e0",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.06)",
+                    "backgroundColor": "white"
+                })
+            ], md=12, className="mb-3")
+        ]),
+
         # Continue Button
         dbc.Row([
             dbc.Col([

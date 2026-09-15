@@ -364,11 +364,14 @@ def delete_column(n_clicks, col_to_delete, columns, data):
 @callback(
     Output('run-bo-btn', 'disabled'),
     Input('experiment-datatable', 'data'),
+    Input('hitl-tick', 'data'),
     State('current-excel-file', 'data'),
     prevent_initial_call=True
 )
-def validate_for_optimization(table_data, excel_file):
-    """Check if all objective values are filled to enable BO button"""
+def validate_for_optimization(table_data, hitl_tick, excel_file):
+    """Enable the BO button when every objective is filled, and - for a project
+    with the human-in-the-loop alarm - when no alert is waiting for an answer
+    and the user has not stopped the campaign."""
     
     if not table_data or not excel_file:
         return True
@@ -389,6 +392,11 @@ def validate_for_optimization(table_data, excel_file):
                     val = row[obj]
                     if val is None or val == '' or (isinstance(val, float) and np.isnan(val)):
                         return True
+        
+        from callbacks.opti_run_callbacks.hitl_alarm import alarm_state
+        st = alarm_state(excel_file, table_data)
+        if st is not None and (st["pending"] or st["stopped"]):
+            return True
         
         return False
     

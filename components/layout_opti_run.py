@@ -174,6 +174,11 @@ def create_opti_run_layout():
             ], md=12, className="mb-3")
         ]),
         
+        # Human-in-the-loop alarm: drawn by callbacks/opti_run_callbacks/hitl_alarm.py
+        # when the project has it enabled and the trigger fires
+        html.Div(id="hitl-alarm-container"),
+        dcc.Store(id="hitl-tick", data=0),
+
         # Optimization Controls
         dbc.Row([
             dbc.Col([
