@@ -67,6 +67,12 @@
 - **Results Visualization**: Track optimization progress with interactive plots
 - **Campaign Analytics**: Monitor performance and convergence
 
+#### Human in the Loop
+
+- **Stall alarm on a real campaign**: switch it on when creating a project. The Run page then watches the campaign's pace (P* = recent pace over average pace; window 5, threshold 0.30, cooldown 5, first alert after 5 optimiser proposals) and, when it stalls, pauses and asks: let the optimiser continue, propose the next experiment yourself, or stop. Every answer and its reason are kept in the project's metadata.
+- **In-silico study page** (`/hitl-live`): chemists replay a real campaign that Bayesian optimisation gets wrong and answer the same alarm; used to measure what a chemist's intervention is worth against plain BO and against chance.
+- The benchmark, the decisions and the scripts behind both live in [`hitl_bench/`](hitl_bench/README.md); deployment notes for the study in [`deploy/`](deploy/README.md).
+
 ## 🧬 Target Applications
 
 - **Chemical Synthesis Optimization**: Reaction condition screening and optimization
