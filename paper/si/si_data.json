@@ -1,0 +1,410 @@
+{
+ "levels": {
+  "[DMIPP]": {
+   "n": 29,
+   "min": 1.0,
+   "max": 6.6
+  },
+  "BuOH": {
+   "n": 50,
+   "min": 1.0,
+   "max": 10.8
+  },
+  "Cat. Loading": {
+   "n": 3,
+   "min": 5.0,
+   "max": 10.0
+  },
+  "Temperature": {
+   "n": 11,
+   "min": 25.0,
+   "max": 75.0
+  },
+  "Res. Time": {
+   "n": 5,
+   "min": 0.5,
+   "max": 2.5
+  }
+ },
+ "n_total": 239250,
+ "n_feasible": 172260,
+ "n_experiments": 19,
+ "best_init": 69.0,
+ "best_campaign": {
+  "[DMIPP]": 1.6,
+  "BuOH": 3.4,
+  "Cat. Loading": 10.0,
+  "Temperature": 65.0,
+  "Res. Time": 1.5,
+  "yield": 88.0
+ },
+ "noise_sd_std": 0.074,
+ "noise_sd_pct": 1.9,
+ "length_scales": {
+  "[DMIPP]": 0.86,
+  "BuOH": 0.53,
+  "Cat. Loading": 0.88,
+  "Temperature": 0.64,
+  "Res. Time": 0.83
+ },
+ "mu_stats": {
+  "count": 172260.0,
+  "mean": 34.3,
+  "std": 17.9,
+  "min": -3.0,
+  "25%": 21.3,
+  "50%": 31.5,
+  "75%": 46.8,
+  "max": 87.8
+ },
+ "sd_stats": {
+  "count": 172260.0,
+  "mean": 12.7,
+  "std": 3.9,
+  "min": 2.5,
+  "25%": 9.9,
+  "50%": 12.8,
+  "75%": 15.6,
+  "max": 24.3
+ },
+ "optimum": {
+  "[DMIPP]": 1.2,
+  "BuOH": 3.4,
+  "Cat. Loading": 10.0,
+  "Temperature": 65.0,
+  "Res. Time": 1.5,
+  "mu": 87.8,
+  "sd": 3.2
+ },
+ "effects": {
+  "[DMIPP]": {
+   "length scale": 0.86,
+   "effect at the optimum (% yield)": 11.6,
+   "median effect over the space (% yield)": 8.6
+  },
+  "BuOH": {
+   "length scale": 0.53,
+   "effect at the optimum (% yield)": 58.8,
+   "median effect over the space (% yield)": 12.4
+  },
+  "Cat. Loading": {
+   "length scale": 0.88,
+   "effect at the optimum (% yield)": 41.2,
+   "median effect over the space (% yield)": 25.3
+  },
+  "Temperature": {
+   "length scale": 0.64,
+   "effect at the optimum (% yield)": 55.9,
+   "median effect over the space (% yield)": 31.4
+  },
+  "Res. Time": {
+   "length scale": 0.83,
+   "effect at the optimum (% yield)": 30.7,
+   "median effect over the space (% yield)": 16.4
+  }
+ },
+ "n_favourable": 5466,
+ "frac_favourable": 3.2,
+ "obliquity": 23,
+ "components": 1,
+ "extent": {
+  "all catalyst loadings": {
+   "[DMIPP]": "1 to 4.8",
+   "BuOH": "1 to 7.6",
+   "Cat. Loading": "7.5, 10",
+   "Temperature": "50 to 75",
+   "Res. Time": "1, 1.5, 2, 2.5"
+  },
+  "Cat. Loading = 7.5": {
+   "[DMIPP]": "1 to 2.6",
+   "BuOH": "1.4 to 4.8",
+   "Cat. Loading": "7.5",
+   "Temperature": "55, 60, 65, 70, 75",
+   "Res. Time": "1.5, 2"
+  },
+  "Cat. Loading = 10": {
+   "[DMIPP]": "1 to 4.8",
+   "BuOH": "1 to 7.6",
+   "Cat. Loading": "10",
+   "Temperature": "50 to 75",
+   "Res. Time": "1, 1.5, 2, 2.5"
+  }
+ },
+ "extent_counts": {
+  "Cat. Loading = 7.5": 614,
+  "Cat. Loading = 10": 4852
+ },
+ "pca_var": [
+  0.56,
+  0.29
+ ],
+ "pca_loadings": [
+  [
+   0.8,
+   0.58,
+   0.18
+  ],
+  [
+   -0.22,
+   0.0,
+   0.97
+  ]
+ ],
+ "pca_axes": [
+  "[DMIPP]",
+  "BuOH",
+  "Temperature"
+ ],
+ "plan": [
+  {
+   "scenario": "reference (global optimum)",
+   "[DMIPP]": 1.2,
+   "BuOH": 3.4,
+   "Cat. Loading": 10.0,
+   "Temperature": 65.0,
+   "Res. Time": 1.5,
+   "predicted yield": 87.8,
+   "sd": 3.2,
+   "retained": "yes"
+  },
+  {
+   "scenario": "Cat. Loading = 5",
+   "[DMIPP]": 1.0,
+   "BuOH": 3.6,
+   "Cat. Loading": 5.0,
+   "Temperature": 65.0,
+   "Res. Time": 2.0,
+   "predicted yield": 49.3,
+   "sd": 14.8,
+   "retained": "yes"
+  },
+  {
+   "scenario": "Cat. Loading = 7.5",
+   "[DMIPP]": 1.0,
+   "BuOH": 3.2,
+   "Cat. Loading": 7.5,
+   "Temperature": 65.0,
+   "Res. Time": 2.0,
+   "predicted yield": 76.3,
+   "sd": 9.3,
+   "retained": "yes"
+  },
+  {
+   "scenario": "[DMIPP] >= 5.5 (high)",
+   "[DMIPP]": 5.6,
+   "BuOH": 7.2,
+   "Cat. Loading": 10.0,
+   "Temperature": 65.0,
+   "Res. Time": 1.5,
+   "predicted yield": 66.3,
+   "sd": 11.3,
+   "retained": "yes"
+  },
+  {
+   "scenario": "[DMIPP] 4.0-5.4 (intermediate)",
+   "[DMIPP]": 4.0,
+   "BuOH": 5.4,
+   "Cat. Loading": 10.0,
+   "Temperature": 65.0,
+   "Res. Time": 1.5,
+   "predicted yield": 76.1,
+   "sd": 8.0,
+   "retained": "yes"
+  },
+  {
+   "scenario": "Res. Time <= 1 (short)",
+   "[DMIPP]": 1.4,
+   "BuOH": 4.0,
+   "Cat. Loading": 10.0,
+   "Temperature": 65.0,
+   "Res. Time": 1.0,
+   "predicted yield": 76.1,
+   "sd": 6.1,
+   "retained": "yes"
+  },
+  {
+   "scenario": "combined (Cat <= 7.5, [DMIPP] >= 4, Res. Time <= 1)",
+   "[DMIPP]": 4.0,
+   "BuOH": 6.4,
+   "Cat. Loading": 7.5,
+   "Temperature": 70.0,
+   "Res. Time": 1.0,
+   "predicted yield": 54.8,
+   "sd": 10.8,
+   "retained": "yes"
+  }
+ ],
+ "experiments": [
+  {
+   "[DMIPP]": 2.2,
+   "BuOH": 6.0,
+   "Cat. Loading": 5.0,
+   "Temperature": 50.0,
+   "Res. Time": 1.0,
+   "Yield": 16.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 5.0,
+   "BuOH": 8.6,
+   "Cat. Loading": 7.5,
+   "Temperature": 60.0,
+   "Res. Time": 2.0,
+   "Yield": 50.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 3.4,
+   "BuOH": 7.0,
+   "Cat. Loading": 5.0,
+   "Temperature": 35.0,
+   "Res. Time": 2.0,
+   "Yield": 16.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 5.2,
+   "BuOH": 8.4,
+   "Cat. Loading": 7.5,
+   "Temperature": 40.0,
+   "Res. Time": 1.0,
+   "Yield": 19.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 5.0,
+   "BuOH": 8.4,
+   "Cat. Loading": 5.0,
+   "Temperature": 50.0,
+   "Res. Time": 1.0,
+   "Yield": 15.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 3.0,
+   "BuOH": 7.4,
+   "Cat. Loading": 10.0,
+   "Temperature": 65.0,
+   "Res. Time": 1.0,
+   "Yield": 69.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 3.4,
+   "BuOH": 7.0,
+   "Cat. Loading": 5.0,
+   "Temperature": 65.0,
+   "Res. Time": 2.0,
+   "Yield": 30.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 2.2,
+   "BuOH": 6.0,
+   "Cat. Loading": 7.5,
+   "Temperature": 60.0,
+   "Res. Time": 2.0,
+   "Yield": 61.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 3.2,
+   "BuOH": 7.4,
+   "Cat. Loading": 10.0,
+   "Temperature": 35.0,
+   "Res. Time": 2.0,
+   "Yield": 36.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 2.2,
+   "BuOH": 5.8,
+   "Cat. Loading": 7.5,
+   "Temperature": 35.0,
+   "Res. Time": 1.0,
+   "Yield": 16.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 1.8,
+   "BuOH": 6.0,
+   "Cat. Loading": 10.0,
+   "Temperature": 60.0,
+   "Res. Time": 2.0,
+   "Yield": 72.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 1.0,
+   "BuOH": 3.8,
+   "Cat. Loading": 10.0,
+   "Temperature": 70.0,
+   "Res. Time": 2.0,
+   "Yield": 85.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 1.0,
+   "BuOH": 1.0,
+   "Cat. Loading": 10.0,
+   "Temperature": 75.0,
+   "Res. Time": 2.5,
+   "Yield": 58.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 1.0,
+   "BuOH": 5.0,
+   "Cat. Loading": 10.0,
+   "Temperature": 75.0,
+   "Res. Time": 1.5,
+   "Yield": 77.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 5.0,
+   "BuOH": 5.0,
+   "Cat. Loading": 10.0,
+   "Temperature": 70.0,
+   "Res. Time": 2.5,
+   "Yield": 55.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 1.0,
+   "BuOH": 1.0,
+   "Cat. Loading": 10.0,
+   "Temperature": 70.0,
+   "Res. Time": 2.0,
+   "Yield": 73.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 1.0,
+   "BuOH": 7.6,
+   "Cat. Loading": 10.0,
+   "Temperature": 70.0,
+   "Res. Time": 1.5,
+   "Yield": 53.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 1.6,
+   "BuOH": 3.4,
+   "Cat. Loading": 10.0,
+   "Temperature": 65.0,
+   "Res. Time": 1.5,
+   "Yield": 88.0,
+   "valid_Yield": true
+  },
+  {
+   "[DMIPP]": 2.6,
+   "BuOH": 3.2,
+   "Cat. Loading": 10.0,
+   "Temperature": 70.0,
+   "Res. Time": 1.0,
+   "Yield": 68.0,
+   "valid_Yield": true
+  }
+ ]
+}
