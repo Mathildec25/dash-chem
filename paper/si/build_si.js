@@ -151,15 +151,16 @@ kids.push(h("S4. Variable influence in the fitted model", HeadingLevel.HEADING_1
 {
   const order = ["Temperature", "Cat. Loading", "Res. Time", "BuOH", "[DMIPP]"];
   kids.push(table(
-    ["Variable", "Length scale", "Effect at the optimum\n(percentage points)", "Median effect over the space\n(percentage points)"],
-    order.map((k) => [NAME2[k], f1(D.effects[k]["length scale"]),
+    ["Variable", "Length\nscale", "Effect at the\noptimum (pts)", "Median effect over\nthe space (pts)", "Predicted trend over\nthe range"],
+    order.map((k) => [NAME2[k], f2(D.effects[k]["length scale"]),
                       f1(D.effects[k]["effect at the optimum (% yield)"]),
-                      f1(D.effects[k]["median effect over the space (% yield)"])]),
-    [2000, 1700, 2600, 2726]));
-  kids.push(caption("Table S3", "Quantitative basis for the trends reported in the main text, ordered by median effect. Length scales are on the unit cube and comparable to one another."));
+                      f1(D.effects[k]["median effect over the space (% yield)"]),
+                      D.trend[k]]),
+    [1750, 1200, 1800, 1900, 2376]));
+  kids.push(caption("Table S3", "Quantitative basis for the trends reported in the main text, ordered by median effect. Length scales are on the unit cube and comparable to one another; the trend is the shape of the median predicted response across each variable's levels."));
 }
 kids.push(body(
-  "Length scales report how sharply the predicted yield turns over along each variable, not how much it moves: a long, steady slope has a long length scale and a large effect. Effects were therefore also measured directly, by sweeping each variable across its levels with the others held at the predicted optimum, and again over 200 feasible backgrounds drawn at random (median reported). [BuOH] has the shortest length scale of the five yet only the fourth largest median effect — it dominates near the optimum, where it moves the predicted yield by " + f1(D.effects["BuOH"]["effect at the optimum (% yield)"]) + " percentage points, and matters little elsewhere."));
+  "Length scales report how sharply the predicted yield turns over along each variable, not how much it moves: a long, steady slope has a long length scale and a large effect. Effects were therefore also measured directly, by sweeping each variable across its levels with the others held at the predicted optimum, and again over 200 feasible backgrounds drawn at random (median reported). [BuOH] has the shortest length scale of the five yet only the fourth largest median effect — it dominates near the optimum, where it moves the predicted yield by " + f1(D.effects["BuOH"]["effect at the optimum (% yield)"]) + " percentage points, and matters little elsewhere. Only the tBuOK loading rises monotonically across its range; the other four turn over inside the domain. The residence time in particular predicts a maximum near 1.5–2 min, the median predicted yield running " + D.profile["Res. Time"].median_mu.map(f1).join(", ") + " % across 0.5, 1.0, 1.5, 2.0 and 2.5 min, so short residence times are predicted to be worse rather than better."));
 
 // ---- S5 ----
 kids.push(new Paragraph({ children: [new PageBreak()] }));
