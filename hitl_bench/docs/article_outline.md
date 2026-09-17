@@ -38,9 +38,11 @@ campaign (it does not; it books an appointment).
 **[DECIDED] Journal: Digital Discovery (RSC).** Three consequences, and they
 shape everything below:
 
-1. **Results and discussion are one section.** Every subsection closes on its
-   own interpretation; there is no separate discussion to park anything in.
-   Limitations move to a final subsection, 2.9.
+1. **Results and discussion are separate**, which the journal allows and which
+   this paper needs: three layers of evidence — simulation, replayed chemists,
+   one laboratory campaign — and the claim that matters is about how they
+   relate. That argument belongs to no single subsection, so it needs a section
+   of its own.
 2. **Conclusions are short and introduce nothing new.**
 3. **A data availability statement is expected, and this journal reads it.**
    The repository, the grids, the participants' anonymised answers and the
@@ -75,13 +77,24 @@ whether the paper carries three reactions or one.**
 
 ## Manuscript skeleton
 
-RSC structure for Digital Discovery: **1 Introduction · 2 Results and
-discussion · 3 Conclusions · 4 Methods · 5 Data availability**, then conflicts,
-acknowledgements, references, SI.
+Structure: **1 Introduction · 2 Results · 3 Discussion · 4 Conclusions ·
+5 Methods · 6 Data availability**, then conflicts, acknowledgements,
+references, SI. Check the author guidelines for whether Methods are expected
+before Results; nothing here depends on it.
 
-Because results and discussion are one section, each subsection below must end
-on a sentence that says what its number *means*, not only what it is. A
-subsection that stops at the measurement is unfinished.
+**The boundary, and it is the whole risk of separating.** A results section
+that is a catalogue and a discussion that repeats it is the standard failure of
+this format. The rule:
+
+- **Results** give the measurement, the one clause that makes it readable, and
+  the consequence that motivates the next subsection. Narrative glue is allowed;
+  interpretation that spans subsections is not.
+- **Discussion** carries only what no single result can say on its own.
+
+If a paragraph of the discussion could be moved into one results subsection
+without losing anything, it belongs there.
+
+The results are grouped in three blocks, one per layer of evidence.
 
 
 ### 1. Introduction
@@ -89,7 +102,7 @@ subsection that stops at the measurement is unfinished.
 1. Bayesian optimisation is now standard for reaction conditions, and works.
 2. It fails in a way that is invisible from the inside: a good catalyst tried
    once under bad conditions is written off, and the campaign spends its budget
-   elsewhere. **[MEASURED]** how often, section 2.1.
+   elsewhere. **[MEASURED]** how often, section 2.1.1.
 3. Existing human-in-the-loop work in chemistry is mostly about *what* the
    human supplies (priors, constraints, preferences). The question here is
    different and simpler: **when should the algorithm ask, and what should it
@@ -102,7 +115,11 @@ subsection that stops at the measurement is unfinished.
    vehicle. My preference: the vehicle, with the tool described in Methods and
    its own short paper later.
 
-### 2.1 Bayesian optimisation is trapped by a minority of starting designs
+### 2. Results
+
+#### 2.1 In silico: how the optimiser fails, and when to call
+
+##### 2.1.1 A minority of starting designs traps the optimiser
 
 **Claim.** The failure is frequent, and it is a chemistry failure rather than a
 numerical one.
@@ -121,7 +138,7 @@ submission** and use one count everywhere.
 
 *Figure 2.*
 
-### 2.2 The trap is set by the initial design, not by the optimiser's randomness
+##### 2.1.2 The trap is set by the initial design, not by the optimiser's randomness
 
 **Claim.** A trapped campaign owes its outcome to its ten starting points; the
 optimiser's own stochasticity contributes nothing.
@@ -137,7 +154,7 @@ start, so a single chemist's branch is comparable with a single control.
 
 *Source:* `CLAUDE.md` § The trap is in the initial design.
 
-### 2.3 No signal computable from the campaign itself can diagnose the trap
+##### 2.1.3 No signal computable from the campaign itself can diagnose the trap
 
 **Claim.** From the inside, a trapped campaign and a healthy one that is
 converging look identical.
@@ -158,7 +175,7 @@ the result.
 
 *Source:* `CLAUDE.md` § Signals tested and rejected; § What the checkpoint is for.
 
-### 2.4 Calibrating the call
+##### 2.1.4 Calibrating the call
 
 **Claim.** One dimensionless signal, three settings, all fixed by measurement.
 
@@ -186,7 +203,7 @@ is accepted by design.
 *Source:* `CLAUDE.md` § The trigger, as decided; § The frozen settings.
 *Figure 3.*
 
-### 2.5 Three answers, and why the third one has to be human
+##### 2.1.5 Three answers, and why the third one has to be human
 
 **Claim.** At each call the chemist may let the optimiser continue, propose the
 experiment themselves, or stop the campaign. Stopping cannot be delegated to a
@@ -205,7 +222,7 @@ detail.
 
 *Source:* `CLAUDE.md` § What the checkpoint is for (owner's decision, 9 Sept).
 
-### 2.6 What chance achieves at the call — the null model
+##### 2.1.6 What chance achieves at the call — the null model
 
 **Claim.** An intervention that carries no knowledge achieves almost nothing,
 so anything the chemists gain above it is knowledge rather than disturbance.
@@ -228,7 +245,7 @@ than against a mean.
 *Source:* `docs/nuit_du_10_septembre.md`; `results/arms_report_*.md`.
 *Figure 4.*
 
-### 2.7 What chemists do when they are called
+#### 2.2 Chemists at the checkpoint
 
 **Claim.** **[TO MEASURE]** — the analysis is pre-specified below and must not
 be chosen after seeing the data.
@@ -267,7 +284,7 @@ answers and a written reason, both required by the page.
 
 *Figure 5.*
 
-### 2.8 In the laboratory: the flavone synthesis
+#### 2.3 In the laboratory: the flavone synthesis
 
 **Claim.** The same alarm, in a real campaign, calls at the two moments a
 chemist would want to be called; the optimiser alone converged onto the
@@ -331,49 +348,86 @@ and cannot question it; the chemist can.
 
 *Figure 6.*
 
-### 2.9 The blind validation, and what this study cannot claim
+#### 2.4 The blind validation
 
-**[DECIDE]** Reizman cases III and IV were reserved from the start and never
-used for any choice. The trigger is applied to them once, at the end, and the
-number is reported whatever it says. My reading: it belongs in this paper, as
-one paragraph here and one SI table — a pre-registered hold-out is rare enough
-in this literature to be worth the space.
+**[DECIDE] / [TO MEASURE]** Reizman cases III and IV were reserved from the
+start and never used for any choice. The trigger is applied to them once, at the
+end, and the number is reported whatever it says. My reading: it belongs in this
+paper, as one short subsection here and one SI table — a pre-registered hold-out
+is rare enough in this literature to be worth the space.
 
-**Limitations, in the paper rather than left to a referee.** With results and
-discussion merged there is no later section to put them in, so they close the
-section:
+---
 
-- five participants; the human layer is a case study on trapped designs,
-  weighted back by a measured base rate, not an unbiased estimate of an average
-  benefit — and the null model's own estimate moved from +4.0 to +1.3 as its
-  sample grew, which is the honest warning about small samples;
+### 3. Discussion
+
+Only what no single result can say on its own. Nothing here restates a number
+from section 2; it may name one once, to build on it.
+
+#### 3.1 One alarm, two kinds of trap
+
+In silico the trap is a catalyst written off on a single bad measurement. In the
+laboratory it is a convergence onto the domain's own boundary under the pressure
+of a second objective — 18 of the last 21 experiments pressed against the
+temperature ceiling, 14 at the shortest permitted time, iodine at its upper
+bound. Different mechanisms, one signal, because the signal reads pace and not
+chemistry. **This is the argument the three layers exist to make**, and it can
+only be made with both on the table.
+
+#### 3.2 Calling rather than diagnosing, as a design position
+
+Generalise 2.1.3 and 2.1.4: a detector was attempted and abandoned on
+measurement, the asymmetry pays for calling always, and what that implies for
+anyone building an optimiser meant to run unattended.
+
+#### 3.3 What the chemists knew that the campaign could not
+
+**[TO MEASURE]** The written reasons, across the three replayed campaigns and
+the laboratory one, read against what each participant had actually been shown
+at that moment. The richest material in the paper, and the only place the three
+reactions can be compared with each other.
+
+#### 3.4 The constraints an optimiser inherits
+
+The boiling-point constraint capped DMSO at 184 °C and the campaign spent its
+last eighteen experiments against that ceiling. A constraint is a chemist's
+judgement frozen at project creation: prudent at atmospheric pressure, arguable
+in a pressurised flow reactor. The optimiser inherits it and cannot question it;
+the chemist called at the checkpoint can. This generalises well beyond flavone
+and is worth a paragraph.
+
+#### 3.5 What this means for someone starting a campaign tomorrow
+
+The practical paragraph this readership looks for: how often to expect a trapped
+start, what a stall looks like, what the call costs, and what it is reasonable
+to ask a chemist to decide.
+
+#### 3.6 Limitations
+
+- five participants; the human layer is a case study on trapped designs weighted
+  back by a measured base rate, not an unbiased estimate of an average benefit —
+  and the null model's own estimate moved from +4.0 to +1.3 as its sample grew,
+  which is the honest warning about small samples;
 - the arylation's substrate is not disclosed by its source, so participants
   reason on ligands, bases and solvents only;
-- replayed campaigns are not laboratory work, which is exactly what 2.8 is for;
+- replayed campaigns are not laboratory work, which is exactly what 2.3 is for;
 - one laboratory reaction, one operator, one campaign per arm;
-- the trigger fires on healthy campaigns too, by design — it books an
-  appointment, it does not diagnose.
+- the trigger fires on healthy campaigns too, by design.
 
-**Where the rest of the old discussion went.** Merging results and discussion
-means each subsection ends on its own interpretation; nothing is deferred:
+#### 3.7 Outlook
 
-| Point | Now closes |
-|---|---|
-| The alarm calls rather than diagnoses, and the asymmetry that pays for it | 2.3 |
-| The cost of a false alarm: one experiment in thirty | 2.4 |
-| Why stopping cannot be a rule | 2.5 |
-| Small samples flatter | 2.6 |
-| What the chemists actually noticed, read against what they were shown — the richest material in the paper | 2.7 |
-| Two kinds of trap, one alarm; the boiling-point constraint as a chemist's decision | 2.8 |
+What a study with thirty participants, or with the alarm running live in several
+laboratories, would settle that this one cannot.
 
-### 3. Conclusions
+---
+
+### 4. Conclusions
 
 Three sentences, no new claim. What was measured, what it licenses, what it
 does not.
 
 ---
 
-## Methods — inventory (manuscript section 4)
+## Methods — inventory (manuscript section 5)
 
 - Benchmarks and provenance: four Reizman Suzuki grids (5,670 conditions each)
   and the C–H arylation of Shields et al. (1,728 conditions, yield against
@@ -400,7 +454,7 @@ does not.
   **[DECIDE]** whether ULiège requires anything formal for five colleagues
   answering an anonymised questionnaire-like task.
 
-## Data availability (manuscript section 5)
+## Data availability (manuscript section 6)
 
 Digital Discovery expects this and its readers use it. Draft it early, it is
 also a checklist of what must be public by submission:
@@ -441,13 +495,13 @@ also a checklist of what must be public by submission:
 | # | Decision | Blocks |
 |---|---|---|
 | 1 | ~~Target journal~~ **settled: Digital Discovery** | — |
-| 2 | Three reactions or one — i.e. whether to compute the two Suzuki random arms | figure 4, section 2.6 |
-| 3 | Participants and deadline | section 2.7 |
-| 4 | Minimum number of participants for 2.7 to be a result | section 2.7 |
-| 5 | How a stopped campaign is compared | sections 2.5, 2.7 |
-| 6 | Flavone: the primary metric, pre-specified | section 2.8 |
-| 7 | Flavone: who is the chemist in the loop, and blind to what | section 2.8 |
-| 8 | Whether cases III and IV are reported here | section 2.9 |
+| 2 | Three reactions or one — i.e. whether to compute the two Suzuki random arms | figure 4, section 2.1.6 |
+| 3 | Participants and deadline | section 2.2 |
+| 4 | Minimum number of participants for 2.2 to be a result | section 2.2 |
+| 5 | How a stopped campaign is compared | sections 2.1.5, 2.2 |
+| 6 | Flavone: the primary metric, pre-specified | section 2.3 |
+| 7 | Flavone: who is the chemist in the loop, and blind to what | section 2.3 |
+| 8 | Whether cases III and IV are reported here | section 2.4 |
 | 9 | REACTO: contribution or vehicle | introduction, methods |
 
 ## Handover to the writing assistant
@@ -466,17 +520,17 @@ announce results, and two of them do not exist yet.
 
 | | Section | Why now |
 |---|---|---|
-| 1 | Methods (4) | fully writable, no data dependency, long and mechanical |
-| 2 | 2.1 to 2.6 | every number measured and final; the bulk of the paper |
-| 3 | 2.8, the BO-alone half | the flavone campaign exists; the corner collapse is a fact |
-| 4 | Data availability (5) | early, because it is a checklist as much as a statement |
+| 1 | Methods (5) | fully writable, no data dependency, long and mechanical |
+| 2 | 2.1.1 to 2.1.6 | every number measured and final; the bulk of the paper |
+| 3 | 2.3, the BO-alone half | the flavone campaign exists; the corner collapse is a fact |
+| 4 | Data availability (6) | early, because it is a checklist as much as a statement |
 | 5 | Captions of figures 2, 3, 4, 6 | a caption locks down what a figure is allowed to say |
-| 6 | 2.9, the limitations | writable now, and it disciplines the rest |
+| 6 | 3.6, the limitations, and 3.1, 3.2, 3.4 | writable now, and they discipline the rest |
 
-Left until the data exist: 2.7, the HITL half of 2.8, the parts of each
-subsection that interpret them, Conclusions, Introduction, abstract.
+Left until the data exist: 2.2, the HITL half of 2.3, 2.4, discussion 3.3
+and 3.5, Conclusions, Introduction, abstract.
 
-One conversation per section. Start each with: "Draft section 2.4 of the
+One conversation per section. Start each with: "Draft section 2.1.4 of the
 outline. That section only."
 
 Ask it to draft section by section, never to supply a number that is not in
