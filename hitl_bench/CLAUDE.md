@@ -436,7 +436,7 @@ optimiser.
 
 The arylation result could have been an artefact of its tied acquisition
 maxima, which make the BO tail nearly deterministic given the data. So the same
-test was run on the assigned Suzuki campaign, case ii seed 3, where the
+test was run on the Suzuki campaign then assigned, case ii seed 3, where the
 acquisition maximum is always unique. Initial design of seed 3 held fixed
 (PCy3 = L4 drawn twice in it, the front lying on L4 alone); every source of BO
 randomness moved with the acquisition seed (`torch.manual_seed` re-seeded
@@ -466,11 +466,21 @@ The frame that follows from the measurement:
    alert: plain BO (deterministic given the design, as just shown), a random
    point at the alert (the null, already measured at about nothing), and a
    chemist at the alert (the live page). `forms/live/assignment.json` already
-   lists exactly such designs: case i seed 2, case ii seed 3, arylation seed 2.
+   lists exactly such designs: case i seed 8, case ii seed 12, arylation seed 2.
 3. The question the study answers is therefore precise: does a chemist, called
    between experiments 15 and 22, get the campaign out of a trap that neither
    the optimiser nor a random point leaves? Not "does HITL help on average",
    which the sample size cannot carry.
+
+**The Suzuki seeds named above were reassigned the same day (note of 17
+September).** When this frame was written `assignment.json` held case i seed 2,
+case ii seed 3 and arylation seed 2. `seed_choice.py` was then run on the full
+twenty controls of each benchmark and the two Suzuki entries moved to case i
+seed 8 and case ii seed 12; `assignment.json` is the reference, and point 2 has
+been corrected to match it. The acquisition-seed measurement above stays
+reported on the campaign it was actually run on, case ii seed 3, because what it
+establishes - that the outcome is fixed by the initial design and not by the
+optimiser's randomness - does not depend on which trapped design is assigned.
 
 Stated alongside, so the case study is not mistaken for an unbiased estimate:
 the trigger also fires on healthy campaigns (snar, case ii seed 4), and that is
